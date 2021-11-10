@@ -11,6 +11,7 @@ from os.path import join,  exists
 from subprocess import Popen
 import tkinter as tk
 import pyDIFRATE as DR
+from pyDIFRATE.data.load_nmr import load_NMR
 from MolSystem import *
 from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg, NavigationToolbar2Tk)
@@ -94,22 +95,23 @@ class DetectorFrame(SubFrame):
     name="Detectors"
     def create(self):
         #def plot_het():
-        h = HETs_CH3("HETs")
-        e = h.get_nmr_experiment(self.parent.nmr_file.split(".")[-2].split("/")[-1])
-        e.del_data_pt(range(12, 17))
+        h = load_NMR(self.parent.nmr_file)
+        #h.load(filename=self.parent.nmr_file)#get_nmr_experiment(self.parent.nmr_file.split(".")[-2].split("/")[-1])
+        h.del_data_pt(range(12, 17))
 
-        e.label = [lab.replace("Val,", ",") for lab in e.label]
-        e.label = [lab.replace("Leu,", ",") for lab in e.label]
+        h.label = [lab.replace("Val,", ",") for lab in h.label]
+        h.label = [lab.replace("Leu,", ",") for lab in h.label]
         resids = [81, 84, 90, 92, 94, 97, 100, 101, 117, 128, 129, 130]
-        h.molecule.load_structure_from_file_path(n=0)
-        h.molecule.select_atoms(Nuc="ivlat", resids=resids, segids="B")
-        h.molecule.sel1 = h.molecule.sel1[::3]
-        h.molecule.sel2 = h.molecule.sel2[::3]
+        #h.molecule.load_structure_from_file_path(n=0)
+        #h.molecule.select_atoms(Nuc="ivlat", resids=resids, segids="B")
+        #h.molecule.sel1 = h.molecule.sel1[::3]
+        #h.molecule.sel2 = h.molecule.sel2[::3]
 
-        e.detect.r_auto(5, inclS2=True, Normalization='MP')
+        h.detect.r_auto(5, inclS2=True, Normalization='MP')
 
-        e = e.fit()
-        fig, _, _ = e.plot_rho(style="bar", rho_index=range(4), errorbars=True)
+        e = h.fit()
+        fig = plt.figure()
+        e.plot_rho(fig=fig,style="bar", rho_index=range(4), errorbars=True)
         fig.set_size_inches(5,4)
         fig.tight_layout()
 

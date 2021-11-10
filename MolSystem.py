@@ -10,9 +10,7 @@ sys.path.append(join(dirname(__file__),"difrate"))
 #todo the imports are not working properly right now
 
 import MDAnalysis as MDA
-from pyDIFRATE.Struct.structure import *
-#import pyDIFRATE.
-#from pyDIFRATE.data_class import *
+import pyDIFRATE as DR
 import shutil
 import matplotlib.pyplot as plt
 import numpy as np
@@ -49,7 +47,7 @@ class MolSystem():
         they will be immediately loaded. Besides a new experiment folder will be created '''
         self.name = name
         self.folder = None
-        self.molecule = Molecule(self)
+        self.molecule = DR.molecule()
         #dict for DataCont() Objects to process NMR data
         self.nmr_raw_data = {}
         self.nmr_selected = None
@@ -70,7 +68,7 @@ class MolSystem():
         assert len(self.name),"Please give your Experiment a name"
         #check these function, be careful by passing filename=filename by kwargs (not working for some reason)
         if self.molecule is None:
-            self.molecule = Molecule()
+            self.molecule = DR.molecule()
         self.molecule.load_struct(filename)
         print("Structure data loaded from",filename)
         shutil.copy(filename,join(subs_fold,self.name,filename))
@@ -145,7 +143,7 @@ class MolSystem():
             self.molecule.tensor_frame(Type=frame_A, Nuc=Nuc,segids= 'B')
 
             self.molecule.new_frame(Type=frame_B, Nuc=Nuc,segids = 'B')
-            self.md_data[self.xtc_fn] = difrate.eval_fr.frames2data(self.molecule, n=-1 if not 'n_frames' in kwargs else kwargs['n_frames'])
+            self.md_data[self.xtc_fn] = DR.eval_fr.frames2data(self.molecule, n=-1 if not 'n_frames' in kwargs else kwargs['n_frames'])
             self.molecule.select_atoms(Nuc=Nuc, resids=fit.label)
             md = self.md_data[self.xtc_fn][motion]
             md.detect.r_auto(target=targ, n=8)
@@ -172,7 +170,7 @@ class MolSystem():
         can use the usual one for txt files
         and the matlab-function for mat files'''
         name = filename.rsplit(".")[0].rsplit("/")[-1]
-        self.nmr_raw_data[name] = DataCont(self)
+        self.nmr_raw_data[name] = DR.data(self)
 
         file_ext = filename.rsplit(".")
         if file_ext[1] == "txt":
@@ -188,7 +186,7 @@ class MolSystem():
         and n_sparse = -1, the data is stored as float16 (to reduce disk-space, if you want to change go to
         submodules.__init__.Defauults)'''
         #need to reload the molecule object
-        self.molecule = Molecule(self)
+        self.molecule = DR.molecule(self)
         frame_A = kwargs["frame_A"] if "frame_A" in kwargs else "bond"
         frame_B = kwargs["frame_B"] if "frame_B" in kwargs else "chain_rotate"
         Nuc = kwargs["Nuc"] if "Nuc" in kwargs else "ivla"
@@ -247,16 +245,16 @@ class MolSystem():
             for key in dat.keys():
                 if not 'data' in key:
                     continue  #exclude the keys that not contain the data
-                d = DataCont(self)
+                d = DR.data(self)
                 for key2 in dat[key].keys():
                     setattr(d,key2,dat[key][key2])
-                d.sens = Ct(d,t=dat['data0']['tpoints'])
+                d.sens = DR.sens.Ct(d,t=dat['data0']['tpoints'])
                 d.new_detect()
                 data.append(d)
 
             self.md_data[self.xtc_fn] = data
 
-
+        '''
         if calc:
             if tf or n_sparse>0:
                 dump = False
@@ -309,7 +307,7 @@ class MolSystem():
             dat.update(data1=data1)
             dat.update(data2=data2)
             dat.update(data3=data3)
-            np.save(npy,dat)
+            np.save(npy,dat)'''
         return self.md_data[self.xtc_fn]
 
     def create_new_experiment(self,name):
@@ -571,7 +569,7 @@ class HETs_CH3(MolSystem):
         and n_sparse = -1, the data is stored as float16 (to reduce disk-space, if you want to change go to
         submodules.__init__.Defauults)'''
         #need to reload the molecule object
-        self.molecule = Molecule(self)
+        self.molecule = DR.molecule(self)
         #if 'pdb' in kwargs:
         #  self.molecule.load_structure_from_file_path(kwargs['pdb'])
         #else:
@@ -625,7 +623,7 @@ class HETs_CH3(MolSystem):
             npy+= "meCC"
 
         if os.path.exists(npy) and not reload:
-            md_noopt = load_DIFRATE('HETs' + self.xtc_fn)
+            md_noopt = DR.load_DIFRATE('HETs' + self.xtc_fn)
             mol = self.molecule
             nr = int(len(mol.mda_object.residues) / 71)
             mol.mda_object.residues.resids = np.atleast_2d(np.arange(219, 290)).repeat(nr, axis=0).reshape(nr * 71)
@@ -635,7 +633,7 @@ class HETs_CH3(MolSystem):
         if calc:
             if tf or n_sparse>0:
                 dump = False
-            self.md_data[self.xtc_fn] = difrate.eval_fr.frames2data(self.molecule,
+            self.md_data[self.xtc_fn] = DR.Struct.eval_fr.frames2data(self.molecule,
                                                                     n=n_sparse, tf=tf)  # to load_md
             #mol = self.molecule
             #mol.mda_object.residues.resids = np.array(
