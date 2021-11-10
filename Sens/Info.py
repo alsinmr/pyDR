@@ -16,7 +16,7 @@ class Info():
     """
     def __init__(self,**kwargs):
         self.keys=[]
-        self.__values=None
+        self.__values=np.zeros([0,0],dtype=object)
         self.N=0
         self.__edited=False
         
@@ -32,7 +32,7 @@ class Info():
         (Info.N, where first entry into info can have any length)
         """
         assert not(isinstance(key,int)),"Parameters should not be of type 'int'"
-        if self.__values is None:
+        if self.__values.size==0:
             if value is None:
                 self.keys.append(key)
                 self.__values=np.zeros([1,0],dtype=object)
@@ -60,10 +60,13 @@ class Info():
         new=np.array([None for _ in range(len(self.keys))])
         for key,value in kwargs.items():
             new[self.keys.index(key)]=value
-        self.__values=np.concatenate((self.__values,np.array([new]).T),axis=1)
+        if self.__values.size==0:
+            self.__values=np.array([new]).T
+        else:
+            self.__values=np.concatenate((self.__values,np.array([new]).T),axis=1)
         self.__edited=True
         self.N+=1
-        
+    
     def __getitem__(self,index):
         """
         Returns either a given parameter (provide the key), a given experiment
@@ -76,7 +79,7 @@ class Info():
             "Request either a given parameter (provide the key), a given experiment (provide the index as int), or provide the key,index pair"
             return self.__values[self.keys.index(x[0]),x[1]]
         else:
-            if isinstance(x,int):
+            if isinstance(x,int) or (hasattr(x,'dtype') and np.issubdtype(x.dtype,int)):
                 assert x<self.N,"Index must be less than the number of experiments ({0})".format(self.N)
                 return {key:value for key,value in zip(self.keys,self.__values[:,x])}
             elif isinstance(x,slice):
@@ -86,6 +89,8 @@ class Info():
                 for k in range(start,stop,step):
                     out.new_exper(**self[k])
                 return out
+            elif x in self.keys:
+                return self.__values[self.keys.index(x)]
             elif hasattr(x,'__len__'):
                 out=Info()
                 if np.array(x).dtype=='bool':
@@ -95,17 +100,18 @@ class Info():
                     assert isinstance(x0,int),"Indices must be integers or boolean"
                     out.new_exper(**self[x0])
                     
-                return out
-                    
+                return out                   
             else:
-                assert x in self.keys,"Unknown parameter"
-                return self.__values[self.keys.index(x)]
+                assert 0,"Unknown parameter"
+                
     def __setitem__(self,index,value):
         """
         Sets an item in the Info object. Provide a parameter name, key, and value
         """
+        print('udpated')
         assert isinstance(index,tuple),"Both the parameter name and index must be provided"
         assert index[0] in self.keys,"Unknown parameter"
+        print(index[1])
         assert index[1]<self.N,"Index must be less than the number of experiments ({0})".format(self.N)
         self.__values[self.keys.index(index[0]),index[1]]=value
         self.__edited=True
@@ -152,6 +158,7 @@ class Info():
         the sensitivities to be re-calculated.
         """
         return self.__edited
+    
     def updated(self):
         """
         Call self.updated if the sensitivities have been updated, thus setting
@@ -159,6 +166,19 @@ class Info():
         """
         self.__edited=False
         
+    def del_exp(self,index):
+        """
+        Delete one or more experiments from info
+        """
+        
+        if hasattr(index,'__len__'):
+            for i in np.sort(index)[::-1]:
+                self.del_exp(i)
+        else:
+            assert index<self.N,"Index must be less than the number of experiments ({0})".format(self.N)
+            self.__values=np.concatenate((self.__values[:,:index],self.__values[:,index+1:]),axis=1)
+            self.N+=-1
+                
             
             
         

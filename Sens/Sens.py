@@ -7,7 +7,7 @@ Created on Tue Nov  9 16:30:05 2021
 """
 
 import numpy as np
-from Info import Info
+from pyDR.Sens.Info import Info
 import matplotlib.pyplot as plt
 
 class Sens():

@@ -7,3 +7,4 @@ Created on Tue Nov  9 15:04:00 2021
 """
 
 from pyDR.Sens.Info import Info
+from pyDR.Sens.Sens import Sens

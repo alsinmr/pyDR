@@ -10,6 +10,8 @@ from os import system, listdir, mkdir
 from os.path import join,  exists
 from subprocess import Popen
 import tkinter as tk
+import sys
+sys.path.append('/Users/albertsmith/Documents/GitHub')
 import pyDIFRATE as DR
 from MolSystem import *
 from matplotlib.backends.backend_tkagg import (
@@ -79,7 +81,7 @@ class PDBs(SubFrame):
     name="PDBS"
     def create(self):
         def open_chimera(f):
-            Popen(["chimerax","{}".format(join("pdbs",f))])
+            Popen(["/Applications/ChimeraX-1.0.app/Contents/MacOS/ChimeraX","{}".format(join("pdbs",f))])
         if not exists("pdbs"):
             mkdir("pdbs")
         pdbs = [f for f in listdir("pdbs")]
