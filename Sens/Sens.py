@@ -8,6 +8,7 @@ Created on Tue Nov  9 16:30:05 2021
 
 import numpy as np
 from pyDR.Sens.Info import Info
+from pyDR.misc.disp_tools import set_plot_attr,NiceStr
 import matplotlib.pyplot as plt
 
 class Sens():
@@ -59,7 +60,7 @@ class Sens():
     @property
     def rhoz(self):
         if self.info.edited or self.__rho.shape[0]==0:
-            self.__rho=self.__rhoz(self.info)
+            self.__rho=self._rhoz()
         return self.__rho.copy()
     
     @property
@@ -81,7 +82,7 @@ class Sens():
             return self.__bonds[index]
 
 
-    def plot_rhoz(self,index=None,ax=None,bond=None,norm=False,mdl_num=None,**kwargs):
+    def plot_rhoz(self,index=None,ax=None,norm=False,**kwargs):
         """
         Plots the sensitivities of the data object.
         """
@@ -91,9 +92,9 @@ class Sens():
                 is not None else np.ones(self.rhoz.shape[0],dtype=bool)
         index=np.array(index)
             
-        assert np.issubdtype(index.dtype,int) or np.issubdtype(index,bool),"index must be integer or boolean"
+        assert np.issubdtype(index.dtype,int) or np.issubdtype(index.dtype,bool),"index must be integer or boolean"
     
-        a=self.rhoz[index] #Get sensitivities
+        a=self.rhoz[index].T #Get sensitivities
         
         if norm:
             norm_vec=np.max(np.abs(a),axis=0)
@@ -103,19 +104,23 @@ class Sens():
             fig=plt.figure()
             ax=fig.add_subplot(111)
 
-        hdl=ax.plot(self.z(),a)
+        hdl=ax.plot(self.z,a)
 
+        set_plot_attr(hdl,**kwargs)
         
-        _set_plot_attr(hdl,**kwargs)
         
-            
-        ax.set_xlabel(r'$\log_{10}(\tau$ / s)')
-        if norm:
-            ax.set_ylabel(r'$R$ (normalized)')
-        else:
-            ax.set_ylabel(r'$R$ / s$^{-1}$')
-        ax.set_xlim(sens.z()[[0,-1]])
-        ax.set_title('Sensitivity (no model)')
+        ax.set_xlim(self.z[[0,-1]])
+        ticks=ax.get_xticks()
+        nlbls=4
+        step=int(len(ticks)/(nlbls-1))
+        start=0 if step*nlbls==len(ticks) else 1
+        lbl_str=NiceStr('{:q1}',unit='s')
+        ticklabels=['' for _ in range(len(ticks))]
+        for k in range(start,len(ticks),step):ticklabels[k]=lbl_str.format(10**ticks[k])
+        ax.set_xticklabels(ticklabels)
+        ax.set_xlabel(r'$\tau_\mathrm{c}$')
         
-    #    fig.show()
+        ax.set_ylabel(self.plot_pars['ylabel'])
+        
+        
         return hdl   

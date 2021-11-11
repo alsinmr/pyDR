@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Nov 10 09:52:43 2021
 
-@author: albertsmith
-"""
 
+#%% Init file for all of pyDR
 from pyDR import Sens
 from pyDR.misc import tools

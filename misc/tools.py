@@ -53,8 +53,7 @@ class NucInfo(Info):
             Nuc=Nuc[0].upper()+Nuc[1].lower()
         else:
             Nuc=Nuc[0]
-            
-            
+                        
         ftd=self[self['Nuc']==Nuc]  #Filtered by nucleus input
         
         "Now select which nucleus to return"
@@ -67,10 +66,36 @@ class NucInfo(Info):
             
         ftd=ftd[np.argmax(ftd['abundance'])]
         
-        if info is None:
+        if info is None or info=='all':
             return ftd
         else:
             assert info in self.keys,"info must be 'gyro','mass','spin','abundance', or 'Nuc'"
             return ftd[info]
+    
+    def __repr__(self):
+        out=''
+        for k in self.keys:out+='{:7s}'.format(k)+'\t'
+        out=out[:-1]
+        fstring=['{:7s}','{:<7.0f}','{:<7.0f}','{:<3.4f}','{:<4.3f}']
+        for nucs in self:
+            out+='\n'
+            for k,(v,fs) in enumerate(zip(nucs.values(),fstring)):
+                out+=fs.format(v*(1e-6 if k==3 else 1))+'\t'
+        return out
 
-NucInfo=NucInfo()
+NucInfo=NucInfo() #We don't really want multiple instances of this class, just one initialized one
+
+def dipole_coupling(r,Nuc1,Nuc2):
+    """ Returns the dipole coupling between two nuclei ('Nuc1','Nuc2') 
+    separated by a distance 'r' (in nm). Result in Hz (gives full anisotropy,
+    not b12, that is 2x larger than b12)
+    """
+    
+    gamma1=NucInfo(Nuc1)
+    gamma2=NucInfo(Nuc2)
+    
+    h=6.6260693e-34 #Plancks constant in J s
+    mue0 = 12.56637e-7  #Permeability of vacuum [T^2m^3/J]
+    
+    return h*2*mue0/(4*np.pi*(r/1e9)**3)*gamma1*gamma2
+

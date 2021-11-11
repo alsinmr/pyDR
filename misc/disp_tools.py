@@ -9,7 +9,7 @@ Created on Wed Nov 10 10:42:34 2021
 import numpy as np
 
 #%% Sets plot attributes from kwargs
-def _set_plot_attr(hdl,**kwargs):
+def set_plot_attr(hdl,**kwargs):
     """
     Get properties for a list of handles. If values in kwargs are found in props,
     then that attribute is set (ignores unmatched values)
@@ -17,10 +17,15 @@ def _set_plot_attr(hdl,**kwargs):
     if not(hasattr(hdl,'__len__')): #Make sure hdl is a list
         hdl=[hdl]
     
-    for m in hdl:
-        props=m.properties().keys()
-        for k,v in kwargs.items():
-            if k in props and hasattr(m,'set_{}'.format(k)):getattr(m,'set_{}'.format(k))(v)
+    props=[m.properties().keys() for m in hdl]    #Lists of properties
+    
+    for k,v in kwargs.items():
+        if isinstance(v,list):
+            for m,v0,p in zip(hdl,v,props):
+                if m in p and hasattr(m,'set_{}'.format(k)):getattr(m,'set_{}'.format(k))(v0)
+        else:
+            for m,p in zip(hdl,props):
+                if m in p and hasattr(m,'set_{}'.format(k)):getattr(m,'set_{}'.format(k))(v)
                 
 #%% Some classes for making nice labels with units and unit prefixes   
 class NiceStr():
@@ -31,10 +36,6 @@ class NiceStr():
         self.unit=unit
         self.include_space=include_space
         self.no_prefix=no_prefix
-        
-#        self.unit
-#        self.include_space
-#        self.no_prefix
  
     def __repr__(self):
         return self.string

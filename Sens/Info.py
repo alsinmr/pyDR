@@ -19,35 +19,78 @@ class Info():
         self.__values=np.zeros([0,0],dtype=object)
         self.N=0
         self.__edited=False
+        self.__index=-1
         
 
-        for key,value in kwargs.items():
-            self.new_parameter(key,value)
+
+        self.new_parameter(**kwargs)
     
-    def new_parameter(self,key,value=None):
+    def new_parameter(self,par=None,**kwargs):
         """
         Add a new parameter to all existing experiments. Provide the name of the
         parameter (usually a string, cannot not be an integer), and a list of
         values where the length should be equal to the number of experiments 
         (Info.N, where first entry into info can have any length)
         """
-        assert not(isinstance(key,int)),"Parameters should not be of type 'int'"
-        if self.__values.size==0:
-            if value is None:
-                self.keys.append(key)
-                self.__values=np.zeros([1,0],dtype=object)
+        if par is not None:
+            kwargs[par]=None
+        for key,value in kwargs.items():
+            assert not(isinstance(key,int)),"Parameters should not be of type 'int'"
+            if key in self.keys:
+                assert len(value)==self.N,"Length of the new parameter should equal the number of experiments ({})".format(self.N) 
+                self.__values[self.keys.index(key)]=value
             else:
-                assert np.array(value).ndim<2,"Parameters stored in Info should be given as 1D arrays"
-                self.keys.append(key)
-                self.__values=np.atleast_2d(value).astype(object)
-                self.N=len(value)
+                if self.__values.size==0:
+                    if value is None:
+                        self.keys.append(key)
+                        self.__values=np.zeros([len(self.keys),0],dtype=object)
+                    else:
+                        assert np.array(value).ndim<2,"Parameters stored in Info should be given as 1D arrays"
+                        self.keys.append(key)
+                        self.__values=np.atleast_2d(value).astype(object)
+                        self.N=len(value)
+                else:
+                    if value is None:value=[None for _ in range(self.N)]   #Empty parameter
+                    assert len(value)==self.N,"Length of the new parameter should equal the number of experiments ({})".format(self.N)
+                    self.__values=np.concatenate((self.__values,[value]),axis=0)
+                    self.keys.append(key)
+            self.__edited=True
+    
+    def append(self,new):
+        """
+        Appends a new Info object into the existing Info object. Provide the new
+        Info object
+        """
+        assert new.__class__==self.__class__,"Appended object must be an instance of Info"
+        if all([k in self.keys for k in new.keys]) and all([k in new.keys for k in self.keys]):
+            self.__values=np.concatenate((self.__values,new.values),axis=1)
+            self.N+=new.N
         else:
-            if value is None:value=[None for _ in range(self.N)]   #Empty parameter
-            assert len(value)==self.N,"Length of the new parameter should equal the number of experiments ({})".format(self.N)
-            self.__values=np.concatenate((self.__values,[value]),axis=0)
-            self.keys.append(key)
+            for exp in new:self.new_exper(**exp)
         self.__edited=True
-            
+        
+    def parsort(self,*args):
+        """
+        Puts the parameters in info object in a desired order. List the desired
+        order in the arguments. Arguments not found in Info.keys will be ignored
+        """
+        keys=args[0] if len(args)==0 and isinstance(args[0],list) else args
+        index=[]
+        for k in keys:
+            if k in self.keys:index.append(self.keys.index(k))
+        for i,k in enumerate(self.keys):
+            if k not in keys:index.append(i)
+        self.keys=[self.keys[i] for i in index]
+        self.__values=self.__values[index,:]
+        self.__edited=True
+    
+    @property
+    def values(self):
+        """
+        Returns the matrix of values in the Info object
+        """
+        return self.__values.copy()
+        
     def new_exper(self,**kwargs):
         """
         Adds a new experiment, where one provides all parameters for that experiment
@@ -89,18 +132,16 @@ class Info():
                 for k in range(start,stop,step):
                     out.new_exper(**self[k])
                 return out
-            elif x in self.keys:
-                return self.__values[self.keys.index(x)]
-            elif hasattr(x,'__len__'):
+            elif hasattr(x,'__len__') and not(isinstance(x,str)):
                 out=Info()
                 if np.array(x).dtype=='bool':
                     x=[int(x0) for x0 in np.argwhere(x)[:,0]]
-
                 for x0 in x:
                     assert isinstance(x0,int),"Indices must be integers or boolean"
                     out.new_exper(**self[x0])
-                    
                 return out                   
+            elif np.isin(x,self.keys):
+                return self.__values[self.keys.index(x)]                    
             else:
                 assert 0,"Unknown parameter"
                 
@@ -108,13 +149,27 @@ class Info():
         """
         Sets an item in the Info object. Provide a parameter name, key, and value
         """
-        print('udpated')
+
         assert isinstance(index,tuple),"Both the parameter name and index must be provided"
-        assert index[0] in self.keys,"Unknown parameter"
-        print(index[1])
+        assert index[0] in self.keys,"Unknown parameter {0}".format(index[0])
+
         assert index[1]<self.N,"Index must be less than the number of experiments ({0})".format(self.N)
         self.__values[self.keys.index(index[0]),index[1]]=value
         self.__edited=True
+    
+    def __next__(self):
+        
+        self.__index+=1
+        if self.__index<self.N:
+            return self.__getitem__(self.__index)
+        self.__index=-1
+        raise StopIteration
+        
+    def __iter__(self):
+        """
+        Iterate over the experiments
+        """
+        return self
     
     def __repr__(self):
         """
@@ -122,12 +177,24 @@ class Info():
         """
         
         "Collect all the strings to print"
+        n1,n2=4,4
+        N,trunc=(self.N,False) if self.N<n1+n2 else (n1+n2+1,True)
         out=['']
-        for k in range(self.N):out.append('{}'.format(k))
+        if trunc:
+            for k in range(n1):out.append('{}'.format(k))
+            out.append('...')
+            for k in range(self.N-n2,self.N):out.append('{}'.format(k))
+        else:
+            for k in range(N):out.append('{}'.format(k))
         out.append('\n')
         for key,values in zip(self.keys,self.__values):
             out.append('{}'.format(key))
-            for v in values:out.append('{}'.format(v))
+            if trunc:
+                for v in values[:n1]:out.append('{}'.format(v))
+                out.append('...')
+                for v in values[self.N-n2:]:out.append('{}'.format(v))
+            else:
+                for v in values:out.append('{}'.format(v))
             out.append('\n')
         out=out[:-1]
         
@@ -143,9 +210,9 @@ class Info():
             if o=='\n':
                 string+=o
             else:
-                l=ml[np.mod(k,self.N+2)]
+                l=ml[np.mod(k,N+2)]
                 fmt_str='{:<'+'{:.0f}'.format(l)+'.'+'{:.0f}'.format(l)+'s}' \
-                if np.mod(k,self.N+2)==0 else\
+                if np.mod(k,N+2)==0 else\
                  '{:>'+'{:.0f}'.format(l)+'.'+'{:.0f}'.format(l)+'s}'
                 string+=fmt_str.format(o)
         string+='\n\n[{0} experiments with {1} parameters]'.format(self.N,len(self.keys))        
