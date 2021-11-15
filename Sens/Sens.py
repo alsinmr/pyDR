@@ -43,11 +43,45 @@ class Sens():
             self.__z=np.linspace(-14,-3,200)
             
         self.info=Info()
-        self.__rho=np.zeros([0,self.__z.size])
-        self.__rho_eff=list()
+        self.__rho=np.zeros([0,self.__z.size])      #Store sensitivity calculations
+        self.__rhoCSA=np.zeros([0,self.__z.size])   #Store sensitivity calculations
         self._bonds=list() #Store different sensitivities for different bonds
         self._parent=None  #If this is a child, keep track of the parent sensitivity
+        self.__index=-1     #Index for iterating
+        self.__norm=None
+        
+    @property
+    def norm(self):
+        """
+        Returns the normalization of the sensitivities for this sensitivity object
+        
+        If 'stdev' and 'med_val' are found in sens.info, then the normalization is
+        defined as
+            med_val/stdev/max(rhoz)
+        This approach ensures that weighting is determined by the ratio of the
+        median value and the standard deviation of the given experiment.
+        
+        If only 'stdev' is found in sens.info, then the normalization is defined
+        as  
+            1/stdev
+        In this case, we assume the amplitude of the parameter is closely related
+        to its sensitivity (i.e. med_val/max(rhoz) is relatively uniform)
+        
+        If neither are found in sens.info, we normalize by
+            1/max(rhoz)
+        """
+        if self.__norm is None or self.info.edited:
+            if 'stdev' in self.info.keys and np.all(self.info['stdev']): 
+                if 'med_val' in self.info.keys:
+                    self.__norm=self.info['med_val']/self.info['stdev']/self._rho_eff[0].max(axis=1)
+                else:
+                    self.__norm=self.info['stdev']
+            else:
+                self.__norm=1/self._rho_eff[0].max(axis=1)
             
+        return self.__norm
+        
+    
     @property
     def tc(self):
         return 10**self.__z
@@ -56,17 +90,57 @@ class Sens():
     def z(self):
         return self.__z.copy()
         
+
+#%% Functions dealing with sensitivities    
+    def _update_rho(self):
+        """
+        Updates the values of all sensitivities to current experimental parameters
+        (only run in case self.info indicates that it has been edited)
+        """
+        if self.info.edited or self.__rho.shape[0]==0:
+            self.__rho=self._rho()
+            self.__rhoCSA=self._rhoCSA() if hasattr(self,'_rhoCSA') else np.zeros([self.info.N,self.z.size])
+            self.info.updated()
+
     @property
     def rhoz(self):
-        if self.info.edited or self.__rho.shape[0]==0:
-            self.__rho=self._rhoz()
-            self.info.updated()
+        """
+        Return the sensitivities stored in this sensitivity object
+        """
+        self._update_rho()
         return self.__rho.copy()
+         
+    @property
+    def _rhozCSA(self):
+        """
+        Return the sensitivities due to CSA relaxation in this sensitivity object
+        """
+        self._update_rho()
+        return self.__rhoCSA.copy()
     
     @property
     def _rho_eff(self):
+        """
+        This will be used generally to obtain the sensitivity of the object, plus
+        offsets of the parameter if required, whereas rhoz, rhoz_eff, etc. may
+        change depending on the subclass.
+        """
         return self.rhoz,np.zeros(self.rhoz.shape[0])
-        
+    
+    @property
+    def _rho_effCSA(self):
+        """
+        This will be used generally to obtain the sensitivity of the object due
+        to CSA
+        """
+        return self._rhozCSA,np.zeros(self._rhozCSA.shape[0])
+    
+#%% Properties relating to iteration over bond-specific sensitivities        
+    def __len__(self):
+        """
+        1 or number of items in self.__bonds
+        """
+        return 1 if len(self._bonds)==0 else len(self._bonds)
     
     def __getitem__(self,index):
         """
@@ -75,12 +149,45 @@ class Sens():
         under anisotropic tumbling. List of sensitivity objects stored in bonds
         """
         
-        if len(self.__bonds)==0:
+        if len(self._bonds)==0:
             return self
         else:
             assert index<len(self.__bonds),"index must be less than the number of stored sensitivity objects ({})".format(len(self.__bonds))
             return self.__bonds[index]
 
+    def __setitem__(self,index,value):
+        """
+        Set bond-specific sensitivities for a given index
+        """
+        assert index<self._bonds,"index must be less than the number of stored sensitivity objects ({})".format(len(self.__bonds))
+        assert isinstance(value,self.__class__),"Bond-specific sensitivities must have the same class as their parent sensitivity"
+        self._bonds[index]=value
+        self._bonds[index]._parent=self
+        
+    def append(self,value):
+        """
+        Add a bond-specific sensitivity
+        """
+        assert isinstance(value,self.__class__),"Bond-specific sensitivities must have the same class as their parent sensitivity"
+        self._bonds.append(value)
+        self._bonds[-1]._parent=self
+
+    def __next__(self):
+        """
+        __next__ method for iteration
+        """
+        self.__index+=1
+        if self.__index<self.N:
+            return self.__getitem__(self.__index)
+        self.__index=-1
+        raise StopIteration
+        
+    def __iter__(self):
+        """
+        Iterate over the experiments
+        """
+        self.__index=-1
+        return self
 
     def plot_rhoz(self,index=None,ax=None,norm=False,**kwargs):
         """

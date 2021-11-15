@@ -10,6 +10,7 @@ from pyDR.Sens.Info import Info
 from pyDR.Sens.Sens import Sens
 from pyDR.Sens.NMRsens import NMR
 from pyDR.Sens.MDsens import MD
+from pyDR.Sens.Detector import Detector
 import pyDR.Sens.NMRexper as NMRexper
 
 

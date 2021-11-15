@@ -50,7 +50,7 @@ class MD(Sens):
         """
         return self.info['t'].astype(float)
     
-    def _rhoz(self):
+    def _rho(self):
         """
         Calculates and returns the sensitivities of all time points in the correlation function
         """

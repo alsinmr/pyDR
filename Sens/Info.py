@@ -21,8 +21,6 @@ class Info():
         self.__edited=False
         self.__index=-1
         
-
-
         self.new_parameter(**kwargs)
     
     def new_parameter(self,par=None,**kwargs):
@@ -37,7 +35,7 @@ class Info():
         for key,value in kwargs.items():
             assert not(isinstance(key,int)),"Parameters should not be of type 'int'"
             if key in self.keys:
-                assert len(value)==self.N,"Length of the new parameter should equal the number of experiments ({})".format(self.N) 
+                assert len(value)==self.N,"Length of the parameter should equal the number of experiments ({})".format(self.N) 
                 self.__values[self.keys.index(key)]=value
             else:
                 if self.__values.size==0:
@@ -55,6 +53,16 @@ class Info():
                     self.__values=np.concatenate((self.__values,[value]),axis=0)
                     self.keys.append(key)
             self.__edited=True
+    
+    def del_parameter(self,par):
+        """
+        Deletes a parameter from Info by key name
+        """
+        if par in self.keys:           
+            index=self.keys.index(par)
+            self.keys.pop(par)
+        self.__values=np.delete(self.__values,index,axis=0)
+    
     
     def append(self,new):
         """
@@ -149,7 +157,10 @@ class Info():
         """
         Sets an item in the Info object. Provide a parameter name, key, and value
         """
-
+        if index in self.keys:
+            self.new_parameter(**{index:value})
+            return
+         
         assert isinstance(index,tuple),"Both the parameter name and index must be provided"
         assert index[0] in self.keys,"Unknown parameter {0}".format(index[0])
 
@@ -169,7 +180,11 @@ class Info():
         """
         Iterate over the experiments
         """
+        self.__index=-1
         return self
+    
+    def __len__(self):
+        return self.N
     
     def __repr__(self):
         """

@@ -95,7 +95,7 @@ class NMR(Sens):
         return hdl
                 
             
-    def _rhoz(self):
+    def _rho(self):
         """
         Calculates and returns the sensitivities of all experiments stored in
         self.info
