@@ -10,6 +10,7 @@ import numpy as np
 from pyDR.Sens.Info import Info
 from pyDR.misc.disp_tools import set_plot_attr,NiceStr
 import matplotlib.pyplot as plt
+from matplotlib import ticker
 
 class Sens():
     def __init__(self,tc=None,z=None):
@@ -46,8 +47,6 @@ class Sens():
         self.__rho_eff=list()
         self._bonds=list() #Store different sensitivities for different bonds
         self._parent=None  #If this is a child, keep track of the parent sensitivity
-        
-        self.plot_pars={'ylabel':r'$\rho_n(z)$','plt_index':None}
             
     @property
     def tc(self):
@@ -61,6 +60,7 @@ class Sens():
     def rhoz(self):
         if self.info.edited or self.__rho.shape[0]==0:
             self.__rho=self._rhoz()
+            self.info.updated()
         return self.__rho.copy()
     
     @property
@@ -87,10 +87,8 @@ class Sens():
         Plots the sensitivities of the data object.
         """
         
-        if index is None:
-            index=self.plot_pars['plt_index'] if self.plot_pars['plt_index']\
-                is not None else np.ones(self.rhoz.shape[0],dtype=bool)
-        index=np.array(index)
+        if index is None:index=np.ones(self.rhoz.shape[0],dtype=bool)
+        index=np.atleast_1d(index)
             
         assert np.issubdtype(index.dtype,int) or np.issubdtype(index.dtype,bool),"index must be integer or boolean"
     
@@ -117,10 +115,14 @@ class Sens():
         lbl_str=NiceStr('{:q1}',unit='s')
         ticklabels=['' for _ in range(len(ticks))]
         for k in range(start,len(ticks),step):ticklabels[k]=lbl_str.format(10**ticks[k])
-        ax.set_xticklabels(ticklabels)
+        
+        ax.xaxis.set_major_locator(ticker.FixedLocator(ticks))
+        ax.xaxis.set_major_formatter(ticker.FixedFormatter(ticklabels))
+        
+#        ax.set_xticklabels(ticklabels)
         ax.set_xlabel(r'$\tau_\mathrm{c}$')
         
-        ax.set_ylabel(self.plot_pars['ylabel'])
+        ax.set_ylabel(r'$\rho_n(z) [a.u.]$')
         
         
         return hdl   

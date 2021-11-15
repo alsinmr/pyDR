@@ -178,7 +178,7 @@ class Info():
         
         "Collect all the strings to print"
         n1,n2=4,4
-        N,trunc=(self.N,False) if self.N<n1+n2 else (n1+n2+1,True)
+        N,trunc=(self.N,False) if self.N<=n1+n2 else (n1+n2+1,True)
         out=['']
         if trunc:
             for k in range(n1):out.append('{}'.format(k))
@@ -199,12 +199,13 @@ class Info():
         out=out[:-1]
         
         "Find out how long all entries are (make table line up by printing to equal-length strings)"
-        ml=np.zeros(self.N+2)
+
+        ml=np.zeros(N+2) 
         for k,o in enumerate(out):
-            k0=np.mod(k,self.N+2)
+            k0=np.mod(k,N+2)
             ml[k0]=np.min([np.max([ml[k0],len(o)]),10])
         ml+=1
-            
+
         string=''
         for k,o in enumerate(out):
             if o=='\n':
@@ -213,7 +214,7 @@ class Info():
                 l=ml[np.mod(k,N+2)]
                 fmt_str='{:<'+'{:.0f}'.format(l)+'.'+'{:.0f}'.format(l)+'s}' \
                 if np.mod(k,N+2)==0 else\
-                 '{:>'+'{:.0f}'.format(l)+'.'+'{:.0f}'.format(l)+'s}'
+                 ' {:>'+'{:.0f}'.format(l)+'.'+'{:.0f}'.format(l-1)+'s}'
                 string+=fmt_str.format(o)
         string+='\n\n[{0} experiments with {1} parameters]'.format(self.N,len(self.keys))        
         return string
@@ -226,12 +227,12 @@ class Info():
         """
         return self.__edited
     
-    def updated(self):
+    def updated(self,edited=False):
         """
         Call self.updated if the sensitivities have been updated, thus setting
         self.edited to False
         """
-        self.__edited=False
+        self.__edited=edited
         
     def del_exp(self,index):
         """

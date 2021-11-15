@@ -38,9 +38,7 @@ class NMR(Sens):
         for p0 in pars:self.info.new_parameter(p0)
         
         self.new_exper(info,**kwargs)
-        
-        self.plot_pars['ylabel']=r'$R(z)$/s$^{-1}$'
-        
+
         
     def new_exper(self,info=None,**kwargs):
         """
@@ -61,11 +59,13 @@ class NMR(Sens):
         for k,v in kwargs.items():
             if k in self.info.keys:
                 if k=='dXY' or k=='Nuc1':
-                    if hasattr(v,'__len__') and hasattr(v[0],'__len__'):
+                    if hasattr(v,'__len__') and hasattr(v[0],'__len__') and not(isinstance(v[0],str)):
                         ne=max(ne,len(v[0]))
-                elif hasattr(v,'__len__'):
+                elif hasattr(v,'__len__') and not(isinstance(v,str)):
                     ne=max(ne,len(v))
-        
+                elif v is not None:
+                    ne=max(ne,1)
+
         "Edit kwargs so all entries have same length"  
         for k,v in kwargs.items():
             if k=='dXY' or k=='Nuc1':
@@ -83,13 +83,16 @@ class NMR(Sens):
                     kwargs[k]=[v for _ in range(ne)]
         
         defaults(self.info,**kwargs)
-        print(kwargs)
+    
         
     def plot_Rz(self,index=None,ax=None,norm=False,**kwargs):
         """
         Plot the sensitivity of the experiment
         """          
-        super().plot_rhoz(index=index,ax=ax,norm=norm,**kwargs)
+        hdl=super().plot_rhoz(index=index,ax=ax,norm=norm,**kwargs)
+        ax=hdl[0].axes
+        ax.set_ylabel(r'$R(z)$ (normalized)' if norm else r'$R(z)$/s$^{-1}$')
+        return hdl
                 
             
     def _rhoz(self):
@@ -109,7 +112,6 @@ class NMR(Sens):
                 out.append(f(self.tc,**exp))
             except:
                 assert 0,"Loading experiment #{0} failed. Check parameters".format(m) 
-        self.info.updated()
         return np.array(out)
         
         
@@ -164,6 +166,9 @@ def defaults(info,**kwargs):
         for k,Nuc0 in enumerate(Nuc):
             if Nuc0 in defaults.keys():
                 info_new.new_exper(**defaults[Nuc0])
+    else:
+        for _,value in zip([0],kwargs.values()):
+            for _ in range(len(value)):info_new.new_exper()
     
     "We replace None with zeros except for nuclei"
     for k in info_new.keys:
