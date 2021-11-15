@@ -49,6 +49,7 @@ class Sens():
         self._parent=None  #If this is a child, keep track of the parent sensitivity
         self.__index=-1     #Index for iterating
         self.__norm=None
+        self.__edited=False
         
     @property
     def norm(self):
@@ -71,17 +72,24 @@ class Sens():
             1/max(rhoz)
         """
         if self.__norm is None or self.info.edited:
-            if 'stdev' in self.info.keys and np.all(self.info['stdev']): 
-                if 'med_val' in self.info.keys:
-                    self.__norm=self.info['med_val']/self.info['stdev']/self._rho_eff[0].max(axis=1)
-                else:
-                    self.__norm=self.info['stdev']
-            else:
-                self.__norm=1/self._rho_eff[0].max(axis=1)
+            self._norm()
             
         return self.__norm
+    
         
     
+    def _norm(self):
+        """
+        Calculate and store the normalization.
+        """
+        if 'stdev' in self.info.keys and np.all(self.info['stdev']): 
+            if 'med_val' in self.info.keys:
+                self.__norm=(self.info['med_val'].astype(float)/self.info['stdev'].astype(float)/self._rho_eff[0].max(axis=1))
+            else:
+                self.__norm=1/(self.info['stdev']).astype(float)
+        else:
+            self.__norm=1/self._rho_eff[0].max(axis=1)
+            
     @property
     def tc(self):
         return 10**self.__z
@@ -101,6 +109,23 @@ class Sens():
             self.__rho=self._rho()
             self.__rhoCSA=self._rhoCSA() if hasattr(self,'_rhoCSA') else np.zeros([self.info.N,self.z.size])
             self.info.updated()
+            self._norm()
+
+            self.__edited=True
+    
+    @property
+    def edited(self):
+        """
+        Determines if the sensitivities of this object have changed
+        """
+        return self.__edited or self.info.edited
+    
+    def updated(self,edited=False):
+        """
+        Call self.updated if the sensitivities have been updated, thus setting
+        self.edited to False
+        """
+        self.__edited=edited
 
     @property
     def rhoz(self):
@@ -229,7 +254,7 @@ class Sens():
 #        ax.set_xticklabels(ticklabels)
         ax.set_xlabel(r'$\tau_\mathrm{c}$')
         
-        ax.set_ylabel(r'$\rho_n(z) [a.u.]$')
+        ax.set_ylabel(r'$\rho_n(z)$')
         
         
         return hdl   

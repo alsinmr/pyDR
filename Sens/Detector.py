@@ -8,9 +8,7 @@ Created on Sat Nov 13 15:32:58 2021
 
 import numpy as np
 from pyDR.Sens import Sens,Info
-from pyDR.Sens import NMRexper
 from scipy.sparse.linalg import eigs
-from numpy.linalg import svd
 
 class Detector(Sens):
     def __init__(self,sens):
@@ -47,7 +45,7 @@ class Detector(Sens):
         """
         assert self.__r is not None,"First optimize detectors (r_auto, r_target, r_no_opt)"
         
-        if self.sens.info.edited:
+        if self.sens.edited:
             print('Warning: the input sensitivities may have been edited, but the detectors have not been updated')
 
         return self.__r.copy()
@@ -68,18 +66,24 @@ class Detector(Sens):
         T matrix
         """
         
-        if self.T is not None and np.all(T==self.T):return
+        if self.T is not None and np.all(T==self.T) and not(self.sens.edited):
+            return
         
         self.T=T
         self.__rho=T@self.SVD.Vt
         self.__rhoCSA=T@self.SVD.VtCSA
-        self.__r=((1/self.sens.norm)*(self.SVD.U@np.diag(self.SVD.S)).T).T
+        # self.__r[bond]=np.multiply(np.repeat(np.transpose([1/self.norm]),n,axis=1),\
+        #     np.dot(U,np.linalg.solve(T.T,np.diag(S)).T)
+        self.__r=((1/self.sens.norm)*(self.SVD.U@np.linalg.solve(T.T,np.diag(self.SVD.S))).T).T
+        # self.__r=((1/self.sens.norm)*(self.SVD.U@np.diag(self.SVD.S)).T).T
         
         dz=self.z[1]-self.z[0]
         self.info=Info()
         self.info.new_parameter(z0=np.array([(self.z*rz).sum()*dz for rz in self.__rho]))
-        self.info.new_parameter(Del_z=np.array([(rz*dz)/rz.max() for rz in self.__rho]))
-        self.info.new_parameter((np.linalg.pinv(self.__r)**2)@self.sens.info['stdev']**2)**0.5
+        self.info.new_parameter(Del_z=np.array([rz.sum()*dz/rz.max() for rz in self.__rho]))
+        self.info.new_parameter(stdev=((np.linalg.pinv(self.__r)**2)@self.sens.info['stdev']**2)**0.5)
+        
+        self.sens.updated()
     
     def _rho(self):
         return self.__rho
@@ -89,6 +93,10 @@ class Detector(Sens):
 
 
 class SVD(Sens):
+    """
+    Class responsible for performing and storing/returning the results of singular
+    value decomposition of a given set of sensitivities
+    """
     def __init__(self,sens):
         """
         Initiate an object responsible for carrying out singular value decomposition
@@ -118,29 +126,37 @@ class SVD(Sens):
     def U(self):
         return self._U[:,:self.n] if self._U is not None else None
     
+    @property
+    def M(self):
+        return (self.sens._rho_eff[0].T*self.sens.norm).T
+    
+    @property
+    def Mn(self):
+        return self.U@(np.diag(self.S)@self.Vt)
+    
+    
     def run(self,n):
         """
         Runs the singular value decomposition for the largest n singular values
         """
         
-        if self.sens.info.edited:
+        if self.sens.edited:
             print('Warning: the input sensitivities have been edited-the detector sensitivities will be updated accordingly')
-            self.S=None #SVD needs to be re-run
+            self._S=None #SVD needs to be re-run
         
         self.n=n
         
         if self.S is None or len(self.S)<n:
-            norm=self.sens.norm
-            X=(self.sens._rho_eff[0].T*norm).T
+            X=self.M
             if np.shape(X)[0]>np.shape(X)[1]: #Use sparse version of SVD
                 S2,V=eigs(X.T@X,k=n)
                 self._S=np.sqrt(S2.real)
-                self._U=(X@V)@np.diag(1/self.S)
+                self._U=((X@V)@np.diag(1/self.S)).real
                 self._Vt=V.real.T
             else:
-                self._U,self._S,self._Vt=svd(X) #Full calculation
+                self._U,self._S,self._Vt=[x.real for x in np.linalg.svd(X)] #Full calculation
             
-            self._VtCSA=np.diag(1/self._S)@(self._U.T@(self.sens._rho_effCSA[0].T*norm).T)
+            self._VtCSA=np.diag(1/self._S)@(self._U.T@(self.sens._rho_effCSA[0].T*self.sens.norm).T)
             self.T=np.eye(n)        
             
     def __call__(self,n):

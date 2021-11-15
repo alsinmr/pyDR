@@ -38,7 +38,7 @@ class MD(Sens):
         
         self.info.new_parameter(t=t)
         if stdev is None:
-            stdev=np.sqrt(t[-1]/t[1:])
+            stdev=np.sqrt(t[1:]/t[-1])
             stdev=np.concatenate(([stdev[0]/1e6],stdev))
         self.info.new_parameter(stdev=stdev)
         if N is not None:self.info.new_parameter(N)
