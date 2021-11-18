@@ -262,9 +262,7 @@ def P2(x):
     """second legendre polynomial"""
     return (3 * x * x - 1) / 2
 
-from SpeedTest import time_runtime
 
-@time_runtime
 @njit(parallel=True)  # speedup by factor 1600!
 def get_ct_S2(ct,S2, v, sparse=1):
     """
