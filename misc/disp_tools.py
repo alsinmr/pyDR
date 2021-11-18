@@ -22,10 +22,10 @@ def set_plot_attr(hdl,**kwargs):
     for k,v in kwargs.items():
         if isinstance(v,list):
             for m,v0,p in zip(hdl,v,props):
-                if m in p and hasattr(m,'set_{}'.format(k)):getattr(m,'set_{}'.format(k))(v0)
+                if k in p and hasattr(m,'set_{}'.format(k)):getattr(m,'set_{}'.format(k))(v0)
         else:
             for m,p in zip(hdl,props):
-                if m in p and hasattr(m,'set_{}'.format(k)):getattr(m,'set_{}'.format(k))(v)
+                if k in p and hasattr(m,'set_{}'.format(k)):getattr(m,'set_{}'.format(k))(v)
                 
 #%% Some classes for making nice labels with units and unit prefixes   
 class NiceStr():
