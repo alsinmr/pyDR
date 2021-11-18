@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import MDAnalysis as MDA
 from calcs import *
+import sys
 sys.path.append('/Users/albertsmith/Documents/GitHub')
 import pyDIFRATE as DR
 
@@ -18,7 +19,6 @@ matplotlib.rcParams.update({"lines.linewidth": 1,
 TEXTBOX = {'facecolor': 'lightblue',
            'alpha': 0.5}
 
-from SpeedTest import time_runtime
 
 class KaiMarkov():
     def __init__(self, **kwargs):
