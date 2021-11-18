@@ -179,13 +179,14 @@ class DetectorFrame(SubFrame):
         het.del_data_pt(range(12, 17))
         het.label = [lab.replace("Val,", ",") for lab in het.label]
         het.label = [lab.replace("Leu,", ",") for lab in het.label]
-        het.detect.r_auto(5, inclS2=True, Normalization='MP')
+        n_dets = self.master.n_detectors.get()
+        het.detect.r_auto(int(n_dets), inclS2=True, Normalization='MP')
         fit = het.fit()
         fig = plt.figure()
         #todo rearrange the plot functionality, gives some problems with the GUI on linux -K
-        n_dets = self.master.n_detectors.get()
 
-        fit.plot_rho(fig=fig, style="bar", rho_index=range(int(n_dets)), errorbars=True)
+
+        fit.plot_rho(fig=fig, style="bar", errorbars=True)
         fig.set_size_inches(8,6)
 
         canvas = FigureCanvasTkAgg(fig, master=self)  # A tk.DrawingArea.
