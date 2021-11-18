@@ -4,4 +4,4 @@
 
 #%% Init file for all of pyDR
 from pyDR import Sens
-from pyDR.misc import tools
+from pyDR.misc.tools import tools

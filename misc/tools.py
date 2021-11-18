@@ -11,6 +11,8 @@ import os
 import re
 import numpy as np
 
+
+
 #%% Some tools for getting NMR information
 class NucInfo(Info):
     """ Returns the gyromagnetic ratio for a given nucleus. Usually, should be 
@@ -174,4 +176,10 @@ def linear_ex(x0,I0,x,dim=None,mode='last_slope'):
         return I[0]
     else:
         return I.swapaxes(0,dim)
-    
+
+
+
+class tools():
+    NucInfo=NucInfo
+    dipole_coupling=dipole_coupling
+    linear_ex=linear_ex    
