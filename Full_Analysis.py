@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import MDAnalysis as MDA
 from calcs import *
+sys.path.append('/Users/albertsmith/Documents/GitHub')
 import pyDIFRATE as DR
 
 # setting default parameters for matplotlib plots
