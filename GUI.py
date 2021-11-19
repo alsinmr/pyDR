@@ -169,6 +169,100 @@ class MolDynFrame(SubFrame):
         OutLabel = tk.Label(self)
         OutLabel.grid(column=0,row=3)
 
+
+
+class Plot_3D(SubFrame):
+    def __init__(self,parent,residue):
+        self.residue = residue
+        SubFrame.__init__(self,parent)
+    def create(self):
+
+        def onclick(event):
+
+            print(ax.format_coord(event.xdata,event.ydata))
+            #x,y,z = event.xdata, event.ydata, event.zdata
+            #print(x,y,z)
+            #print(toolbar.winfo_pointerxy())
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+
+        canvas = FigureCanvasTkAgg(fig, master=self)  # A tk.DrawingArea.
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.TOP, expand=1)
+
+        toolbar = NavigationToolbar2Tk(canvas, self)
+        toolbar.update()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        canvas.mpl_connect("button_press_event",onclick)
+
+        for atom in self.residue.atoms:
+            if "C" in atom.name:
+                ax.scatter(*atom.position,s=50,color="black")
+            elif "H" in atom.name:
+                ax.scatter(*atom.position,s=10,color="green")
+            elif "O" in atom.name:
+                ax.scatter(*atom.position, s=35, color="red")
+            elif "N" in atom.name:
+                ax.scatter(*atom.position, s=40, color="blue")
+
+class BondSelFrame(SubFrame):
+    """Here I want to directly access my MD simulation data with processing settings and so on, maby we can direclty
+    output the resulting detector analysis then here"""
+    name="Bond Selection"
+    def create(self):
+        def get_residue_analysis():
+            resi = self.ResidueBox.selection_get()
+            print(resi)
+            for resid in self.uni.residues:
+                if resi in resid.resname:
+                    break
+
+            plot = Plot_3D(self,resid)
+            plot.grid(column=1,row=1)
+
+            #self.Plot_Frame = Plot_MD_Analysis(self, *self.M.plot_det_gui(res))
+            #self.Plot_Frame.grid(column=1,row=1,rowspan=5)
+            #todo create a canvas
+
+
+        def analysis():
+            #remove old listbox with methyl_groups(if available)
+            if hasattr(self,"ResidueBox"):
+                self.ResidueBox.destroy()
+            #if hasattr(self,"AButton"):
+            #    self.AButton.destroy()  #todo find out if hiding/unhiding might be better -K
+
+            pdb = self.MD_Listbox.selection_get()
+            OutLabel.config(text= "residues of "+pdb+":")
+            self.uni = MDA.Universe(join("pdbs",pdb))
+            self.ResidueBox = tk.Listbox(self)
+            residues = []
+            i=0
+            for res in self.uni.residues:
+                print(res.resname)
+                resname = res.resname
+                if not resname in residues:
+                    self.ResidueBox.insert(i,resname)
+                    residues.append(resname)
+                    i+=1
+            self.ResidueBox.grid(column=0,row=4)
+            if not hasattr(self,"AButton"):
+                self.AButton = tk.Button(self,text="Analyse Residue", command= lambda: get_residue_analysis()).grid(column=0,row=5)
+            #self.M.calc()
+
+
+        tk.Label(self,text="available pdbs").grid(column=0,row=0)
+        self.MD_Listbox = tk.Listbox(self)
+        for i,f in enumerate([f for f in listdir("pdbs") if f.endswith(".pdb")]):
+            self.MD_Listbox.insert(i, f)
+        self.MD_Listbox.grid(column=0,row=1)
+        tk.Button(self,text="Get residues", command=lambda:analysis()).grid(column=0,row=2)
+        OutLabel = tk.Label(self)
+        OutLabel.grid(column=0,row=3)
+
+
+
 class DetectorFrame(SubFrame):
     '''this panel should display the detector senstitivities and detector responses in the NMR panel. right now it is just
     working for HET-s, because the creation of detectros and the selection is hard coded. It should get access to the upper frame
@@ -180,7 +274,10 @@ class DetectorFrame(SubFrame):
         het.label = [lab.replace("Val,", ",") for lab in het.label]
         het.label = [lab.replace("Leu,", ",") for lab in het.label]
         n_dets = self.master.n_detectors.get()
-        het.detect.r_auto(int(n_dets), inclS2=True, Normalization='MP')
+        if "linux" in platform:
+            het.detect.r_auto3(int(n_dets), inclS2=True, Normalization='MP')
+        else:
+            het.detect.r_auto(int(n_dets), inclS2=True, Normalization='MP')
         fit = het.fit()
         fig = plt.figure()
         #todo rearrange the plot functionality, gives some problems with the GUI on linux -K
@@ -216,10 +313,10 @@ class NMRFrame(SubFrame):
 
         # Creating a Button for every system available in NMR folder, now HET-s, lipid, ubiquitin?
         for i,folder in enumerate(listdir("nmr")):
-            tk.Button(self,text=folder,command=lambda f=folder: get_data(f)).grid(column=0, row=i)
+            tk.Button(self, text=folder,command=lambda f=folder: get_data(f)).grid(column=0, row=i)
 
         self.n_detectors = tk.StringVar(self)
-        tk.Label(self,text="Number of detectors:").grid(column=2,row=2)
+        tk.Label(self, text="Number of detectors:").grid(column=2,row=2)
         tk.Entry(self, textvariable=self.n_detectors).grid(column=3, row=2)
 
 
@@ -228,7 +325,7 @@ class NMRFrame(SubFrame):
         def plot_detector():
             '''creating a Frame to Plot Detectors according to the selected NMR file in master.nmr_file'''
             DetectorFrame(self).grid(column=1,row=4,sticky=tk.W)
-        tk.Button(self, text="Detector Analysis", command = lambda: plot_detector()).grid(column=0, row=10)
+        tk.Button(self, text="Detector Analysis", command=lambda: plot_detector()).grid(column=0, row=10)
 
 
 class PlotFrame(SubFrame):
@@ -280,7 +377,7 @@ class ParentFrame(tk.Tk):
         tk.Tk.__init__(self)
         self.geometry("1280x720")
         self.subframe = None
-        self.pages = [FirstFrame,NMRFrame,MolDynFrame]
+        self.pages = [FirstFrame,NMRFrame,MolDynFrame,BondSelFrame]
         for i, frameobject in enumerate(self.pages):
             '''creating a button for every Page the program should have. Pages are represented by a class inheriting from
             SubFrame'''
