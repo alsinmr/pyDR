@@ -102,19 +102,26 @@ class Detector(Sens):
         
         self.sens.updated()
     
+    #%% Detector optimization
     def _rho(self):
         return self.__rho
     
     def _rhoCSA(self):
         return self.__rhoCSA
     
-    def r_auto(self,n,NegAllow=0):
+    def r_auto(self,n,NegAllow=False):
         """
         Generate n detectors that are automatically selected based on the results
         of SVD
         """
         self.r_opt.auto(n=n,NegAllow=NegAllow)
-    
+        
+    def r_zmax(self,zmax,NegAllow=False):
+        """
+        Generate n detectors defined by the correlation time of their maximum. 
+        Specify the list of maxima (zmax)
+        """
+        self.r_opt.zmax(zmax=zmax,NegAllow=NegAllow)
 
 class r_opt():
     """
@@ -159,21 +166,21 @@ class r_opt():
         return linprog(Vt.sum(1),-Vt.T,-min_target,[Vt[:,index]],1,bounds=(-500,500),\
                   method='interior-point',options={'disp':False})['x']
     
-    def zmax(self,n,zmax,NegAllow=0):
+    def zmax(self,zmax,NegAllow=0):
         """
         Re-optimize detectors based on a previous set of detectors (where the 
         maximum of the detectors has been recorded)
         """
-        
-        self.SVD(n)
         zmax=np.atleast_1d(zmax)
+        n=zmax.size        
+        self.SVD(n)
         self.T=np.eye(n)
         for k,z in enumerate(zmax):
             self.T[k]=self.opt_z(n=n,z=z)
         self.detect.update_det()
         
     
-    def auto(self,n,NegAllow=0):
+    def auto(self,n,NegAllow=False):
         """
         Generate n detectors that are automatically selected based on the results
         of SVD
@@ -278,13 +285,35 @@ class r_opt():
         
         
         i=np.argsort(index).astype(int)
-        pks=np.array(index)[i]
+#        pks=np.array(index)[i]
         rhoz=np.array(rhoz)[i]
         self.T=np.array(X)[i]    
         self.detect.update_det()
+        if NegAllow:self.allowNeg()
         
-
-        
+    def allowNeg(self):
+        """
+        Allows detectors that extend to infinite or 0 tc to dip below 0 where
+        oscillations occur. Only applied to first and last detector
+        """
+        update=False
+        z,rhoz=self.detect.z,self.detect.rhoz
+        if rhoz[0,0]/rhoz[0].max()>.95:
+            i=np.argwhere(rhoz[0]<.01)[0,0]
+            M=np.concatenate(([np.ones(z.size)],[np.arange(z.size)]),axis=0).T
+            x=np.linalg.lstsq(M[i:],rhoz[0,i:],rcond=None)[0]
+            min_target=-(M@x)
+            self.T[0]=self.opt_z(n=self.T.shape[0],z=self.detect.info['zmax',0],min_target=min_target)
+            update=True
+        if rhoz[-1,-1]/rhoz[-1].max()>.95:
+            i=np.argwhere(rhoz[-1]<.01)[-1,0]
+            M=np.concatenate(([np.ones(z.size)],[np.arange(z.size)]),axis=0).T
+            x=np.linalg.lstsq(M[:i],rhoz[-1,:i],rcond=None)[0]
+            min_target=-(M@x)
+            self.T[-1]=self.opt_z(n=self.T.shape[0],z=self.detect.info['zmax',-1],min_target=min_target)
+            update=True
+        if update:self.detect.update_det()
+            
     def target(self,target,n=None):
         """
         Generate n detectors where the first m detectors are approximately equal

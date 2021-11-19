@@ -1,0 +1,1 @@
+/Applications/ChimeraX-1.0.app/Contents/MacOS/ChimeraX

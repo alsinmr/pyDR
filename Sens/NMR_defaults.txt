@@ -6,7 +6,7 @@ Nuc 15N
 Nuc1 1H
 dXY -22954.8
 CSA 113
-eta 23
+theta 23
 END DEFAULT
 
 BEGIN DEFAULT
