@@ -129,6 +129,7 @@ class CMXRemote():
         except:
             pass
         finally:
+            conn.close()
             listener.close()
     
     
@@ -162,6 +163,6 @@ class File():
     def __exit__(self,exception_type, exception_value, traceback):
         self.file.close()
     
-if __name__=='__main__' and len(sys.argv)>1:
-    CMXRemote.send_file(int(sys.argv[1]))
+if __name__=='__main__':
+    CMXRemote.launch()
     
