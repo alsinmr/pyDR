@@ -7,12 +7,13 @@ Created on Mon Nov 22 13:25:09 2021
 """
 
 
-from multiprocessing.connection import Listener
-from chimerax.core.commands import run
-from time import time,sleep
+from multiprocessing.connection import Client
+# from chimerax.core.commands import run
+from time import sleep
 from threading import Thread
 
-
+def run(*args):
+    return
 
 class StartThread(Thread):
     def __init__(self,listener):
@@ -27,41 +28,36 @@ class ListenExec(Thread):
         self.cmx=cmx
         
     def run(self):
-        while True:
-            try:
-                fun,*args=self.cmx.conn.recv()
-                if hasattr(self.cmx,fun):
-                    try:
-                        getattr(self.cmx,fun)(*args)
-                    except:
-                        pass
-            except:
-                pass
+        fun,*args=self.cmx.client.recv()
+        if hasattr(self.cmx,fun):
+            getattr(self.cmx,fun)(*args)
 
 class CMXReceiver():
     def __init__(self,session,port):
         self.session=session
         self.port=port
-        self.listener=Listener(('localhost',port),authkey=b"pyDIFRATE2chimeraX")
-        tr=StartThread(self.listener)
-        t0=time()
-        tr.start()
-        while time()-t0<10:  
-            if not(tr.isAlive()):
-                self.conn=tr.conn
-                break
-            sleep(.05)
-        else:
-            self.listener.close()
-            run(self.session,'2dlabel create label0 text "Failed to connect to pyDIFRATE" xpos .2 ypos .2')
-            sleep(2)
+        
+        try:
+            self.client=Client(('localhost',port),authkey=b"pyDIFRATE2chimeraX")
+        except:
+            if hasattr(self,'client'):self.client.close()
             run(self.session,'exit')
             return
         
+
+
+        self.wait4command()
+            # self.tr.isDaemon=True       
+        self.commands=list()
+        # self.tr.start()
+        
+    def wait4command(self):
         self.tr=ListenExec(self)
-        self.tr.isDaemon=True
         self.tr.start()
     
     def command_line(self,string):
+        self.commands.append(string)
+        print(string)
         run(self.session,string)
+        self.wait4command()
         

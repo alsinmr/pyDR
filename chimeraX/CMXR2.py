@@ -20,7 +20,7 @@ class CMXRemote():
     PIDs=list()
     path=os.path.dirname(os.path.abspath(__file__))
     port0=7000
-    clients=list()
+    conn=list()
     closed=list()
     
     @classmethod
@@ -30,7 +30,7 @@ class CMXRemote():
         else:
             ID=len(cls.ports)
             cls.PIDs.append(None)
-            cls.clients.append(None)
+            cls.conn.append(None)
             cls.closed.append(True)
             cls.ports.append(cls.port0+ID) 
             
@@ -39,20 +39,27 @@ class CMXRemote():
             py_line(f,'import sys')
             py_line(f,'sys.path.append("{}")'.format(cls.path))
             py_line(f,'from RemoteCMXside import CMXReceiver as cmxr')
-            py_line(f,'cmxr(session,{})'.format(cls.ports[ID]))
+            py_line(f,'out=cmxr(session,{})'.format(cls.ports[ID]))
+        
+        cls.listener=Listener(('localhost',cls.ports[ID]),authkey=b'pyDIFRATE2chimeraX')
         
         cls.PIDs[ID]=os.spawnl(os.P_NOWAIT,chimera_path(),chimera_path(),cls.full_path(ID))
         
-        tr=StartThread(cls.ports[ID])
-        tr.start()
-        while True:
-            if not(tr.isAlive()):
-                cls.clients[ID]=tr.client
-                break
-            
+        cls.tr=StartThread(cls.listener)
+        cls.tr.start()
+        t0=time()
+        while time()-t0<10:
+            if not(cls.tr.is_alive()):
+                cls.conn[ID]=cls.tr.conn
+                break     
+        else:
+            cls.conn[ID]=None
+            print('Failed to establish connection with ChimeraX')
         
-        cls.closed[ID]=False
+
         
+        cls.closed[ID]=False     
+        print('update')
         return ID
     
     @classmethod
@@ -61,23 +68,16 @@ class CMXRemote():
     
     @classmethod
     def command_line(cls,ID,string):
-        cls.clients[ID].send(('command_line',string))
+        cls.conn[ID].send(('command_line',string))
+
         
  
 class StartThread(Thread):
-    def __init__(self,port):
+    def __init__(self,listener):
         super().__init__()
-        self.port=port
+        self.listener=listener
     def run(self):
-        t0=time()
-        while time()-t0<10:
-            try:
-                self.client=Client(('localhost',self.port),authkey=b'pyDIFRATE2chimeraX')
-                break
-            except:
-                sleep(.1)
-        else:
-            self.client=None
+        self.conn=self.listener.accept()
         
 class File():
     def __init__(self,ID):
