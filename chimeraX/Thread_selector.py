@@ -10,7 +10,7 @@ from time import sleep
 
 
 
-mdl=session.open_command.open_data("HETs_3chain.pdb")[0]
+mdl=session.open_command.open_data("/Volumes/My Book/HETs/HETs_3chain.pdb")[0]
 session.models.add(mdl)
 #session.view.camera.set_position(Place(np.load('pos.npy')))
 atoms=session.models[0].atoms
@@ -49,6 +49,7 @@ class MyThread(Thread):
       ob = self.session.main_view.picked_object(mx, my)
       if not hasattr(self,"hover"):
         if hasattr(ob,"atom"):
+          rc(session,"set bgColor black")
           self.hover = ob
           ob.atom.radius+=1
       elif hasattr(ob,"atom"):
