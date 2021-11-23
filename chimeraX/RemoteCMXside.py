@@ -35,9 +35,10 @@ class ListenExec(Thread):
             self.cmx.client.close()
             
 class Hover(Thread):
-  def __init__(self,session):
+  def __init__(self,cmx):
      super().__init__()
-     self.session = session
+     self.cmx=cmx
+     self.session = cmx.session
      self.cursor = session.ui.mouse_modes.graphics_window.cursor()
      for win in session.ui.allWindows():
        print(win.objectName())
@@ -79,6 +80,7 @@ class CMXReceiver():
         self.session=session
         self.port=port
         self.tr=None
+        self.is_closing=False
         
         try:
             self.client=Client(('localhost',port),authkey=b"pyDIFRATE2chimeraX")
@@ -131,7 +133,7 @@ class CMXReceiver():
         self.client.send(sel)
         
     def hover_on(self):
-        self.hover=Hover(self.session)
+        self.hover=Hover(self)
         self.hover.start()
     
     def hover_off(self):
