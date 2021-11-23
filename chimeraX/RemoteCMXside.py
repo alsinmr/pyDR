@@ -8,12 +8,10 @@ Created on Mon Nov 22 13:25:09 2021
 
 
 from multiprocessing.connection import Client
-# from chimerax.core.commands import run
+from chimerax.core.commands import run
 from time import sleep
 from threading import Thread
 
-def run(*args):
-    return
 
 class StartThread(Thread):
     def __init__(self,listener):
@@ -53,6 +51,7 @@ class CMXReceiver():
         
     def wait4command(self):
         self.tr=ListenExec(self)
+        self.tr.isDaemon=True
         self.tr.start()
     
     def command_line(self,string):

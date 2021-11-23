@@ -59,7 +59,7 @@ class CMXRemote():
 
         
         cls.closed[ID]=False     
-        print('update')
+        print('update1')
         return ID
     
     @classmethod
