@@ -15,14 +15,6 @@ import CMXEvents
 import importlib
 import RemoteCMXside
 
-
-class StartThread(Thread):
-    def __init__(self,listener):
-        super().__init__()
-        self.listener=listener
-    def run(self):
-        self.conn=self.listener.accept()    
-
 class ListenExec(Thread):
     def __init__(self,cmx):
         super().__init__()
@@ -79,8 +71,7 @@ class CMXReceiver():
         self.session=session
         self.port=port
         self.LE=None
-        self.__isRunning=True
-        self.EM=EventManager(self)
+        self.Start()
         self._events={}
         
         try:
@@ -92,18 +83,24 @@ class CMXReceiver():
             return
 
         self.wait4command()
-        
+     
+        session.ui.aboutToQuit.connect(self.Stop,no_receiver_check=False)
+        session.ui.aboutToQuit.connect(self.client.close,no_receiver_check=False)
+    
     @property
     def isRunning(self):
-        return self.__isRunning
+        "When False, event manager will halt"
+        return self.__isRunning     #Get the status of the run flag
     
     def Stop(self):
-        self.__isRunning=False
+        "Stop the event manager"
+        self.__isRunning=False      #Set the run flag to False
         sleep(.2) #Give the event manager a good chance to register the stop (??)
     def Start(self):
-        self.EM=EventManager(self)
-        self.__isRunning=True
-        self.EM.start()
+        "Start the event manager"
+        self.EM=EventManager(self)  #Create the new event manager
+        self.__isRunning=True       #Set run flag to true
+        self.EM.start()             #Start the event manager
     
     def wait4command(self):
         if self.LE and self.LE.args:
@@ -142,9 +139,6 @@ class CMXReceiver():
                 sel[-1]['a']=mdl.atoms[mdl.atoms.selected].coord_indices
         self.client.send(sel)
         
-#    def hover_on(self):
-#        self.hover=Hover(self.session)
-#        self.hover.start()
 
     def add_event(self,name):
         if not(hasattr(CMXEvents,name)):
@@ -168,10 +162,4 @@ class CMXReceiver():
             event=self._events.pop(name) #Remove the event
             if hasattr(event,'cleanup'):event.cleanup()  #Running delete lets us clean up the object if desired.
             self.Start()
-        
-#    
-#    def hover_off(self):
-#        if hasattr(self,'hover'):
-#            self.hover.cont=False
-            
         

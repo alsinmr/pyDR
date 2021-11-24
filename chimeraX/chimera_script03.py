@@ -1,11 +1,11 @@
 import sys
 from chimerax.core.commands import run as rc
 
-rc(session,"remotecontrol rest start port 60959")
+rc(session,"remotecontrol rest start port 60961")
 sys.path.append("/Users/albertsmith/Documents/GitHub/pyDR/chimeraX")
 from RemoteCMXside import CMXReceiver as CMXR
 import RemoteCMXside
-cmxr=CMXR(session,7001)
+cmxr=CMXR(session,7003)
 rc(session,"ui mousemode right select")
 rc(session,"open 2kj3")
 rc(session,"~ribbon")
