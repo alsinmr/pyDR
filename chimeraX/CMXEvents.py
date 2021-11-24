@@ -46,15 +46,21 @@ class Hover_over_2DLabel(Hover):
     def __init__(self,cmx):
         Hover.__init__(self, cmx)
         from chimerax.model_panel.tool import ModelPanel
+        from chimerax.label.label2d import LabelModel
 
+        #todo get_button_information from cmx
+        #todo create_buttons
+
+        #getting Panel where Models are stored in chimera (down right side)
         for tool in self.session.tools:
             if isinstance(tool,ModelPanel):
                 break
+        self.labels = []  #todo make this to a dictionary where the functions of the buttons are stored, too
         try:
-            #todo this would right now only work if exactly 1 or more labels existung
-            #but only checking for the first label
-            self.label = tool.models[2]
-            print("got the label")
+            for mdl in tool.models:
+                if isinstance(mdl,LabelModel):
+                    self.labels.append(mdl)
+            print("got the label(s)")
         except:
             print("no label here")
 
@@ -64,12 +70,13 @@ class Hover_over_2DLabel(Hover):
         mx,my = self.get_mouse_pos()
         mx= mx/self.win2.size().width()*2-1
         my=(my/self.win2.size().height()*2-1)*-1
-        geo = self.label.geometry_bounds()
-        if geo.contains_point([mx,my,0]):
-            self.label.label.text="True"
-        else:
-            self.label.label.text="False"
-        self.label.label.update_drawing()
+        for label in self.labels:
+            geo = label.geometry_bounds()
+            if geo.contains_point([mx,my,0]):
+                label.label.text="True"
+            else:
+                label.label.text="False"
+            label.label.update_drawing()
 
     def cleanup(self):
         pass
