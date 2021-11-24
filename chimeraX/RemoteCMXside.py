@@ -142,7 +142,8 @@ class CMXReceiver():
 
     def add_event(self,name):
         if not(hasattr(CMXEvents,name)):
-            print('Unknown event "{}"'.format(name))
+            print('Unknown event "{}", available events:\n'.format(name))
+            print([fun for fun in dir(CMXEvents) if fun[0] is not "_"])
             return
         event=getattr(CMXEvents,name)
         if event.__class__ is type: #Event is a class. First initialize
