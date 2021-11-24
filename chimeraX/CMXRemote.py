@@ -13,6 +13,8 @@ from multiprocessing.connection import Listener,Client
 from pyDR.chimeraX.chimeraX_funs import get_path,py_line,WrCC,chimera_path,run_command
 from threading import Thread
 from time import time,sleep
+from platform import platform
+from subprocess import Popen
 
 #%% Functions to run in pyDR
 class CMXRemote():
@@ -51,11 +53,13 @@ class CMXRemote():
                         WrCC(f,co)
                 elif isinstance(commands,str):
                     WrCC(f,commands)
-        
+
         cls.listener=Listener(('localhost',cls.ports[ID]),authkey=b'pyDIFRATE2chimeraX')
-        
-        cls.PIDs[ID]=os.spawnl(os.P_NOWAIT,chimera_path(),chimera_path(),cls.full_path(ID))
-        
+
+        cls.PIDs[ID] = (os.spawnl(os.P_NOWAIT, chimera_path(), chimera_path(), cls.full_path(ID))
+                        if not "Linux" in platform() else
+                        Popen([chimera_path().strip(), cls.full_path(ID)]))
+
         cls.tr=StartThread(cls.listener)
         cls.tr.start()
         t0=time()
@@ -72,7 +76,7 @@ class CMXRemote():
         
 
         
-        cls.closed[ID]=False     
+        cls.closed[ID]=False
         return ID
     
     @classmethod
@@ -105,7 +109,7 @@ class CMXRemote():
     @classmethod
     def add_event(cls,ID,name):
         cls.conn[ID].send(('add_event',name))
-    
+
     @classmethod
     def remove_event(cls,ID,name):
         cls.conn[ID].send(('remove_event',name))
