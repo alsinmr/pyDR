@@ -35,16 +35,13 @@ class EventManager(Thread):
     
     @property
     def is_session_alive(self):
-        if len(self.cmx.session.ui.allWindows())==0:  #If windows are all gone, chimeraX is probably been closed by the user
-            print('Closing the Event Manager')
-            return False
         return self.cmx.isRunning   #Check if CMXReceiver has been terminated by other means
     
     def run(self):
         print('Event manager started')
         while self.is_session_alive:
-            sleep(.05)
-            for name,f in self.cmx._events.items():
+            sleep(.15)
+            for name,f in self.cmx._events.copy().items():
                 try:
                     f()
                 except:
@@ -52,18 +49,6 @@ class EventManager(Thread):
                     self.cmx._events.pop(name)
         else:
             print('Event manager stopped')
-                    
-    def remove_event(self,name):
-        if name in self.cmx._events.keys():
-            self.cmx._events.pop(name)
-        else:
-            print('Event "{}" not found'.format(name))
-    
-    def add_event(self,name,fun):
-        if hasattr(fun,'__call__'):
-            self.cmx._events[name]=fun
-        else:
-            print('Event "{}" cannot be added. fun must be callable'.format(name))
 
 
 class CMXReceiver():
@@ -142,7 +127,8 @@ class CMXReceiver():
 
     def add_event(self,name):
         if not(hasattr(CMXEvents,name)):
-            print('Unknown event "{}"'.format(name))
+            print('Unknown event "{}", available events:\n'.format(name))
+            print([fun for fun in dir(CMXEvents) if fun[0] is not "_"])
             return
         event=getattr(CMXEvents,name)
         if event.__class__ is type: #Event is a class. First initialize
