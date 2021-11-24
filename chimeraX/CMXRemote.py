@@ -25,7 +25,7 @@ class CMXRemote():
     closed=list()
     
     @classmethod
-    def launch(cls,new_instance=True):
+    def launch(cls,commands=None):
         if True in cls.closed:
             ID=np.argwhere(cls.closed)[0,0]
         else:
@@ -42,15 +42,19 @@ class CMXRemote():
             WrCC(f,'remotecontrol rest start port {0}'.format(ID+cls.rc_port0))
             py_line(f,'sys.path.append("{}")'.format(cls.path))
             py_line(f,'from RemoteCMXside import CMXReceiver as CMXR')
+            py_line(f,'import RemoteCMXside')
             py_line(f,'cmxr=CMXR(session,{})'.format(cls.ports[ID]))
             WrCC(f,'ui mousemode right select')
+            if commands:
+                if isinstance(commands,list):
+                    for co in commands:
+                        WrCC(f,co)
+                elif isinstance(commands,str):
+                    WrCC(f,commands)
         
         cls.listener=Listener(('localhost',cls.ports[ID]),authkey=b'pyDIFRATE2chimeraX')
         
-        if new_instance:
-            cls.PIDs[ID]=os.spawnl(os.P_NOWAIT,chimera_path(),chimera_path(),cls.full_path(ID))
-        else:
-            cls.PIDs[ID]=0
+        cls.PIDs[ID]=os.spawnl(os.P_NOWAIT,chimera_path(),chimera_path(),cls.full_path(ID))
         
         cls.tr=StartThread(cls.listener)
         cls.tr.start()
@@ -69,7 +73,6 @@ class CMXRemote():
 
         
         cls.closed[ID]=False     
-        print('update1')
         return ID
     
     @classmethod
@@ -87,7 +90,10 @@ class CMXRemote():
     def command_line(cls,ID,string):
         with File(ID) as f:
             py_line(f,run_command())
-            WrCC(f,string)
+            if isinstance(string,list):
+                for s in string:WrCC(f,s)
+            else:
+                WrCC(f,string)
         cls.send_file(ID)        
 #        cls.conn[ID].send(('command_line',string))
     
@@ -97,8 +103,12 @@ class CMXRemote():
 #        cls.conn[ID].send(('command_line','open {}'.format(cls.full_path(ID))))
     
     @classmethod
-    def hover(cls,ID,hover=True):
-        cls.conn[ID].send(('hover_on' if hover else 'hover_off',))
+    def add_event(cls,ID,name):
+        cls.conn[ID].send(('add_event',name))
+    
+    @classmethod
+    def remove_event(cls,ID,name):
+        cls.conn[ID].send(('remove_event',name))
             
         
     @classmethod

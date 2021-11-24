@@ -9,9 +9,11 @@ Created on Mon Nov 22 13:25:09 2021
 
 from multiprocessing.connection import Client
 from chimerax.core.commands import run
-import chimerax
 from threading import Thread
 from time import sleep
+import CMXEvents
+import importlib
+import RemoteCMXside
 
 
 class StartThread(Thread):
@@ -33,79 +35,87 @@ class ListenExec(Thread):
             self.cmx.wait4command()     #If we successfully receive, start the process again   
         except:     #If the connection closes, we'll close this side as well
             self.cmx.client.close()
-            
-class Hover(Thread):
-  def __init__(self,cmx):
-     super().__init__()
-     self.cmx=cmx
-     self.session = cmx.session
-     self.cursor = session.ui.mouse_modes.graphics_window.cursor()
-     for win in session.ui.allWindows():
-       print(win.objectName())
-       if win.objectName() == "MainWindowClassWindow":
-         self.win1 = win
-         break
-     self.win2 = session.ui.allWindows()[-1]
-     self.win_size=session.view.window_size
-     self.cont=True
-     
-  def is_session_alive(self):
-     return self.cont
-     #TODO
 
-     
-  def run(self):
-    while self.is_session_alive():
-      sleep(0.3)
-      mx = self.cursor.pos().x()-self.win1.position().x()-self.win2.position().x()
-      my = self.cursor.pos().y()-self.win1.position().y()-self.win2.position().y()
-      ob = self.session.main_view.picked_object(mx, my)
-      if not hasattr(self,"hover"):
-        if hasattr(ob,"atom"):
-          self.hover = ob
-          ob.atom.radius+=1
-      elif hasattr(ob,"atom"):
-        if self.hover.atom.name != ob.atom.name:
-          print(ob.atom.name)
-          if self.hover:
-            self.hover.atom.radius -= 1
-          ob.atom.radius += 1
-          self.hover = ob
-    else:
-      self.hover.atom.radius -= 1
-          
+class EventManager(Thread):
+    def __init__(self,cmx):
+        super().__init__()
+        self.cmx=cmx
+    
+    @property
+    def is_session_alive(self):
+        if len(self.cmx.session.ui.allWindows())==0:  #If windows are all gone, chimeraX is probably been closed by the user
+            print('Closing the Event Manager')
+            return False
+        return self.cmx.isRunning   #Check if CMXReceiver has been terminated by other means
+    
+    def run(self):
+        print('Event manager started')
+        while self.is_session_alive:
+            sleep(.05)
+            for name,f in self.cmx._events.items():
+                try:
+                    f()
+                except:
+                    print('Warning: Event "{}" failed, removing from event loop'.format(name))
+                    self.cmx._events.pop(name)
+        else:
+            print('Event manager stopped')
+                    
+    def remove_event(self,name):
+        if name in self.cmx._events.keys():
+            self.cmx._events.pop(name)
+        else:
+            print('Event "{}" not found'.format(name))
+    
+    def add_event(self,name,fun):
+        if hasattr(fun,'__call__'):
+            self.cmx._events[name]=fun
+        else:
+            print('Event "{}" cannot be added. fun must be callable'.format(name))
+
 
 class CMXReceiver():
     def __init__(self,session,port):
         self.session=session
         self.port=port
-        self.tr=None
-        self.is_closing=False
+        self.LE=None
+        self.__isRunning=True
+        self.EM=EventManager(self)
+        self._events={}
         
         try:
             self.client=Client(('localhost',port),authkey=b"pyDIFRATE2chimeraX")
         except:
+            self.__isRunning=False
             if hasattr(self,'client'):self.client.close()
             run(self.session,'exit')
             return
 
         self.wait4command()
         
+    @property
+    def isRunning(self):
+        return self.__isRunning
+    
+    def Stop(self):
+        self.__isRunning=False
+        sleep(.2) #Give the event manager a good chance to register the stop (??)
+    def Start(self):
+        self.EM=EventManager(self)
+        self.__isRunning=True
+        self.EM.start()
+    
     def wait4command(self):
-        if self.tr and self.tr.args:
-            fun,*args=self.tr.args
+        if self.LE and self.LE.args:
+            fun,*args=self.LE.args
             if hasattr(self,fun):
-                count=0
                 try:
-                    count+=1
                     getattr(self,fun)(*args)
-                    count+=2
                 except:
-                    print(count)
                     print('Execution of {} failed'.format(fun))    
-        self.tr=ListenExec(self)
-#        self.tr.isDaemon=True
-        self.tr.start()
+        self.LE=ListenExec(self)
+#        self.LE.isDaemon=True
+        self.LE.start()
     
     def command_line(self,string):
         run(self.session,string)
@@ -132,12 +142,36 @@ class CMXReceiver():
                 sel[-1]['a']=mdl.atoms[mdl.atoms.selected].coord_indices
         self.client.send(sel)
         
-    def hover_on(self):
-        self.hover=Hover(self)
-        self.hover.start()
-    
-    def hover_off(self):
-        if hasattr(self,'hover'):
-            self.hover.cont=False
+#    def hover_on(self):
+#        self.hover=Hover(self.session)
+#        self.hover.start()
+
+    def add_event(self,name):
+        if not(hasattr(CMXEvents,name)):
+            print('Unknown event "{}"'.format(name))
+            return
+        event=getattr(CMXEvents,name)
+        if event.__class__ is type: #Event is a class. First initialize
+            event=event(self)
+        if not(hasattr(event,'__call__')):
+            print('Event "{}" must be callable'.format(name))
+            return
+        self.Stop() #Stop the event manager
+        self._events[name]=event #Add the event
+        print('Event added')
+        self.Start()
+        
+        
+    def remove_event(self,name):
+        if name in self._events:
+            self.Stop()             #Stop the event manager
+            event=self._events.pop(name) #Remove the event
+            if hasattr(event,'cleanup'):event.cleanup()  #Running delete lets us clean up the object if desired.
+            self.Start()
+        
+#    
+#    def hover_off(self):
+#        if hasattr(self,'hover'):
+#            self.hover.cont=False
             
         
