@@ -9,6 +9,7 @@ Created on Mon Nov 22 13:25:09 2021
 
 from multiprocessing.connection import Client
 from chimerax.core.commands import run
+from chimerax.ui.gui import MainWindow
 from threading import Thread
 from time import sleep
 import CMXEvents
@@ -40,13 +41,14 @@ class EventManager(Thread):
     def run(self):
         print('Event manager started')
         while self.is_session_alive:
-            sleep(.15)
-            for name,f in self.cmx._events.copy().items():
-                try:
-                    f()
-                except:
-                    print('Warning: Event "{}" failed, removing from event loop'.format(name))
-                    self.cmx._events.pop(name)
+            sleep(.25)
+            if isinstance(self.cmx.session.ui.activeWindow(),MainWindow):
+                for name,f in self.cmx._events.copy().items():
+                    try:
+                        f()
+                    except:
+                        print('Warning: Event "{}" failed, removing from event loop'.format(name))
+                        self.cmx._events.pop(name)
         else:
             print('Event manager stopped')
 
