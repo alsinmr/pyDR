@@ -101,9 +101,14 @@ class CMXReceiver():
                     getattr(self,fun)(*args)
                 except:
                     print('Execution of {} failed'.format(fun))    
-        self.LE=ListenExec(self)
+        if self.LE is None:
+            self.LE=ListenExec(self)
+            self.LE_1=self.LE
+        else:
+            self.LE=ListenExec(self)
 #        self.LE.isDaemon=True
         self.LE.start()
+        print(self.LE_1.is_alive())
     
     def command_line(self,string):
         print("run command")
