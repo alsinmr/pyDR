@@ -45,7 +45,7 @@ class CMXRemote():
             py_line(f,'sys.path.append("{}")'.format(cls.path))
             py_line(f,'from RemoteCMXside import CMXReceiver as CMXR')
             py_line(f,'import RemoteCMXside')
-            py_line(f,'cmxr=CMXR(session,{})'.format(cls.ports[ID]))
+            py_line(f,'cmxr=CMXR(session,{},rc_port0={})'.format(cls.ports[ID],cls.rc_port0+ID))
             WrCC(f,'ui mousemode right select')
             if commands:
                 if isinstance(commands,list):
@@ -73,9 +73,7 @@ class CMXRemote():
             cls.listener.close()
             print('Failed to establish connection with ChimeraX')
             cls.kill(ID)
-        
 
-        
         cls.closed[ID]=False
         return ID
     

@@ -15,6 +15,7 @@ from time import sleep
 import CMXEvents
 import importlib
 import RemoteCMXside
+import os
 
 class ListenExec(Thread):
     def __init__(self,cmx):
@@ -33,6 +34,7 @@ class EventManager(Thread):
     def __init__(self,cmx):
         super().__init__()
         self.cmx=cmx
+
     
     @property
     def is_session_alive(self):
@@ -41,8 +43,8 @@ class EventManager(Thread):
     def run(self):
         print('Event manager started')
         while self.is_session_alive:
-            sleep(.25)
-            if isinstance(self.cmx.session.ui.activeWindow(),MainWindow):
+            sleep(.5)
+            if self.cmx.session.ui.main_window.isActiveWindow():#isinstance(self.cmx.session.ui.activeWindow(),MainWindow):
                 for name,f in self.cmx._events.copy().items():
                     try:
                         f()
@@ -54,12 +56,14 @@ class EventManager(Thread):
 
 
 class CMXReceiver():
-    def __init__(self,session,port):
+    def __init__(self,session,port,rc_port0):
+        #todo insert the curl port here somewhere
         self.session=session
         self.port=port
         self.LE=None
         self.Start()
         self._events={}
+        self.rc_port0 = rc_port0
         
         try:
             self.client=Client(('localhost',port),authkey=b"pyDIFRATE2chimeraX")
@@ -102,6 +106,7 @@ class CMXReceiver():
         self.LE.start()
     
     def command_line(self,string):
+        print("run command")
         run(self.session,string)
         
         
@@ -125,7 +130,15 @@ class CMXReceiver():
                 sel[-1]['b1']=b1.coord_indices
                 sel[-1]['a']=mdl.atoms[mdl.atoms.selected].coord_indices
         self.client.send(sel)
-        
+
+
+    def send_command(self,string):
+        """todo I found out, that creating any Model with the command line interface inside the thread will cause a program
+        crash. since I want to create the buttons inside chimera i needed to implement this funciton from the remote side here
+        it is working, still i think its ugly
+        the port should be saved somewhere in the class object"""
+        string=string.replace(' ','+')
+        return os.system('curl http://127.0.0.1:{0}/run?command={1}'.format(self.rc_port0,string))
 
     def add_event(self,name):
         if not(hasattr(CMXEvents,name)):
@@ -135,9 +148,12 @@ class CMXReceiver():
         event=getattr(CMXEvents,name)
         if event.__class__ is type: #Event is a class. First initialize
             event=event(self)
+
         if not(hasattr(event,'__call__')):
             print('Event "{}" must be callable'.format(name))
             return
+
+
         self.Stop() #Stop the event manager
         self._events[name]=event #Add the event
         print('Event added')
