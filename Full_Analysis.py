@@ -802,28 +802,12 @@ class KaiMarkov():
         page_2 = plot_detectors()
         return page_1, page_2
 
-
-
-
-def main():
-    M = KaiMarkov(sel_sim="xtcs/3pw.xtc")
-    M.calc()
-
-    return
-    M = KaiMarkov(n=200,simulation=4,residues=[])
-    M.calc(sparse=0)
-    M.plot_all()
-    M = KaiMarkov(n=200, simulation=2, residues=[])
-    M.calc(sparse=0)
-    M.plot_all()
-
-    return
+def MEthylCOrrealation():
     M = KaiMarkov(n=500,  simulation=2, residues=[])
     M.calc(sparse=10)
     M.universe.trajectory[0]
     #M.plot_all()
     #return
-
     fig = plt.figure()
     fig2 = plt.figure()
     fig3 = plt.figure()
@@ -862,6 +846,69 @@ def main():
                     cx.text(*pos, label)
 
 
+
+def main():
+    M = KaiMarkov(simulation=0)
+    #
+
+    indices=[]
+    labels = []
+
+    for key in M.full_dict.keys():
+        for i, label in enumerate(M.full_dict[key]['ct_labels']):
+            if "CH" in label and "rot" in label:
+                indices.append(M.full_dict[key]['ct_indices'][i])
+                l = ""
+                l+= key[4:7]
+                l+= key[:3]
+                if "1" in label:
+                    l+="1"
+                elif "2" in label:
+                    l+="2"
+                else:
+                    l+="0"
+                labels.append(l)
+                print(M.full_dict[key]['ct_indices'][i],label)
+    print(indices)
+    print(len(indices))
+    print(labels)
+    indices = np.array(indices)
+    M.calc()
+    cts = M.cts[indices]
+    print(cts.shape)
+
+
+    D = DR.data()
+    D.load(Ct={'Ct': cts
+        , 't': np.linspace(0, int(M.length / 1000) * M.universe.trajectory.dt, M.length)})
+    n_dets = 8
+    D.detect.r_auto3(n=n_dets)
+    fit = D.fit()
+    fit.label = labels
+    print(fit.R.shape)
+    marked_atom = {"ala0":"CB",
+                   "ile1":"CG2",
+                   "ile2":"CD",
+                   "leu1":"CD1",
+                   "leu2":"CD2",
+                   "val1":"CG1",
+                   "val2":"CG2",
+                   "thr0":"CG2"}
+
+    with open("det2.txt","w+") as f:
+        for i,lab in enumerate(fit.label):
+            try:
+                print(lab)
+                f.write(str(int(lab[:3])-147))
+                f.write("-")
+                f.write(marked_atom[lab[3:].lower()])
+                f.write(":")
+                for R in fit.R[i,:]:
+                    f.write(str(R.astype("float16")))
+                    f.write(";")
+                f.write("\n")
+            except:
+                pass
 
 if __name__ == "__main__":
     main()

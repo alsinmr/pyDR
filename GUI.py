@@ -98,6 +98,7 @@ class PDBs(SubFrame):
         for i,f in enumerate(pdbs):
             tk.Button(master=self, text=f, command=lambda f=f:open_chimera(f)).pack()
 
+
 class Plot_MD_Analysis(SubFrame):
     name="MDAnalysisFrame"
     def __init__(self,parent,*args):
@@ -130,6 +131,7 @@ class Plot_MD_Analysis(SubFrame):
 
         for i,p in enumerate(self.pages):
             tk.Button(self,text="Page "+str(i), command=lambda p= p: plot_page(p)).pack(side=tk.TOP)#grid(column=i,row=0)
+
 
 class MolDynFrame(SubFrame):
     """Here I want to directly access my MD simulation data with processing settings and so on, maby we can direclty
@@ -173,8 +175,8 @@ class MolDynFrame(SubFrame):
         OutLabel.grid(column=0,row=3)
 
 
-
 class Plot_3D(SubFrame):
+    #todo garbage, remove beforce publish :D
     def __init__(self,parent,residue):
         self.residue = residue
         SubFrame.__init__(self,parent)
@@ -203,9 +205,6 @@ class Plot_3D(SubFrame):
             canvas.draw()
 
         def mark_atom_coords(coords,label):
-            #if hasattr(self, "textbox"):
-                #self.textbox.remove()
-                #del self.textbox
             print(coords,label)
             self.textbox = ax.text(*coords, label, bbox=TEXTBOX)
             canvas.draw()
@@ -216,11 +215,7 @@ class Plot_3D(SubFrame):
 
         def mouse_over_residue(coords):
             dists =np.linalg.norm(coords-self.residue.atoms.positions,axis=1)
-            #print(dists.shape)
-            #print(dists.min())
             val,idx = min((val, idx) for (idx, val) in enumerate(dists))
-            #print(idx)
-            #print(self.residue.atoms[idx].name)
             mark_atom(idx)
 
         def onMove(event):
@@ -269,6 +264,7 @@ class Plot_3D(SubFrame):
                 ax.scatter(*atom.position, s=35, color="red")
             elif "N" in atom.name:
                 ax.scatter(*atom.position, s=40, color="blue")
+
 
 class BondSelFrame(SubFrame):
     """Here I want to directly access my MD simulation data with processing settings and so on, maby we can direclty
@@ -367,7 +363,6 @@ class BondSelFrame(SubFrame):
         OutLabel.grid(column=0,row=3,sticky=tk.W)
 
 
-
 class DetectorFrame(SubFrame):
     '''this panel should display the detector senstitivities and detector responses in the NMR panel. right now it is just
     working for HET-s, because the creation of detectros and the selection is hard coded. It should get access to the upper frame
@@ -403,14 +398,23 @@ class DetectorFrame(SubFrame):
 
 
 def save_det_file(fit):
+    #todo the atom information (like "CB" for Alanine or "CD" for Isoleucin) should be also provided here
+    #todo so this can work also for MD Sim results
+
     #todo right now it saves only residue number and detector responses and is only working for hets because of the res
     #todo num offset of 147,  there should be smth like an assignement list added to the arguments
+
+    marked_atom = {"ala":"CB",
+                   "ile":"CD",
+                   "leu":"CD2",
+                   "val":"CG2"}
+
     with open("det.txt","w+") as f:
         for i,lab in enumerate(fit.label):
             try:
                 f.write(str(int(lab[:3])-147))
                 f.write("-")
-                f.write(lab[3:])
+                f.write(marked_atom[lab[3:].lower()])
                 f.write(":")
                 for R in fit.R[i,:]:
                     f.write(str(R.astype("float16")))
@@ -431,12 +435,14 @@ class NMRFrame(SubFrame):
                               "~ribbon ~/B","style ball","hide H"])
             fit = self.get_from_master("fit")
             save_det_file(fit)
-            CMXRemote.add_event(self.id, "Hover_over_2DLabel")
+            #CMXRemote.add_event(self.id, "Hover_over_2DLabel")
 
         def plot_detector():
             '''creating a Frame to Plot Detectors according to the selected NMR file in master.nmr_file'''
-            DetectorFrame(self).grid(column=1,row=4,sticky=tk.W,columnspan=3)
+            DetectorFrame(self).grid(column=1,row=4,sticky=tk.W,columnspan=2)
             tk.Button(self, text="show in chimerax", command=lambda:open_chimera()).grid(column=1, row=5,sticky=tk.W)
+            tk.Button(self, text="Show det. respnses", command=lambda:CMXRemote.add_event(self.id,"Detectors")).grid(column=2,row=5,sticky=tk.W)
+
         def load_data(folder,f):
             self.set_at_master("nmr_file",join("nmr",folder,f))
 
@@ -490,6 +496,7 @@ class PlotFrame(SubFrame):
         tk.Button(self, text="what", command=lambda: plot_whatever()).pack()
         tk.Button(self, text="ever", command=lambda: plot_B()).pack()
 
+
 class FirstFrame(SubFrame):
     name="Mainpage"
     def create(self):
@@ -497,6 +504,7 @@ class FirstFrame(SubFrame):
                                  "in coorperation with MD Simulation data").pack()
         Simulations(self).pack(side=tk.LEFT)
         PDBs(self).pack(side=tk.RIGHT)
+
 
 class ParentFrame(tk.Tk):
     """This is the front page of our program, everything important for the gui will be initialized here, also all

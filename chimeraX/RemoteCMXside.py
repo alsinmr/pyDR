@@ -9,7 +9,6 @@ Created on Mon Nov 22 13:25:09 2021
 
 from multiprocessing.connection import Client
 from chimerax.core.commands import run
-from chimerax.ui.gui import MainWindow
 from threading import Thread
 from time import sleep
 import CMXEvents
@@ -57,13 +56,12 @@ class EventManager(Thread):
 
 class CMXReceiver():
     def __init__(self,session,port,rc_port0):
-        #todo insert the curl port here somewhere
         self.session=session
         self.port=port
         self.LE=None
         self.Start()
         self._events={}
-        self.rc_port0 = rc_port0
+        self.rc_port0 = rc_port0   #CURL port
         
         try:
             self.client=Client(('localhost',port),authkey=b"pyDIFRATE2chimeraX")
@@ -111,6 +109,7 @@ class CMXReceiver():
         print(self.LE_1.is_alive())
     
     def command_line(self,string):
+        '''running this from inside an event will cause a crash of chimerax'''
         print("run command")
         run(self.session,string)
         
