@@ -11,7 +11,7 @@ class Hover():
      self.cmx = cmx
      self.session=cmx.session
      self.cursor = self.session.ui.mouse_modes.graphics_window.cursor()
-     for win in self.session.ui.allWindows():
+     for win in self.session.ui.allWindows():  #todo set session.ui.main_window
        if win.objectName() == "MainWindowClassWindow":
          self.win1 = win
          break
@@ -42,6 +42,18 @@ class Hover():
       if hasattr(self,"hover"):
           self.hover.atom.radius -= 1
 
+class Click(Hover):
+    def __call__(self, *args, **kwargs):
+        pass
+        '''
+        : Qt.MouseButton
+        Out[42]: PyQt5.QtCore.Qt.MouseButton
+        
+        Qt.MouseButton()
+        Out[43]: 0
+        
+        Qt.MouseButton()
+        Out[44]: 0'''
 
 class Detectors(Hover):
     def __init__(self,cmx):
