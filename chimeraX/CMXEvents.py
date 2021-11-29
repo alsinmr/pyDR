@@ -114,7 +114,10 @@ class Detectors(Hover):
             atoms.colors = color
 
         self.commands = []
+        from chimerax.label.label2d import label_create
+
         for i in range(len(responses)):
+            label_create(self.session,"testlabel", text="testmeifucan", xpos=.2,ypos=.2)
             self.cmx.send_command("2dlabels text det{} size 25 x 0.9 y {}".format(i,str(0.9-i*0.075)))
             self.commands.append(lambda atoms = self.model.residues[res_nums-1].atoms[atom_nums],
                                         R = det_responses.T[i],
