@@ -250,6 +250,9 @@ class KaiMarkov():
         # todo put segment selection here if more than one segment is available
 
     def save_state(self):
+        #todo make the saving and loading in a way, that every bond information + ct + S2 is stored in a dictionary for
+        #todo the specific simulation
+
         dir = join(self.dir,"calced_data")
         if not exists(dir):
             mkdir(dir)

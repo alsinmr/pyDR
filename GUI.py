@@ -270,6 +270,9 @@ class BondSelFrame(SubFrame):
     """Here I want to directly access my MD simulation data with processing settings and so on, maby we can direclty
     output the resulting detector analysis then here"""
     name="Bond Selection"
+    #todo  bond selection with 'frame'
+    #todo  dihedral angle selection
+    #todo
     def create(self):
         def print_string():
             print("{} - {} - {} - {}".format(*[atom.name for atom in self.selected_atoms]))
@@ -298,8 +301,8 @@ class BondSelFrame(SubFrame):
                 if resi in resid.resname:
                     break
 
-            CMXRemote.send_command(self.idx,"hide @sidechain")
-            CMXRemote.send_command(self.idx,"show :{}".format(resi))
+            CMXRemote.send_command(self.idx, "hide @sidechain")
+            CMXRemote.send_command(self.idx, "show :{}".format(resi))
 
             if hasattr(self,"atomlabelbox"):
                 self.atomlabelbox.destroy()
@@ -308,18 +311,13 @@ class BondSelFrame(SubFrame):
             for i,atom in enumerate(resid.atoms):
                 label = tk.Label(self.atomlabelbox, text=atom.name, width=6,height=2)
                 label.grid(row=i%15,column=int(i/15))
-                label.bind("<Enter>", lambda e,l = atom.name: CMXRemote.send_command(self.idx,"color :{}@{} red target a".format(resi,l)))
-                label.bind("<Leave>", lambda e,l = atom.name: CMXRemote.send_command(self.idx,"color :{}@{} {} target a".format(resi,l, "white")))
+                label.bind("<Enter>", lambda e,l = atom.name: CMXRemote.send_command(self.idx,
+                                                                "color :{}@{} red target a".format(resi,l)))
+                label.bind("<Leave>", lambda e,l = atom.name: CMXRemote.send_command(self.idx,
+                                                                "color :{}@{} {} target a".format(resi,l, "white")))
                 label.bind("<Button>", lambda e,r=resi, a= atom: select_atom(r,a))
                 #todo bind click to select -K
             self.atomlabelbox.grid(column=1,row=1,rowspan=4, sticky=tk.W)
-
-            #plot = Plot_3D(self,resid)
-            #plot.grid(column=1,row=1,rowspan=5)
-
-            #self.Plot_Frame = Plot_MD_Analysis(self, *self.M.plot_det_gui(res))
-            #self.Plot_Frame.grid(column=1,row=1,rowspan=5)
-
 
         def analysis():
             #remove old listbox with methyl_groups(if available)
@@ -347,11 +345,10 @@ class BondSelFrame(SubFrame):
             #self.M.calc()
             self.idx = CMXRemote.launch()
             sleep(5)
-            CMXRemote.send_command(self.idx,"open {}".format(join("pdbs",pdb)))
-            CMXRemote.send_command(self.idx,"~ribbon")
+            CMXRemote.send_command(self.idx, "open {}".format(join("pdbs",pdb)))
+            CMXRemote.send_command(self.idx, "~ribbon")
             CMXRemote.send_command(self.idx, "show backbone")
             CMXRemote.send_command(self.idx, "hide H")
-
 
         tk.Label(self,text="available pdbs").grid(column=0,row=0, sticky=tk.W)
         self.MD_Listbox = tk.Listbox(self)
@@ -381,8 +378,6 @@ class DetectorFrame(SubFrame):
         fit = het.fit()
         fig = plt.figure()
         #todo rearrange the plot functionality, gives some problems with the GUI on linux -K
-
-
         fit.plot_rho(fig=fig, style="bar", errorbars=True)
         self.set_at_master("fit",fit)
         fig.set_size_inches(8,6)

@@ -20,9 +20,8 @@ class Hover():
      self.cont=True
 
   def get_mouse_pos(self):
-      mx = self.cursor.pos().x() - self.win1.position().x() - self.win2.position().x()
-      my = self.cursor.pos().y() - self.win1.position().y() - self.win2.position().y()
-      return mx,my
+      return self.cursor.pos().x() - self.win1.position().x() - self.win2.position().x(),\
+             self.cursor.pos().y() - self.win1.position().y() - self.win2.position().y()
 
   def __call__(self):
       mx, my = self.get_mouse_pos()
@@ -49,17 +48,6 @@ class Detectors(Hover):
         Hover.__init__(self,cmx)
         self.model = self.session.models[0]
         self.open_detector()
-        from chimerax.label.label2d import LabelModel
-        from time import sleep
-        self.labels = []  #todo make this to a dictionary where the functions of the buttons are stored, too
-        sleep(1) #todo hate this but is needed because else it could be the labels are not fully initialized
-        try:
-            for mdl in self.session.models:
-                if isinstance(mdl,LabelModel):
-                    self.labels.append(mdl)
-            print("got the label(s)")
-        except:
-            print("no label here")
 
     def __call__(self):
         mx,my = self.get_mouse_pos()
@@ -82,11 +70,11 @@ class Detectors(Hover):
                     return i
         import numpy as np
         from matplotlib.pyplot import get_cmap
-        cmap = get_cmap("tab10")
+        cmap = lambda ind: (np.array(get_cmap("tab10")(i))*255).astype(int)#get_cmap("tab10")
         res_nums = []
         atom_names = []
         det_responses = []
-        with open("det2.txt") as f:
+        with open("det.txt") as f:
             for line in f:
                 l = line.strip()
                 l = l[:-1]
@@ -103,23 +91,27 @@ class Detectors(Hover):
         last = 0
         atom_nums = []  #TODO i think this could almost get oneline, but low priority -K
         for i,res in enumerate(self.model.residues[res_nums-1]):
-            atom_nums.append(last+get_index(res,atom_names[i]))#)targets[res.name.lower()])
+            atom_nums.append(last+get_index(res,atom_names[i]))
             last += len(res.atoms)
         atom_nums = np.array(atom_nums)
         def set_radius(atoms,R, color):
             #todo check if R has a value and is greater than 0, otherwise you can get problems
-            R/=R.min()  # I dont understand why, but atoms.radii = R/R.min() will not work
+            R/=R.max()
+            R*=5# I dont understand why, but atoms.radii = R/R.min() will not work
             #TODO decide how to display which response
             atoms.radii = R
             atoms.colors = color
 
+        self.labels = []
         self.commands = []
         from chimerax.label.label2d import label_create
-
+        #todo one can set the label text to the correlation time
         for i in range(len(responses)):
-            label_create(self.session,"testlabel", text="testmeifucan", xpos=.2,ypos=.2)
-            self.cmx.send_command("2dlabels text det{} size 25 x 0.9 y {}".format(i,str(0.9-i*0.075)))
+            label = label_create(self.session,"det{}".format(i), text="ρ{}".format(i)
+                         , xpos=.95,ypos=.9-i*.075,
+                         color=cmap(i), outline=1)
+            self.labels.append(self.session.models[-1])
             self.commands.append(lambda atoms = self.model.residues[res_nums-1].atoms[atom_nums],
                                         R = det_responses.T[i],
-                                        color=(np.array(cmap(i))*255).astype(int)
+                                        color=cmap(i)
                                          :set_radius(atoms,R,color))

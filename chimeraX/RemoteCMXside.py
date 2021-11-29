@@ -43,7 +43,7 @@ class EventManager(Thread):
         print('Event manager started')
         while self.is_session_alive:
             sleep(.5)
-            if self.cmx.session.ui.main_window.isActiveWindow():#isinstance(self.cmx.session.ui.activeWindow(),MainWindow):
+            if self.cmx.session.ui.main_window.isActiveWindow():
                 for name,f in self.cmx._events.copy().items():
                     try:
                         f()
