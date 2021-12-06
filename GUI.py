@@ -87,11 +87,11 @@ class PDBs(SubFrame):
     name="PDBS"
     def create(self):
         def open_chimera(f):
-            if "linux" in platform:
-                chim_path = "chimerax"
-            else:
-                chim_path="/Applications/ChimeraX-1.0.app/Contents/MacOS/ChimeraX"
-            Popen([chim_path,"{}".format(join("pdbs",f))])
+            self.id = CMXRemote.launch()
+            CMXRemote.send_command(self.id, "open {}".format(join("pdbs",f)))
+            CMXRemote.send_command(self.id, "style ball")
+            CMXRemote.send_command(self.id, "show")
+            CMXRemote.add_event(self.id,"Click")
         if not exists("pdbs"):
             mkdir("pdbs")
         pdbs = [f for f in listdir("pdbs")]
