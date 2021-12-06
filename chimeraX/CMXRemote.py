@@ -105,12 +105,16 @@ class CMXRemote():
 #        cls.conn[ID].send(('command_line','open {}'.format(cls.full_path(ID))))
     
     @classmethod
-    def add_event(cls,ID,name):
-        cls.conn[ID].send(('add_event',name))
+    def add_event(cls,ID,name,*args,**kwargs):
+        cls.conn[ID].send(('add_event',name,args,kwargs))
 
     @classmethod
     def remove_event(cls,ID,name):
         cls.conn[ID].send(('remove_event',name))
+        
+    @classmethod
+    def set_event_attr(cls,ID,name,attr_name,value):
+        cls.conn[ID].send(('set_event_attr',name,attr_name,value))
             
         
     @classmethod

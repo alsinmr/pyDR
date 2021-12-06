@@ -2,4 +2,5 @@
 calced_data/**
 xtcs/**
 chimeraX/chimeraX_program_path.txt
+chimeraX/chimera_script*.py
 stashed/*
