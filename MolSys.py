@@ -98,17 +98,10 @@ class Trajectory(XTCReader):
             stop=stop if stop==len(self) else stop%len(self)
             step=index.step if index.step else 1
             
-#            start=(index.start if index.start else 0)+self.t0
-#            stop=index.stop if index.stop is not None and index.stop<=self.__len__() else self.__len__()
-#            stop=(stop if stop==self.__len__() else stop%self.__len__())*self.step+self.t0
-#            step=self.step*index.step if index.step else self.step
-#            sl=slice(start,stop,step)
-#            print(sl)
-#            return super().__getitem__(sl)
             def iterate():
                 for k in range(start,stop,step):
                     yield self[k]
-            return iterate
+            return iterate()
         else:
             assert index<self.__len__(),"index must be less than the truncated trajectory length"
             index%=self.__len__() #Take care of negative indices
@@ -121,7 +114,7 @@ class Trajectory(XTCReader):
         return int((self.tf-self.t0)/self.step)
     
     def __iter__(self):
-        return self[::-1]
+        return self[:]
     
         
         
