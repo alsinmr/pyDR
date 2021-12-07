@@ -7,7 +7,6 @@ Created on Mon Dec  6 13:34:36 2021
 """
 import numpy as np
 from MDAnalysis import Universe
-from MDAnalysis.coordinates.XTC import XTCReader
 
 class MolSys():
     """
@@ -15,6 +14,7 @@ class MolSys():
     """
     def __init__(self,topo=None,traj=None,t0=0,tf=-1,step=1,dt=None):
         self._uni=list()
+        self._traj=list()
         self.cur_molecule=None #Allow multiple trajectories to be stored, select which one accessed with this index
         if topo:self.add_molecule(topo,traj,t0=t0,tf=tf,step=step,dt=dt)       
         
@@ -22,8 +22,9 @@ class MolSys():
     def add_molecule(self,topo,traj=None,t0=0,tf=-1,step=1,dt=None,**kwargs):
         """Adds a molecule to the MolSys object
         """
-        self._uni.append(Universe(topo))
-        if traj:self._uni[-1].trajectory=Trajectory(traj,t0=t0,tf=tf,step=step,dt=dt,**kwargs)
+        self._uni.append(Universe(topo,traj))
+        self._traj.append(Trajectory(self._uni[-1].trajectory,t0=t0,tf=tf,step=step,dt=dt) \
+                          if self._uni[-1].trajectory else None)
         self.cur_molecule=len(self._uni)-1
         
     @property
@@ -33,8 +34,7 @@ class MolSys():
     
     @property
     def trajectory(self):
-        assert hasattr(self.molecule,'trajectory'),'No trajectory loaded'
-        return self.molecule.trajectory
+        return self._traj[self.cur_molecule]
     
     
     def __setattr__(self,name,value):
@@ -69,7 +69,7 @@ class Trajectory():
             i=np.zeros(self.tf-self.t0,dtype=bool)
             i[::self.step]=True
             index=np.concatenate((np.zeros(self.t0,dtype=bool),i,np.zeros(self.__tf-self.tf,dtype=bool)))
-            return super().__getitem__(index)
+            return self.traj[index]
         elif isinstance(index,slice):
             stop=index.stop if index.stop else len(self)
             assert stop<=self.__len__(),'stop index must be less than or equal to the truncated trajectory length'
@@ -80,15 +80,12 @@ class Trajectory():
             
             def iterate():
                 for k in range(start,stop,step):
-                    yield self[k]
+                    yield self.traj[k]
             return iterate()
         else:
             assert index<self.__len__(),"index must be less than the truncated trajectory length"
             index%=self.__len__() #Take care of negative indices
-            return super().__getitem__(self.t0+index*self.step)
-    
-    def _apply_limits(self, frame):
-        return frame
+            return self.traj[self.t0+index*self.step]
     
     def __len__(self):
         return int((self.tf-self.t0)/self.step)
