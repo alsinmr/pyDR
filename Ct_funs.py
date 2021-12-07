@@ -98,7 +98,7 @@ def CtFT():
         B=A.conj() if a is b else np.fft.fft(b,b.shape[-1]<<1,axis=-1)
         return A*B
     def cleanup(AB,index):
-        ct=np.fft.ifft(AB)[:AB.shape[0]>>1].real  #Kai's magical divide by two and yield an integer
+        ct=np.fft.ifft(AB).T[:AB.shape[-1]>>1].real.T  #Kai's magical divide by two and yield an integer
         ct/=get_count(index) if index else np.arange(ct.shape[-1],0,-1)
         return ct
     return ct,cleanup

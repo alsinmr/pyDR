@@ -36,7 +36,7 @@ vr=np.array(vr).T #Convert into a numpy array
 
 
 #%% Now calculate the correlation function
-A=[vr[i]*vr[j] for i,j in zip([0,1,2,0,0,1],[0,1,2,1,2,2])]
+A=[np.atleast_2d(vr[i]*vr[j]) for i,j in zip([0,1,2,0,0,1],[0,1,2,1,2,2])]
 ct_calc=Ct_funs.Ct_calc(A,weight=[3/2,3/2,3/2,3,3,3],offset=-1/2)
 
 t0=time()
