@@ -1,6 +1,6 @@
 import numpy as np
 from numba import *
-
+from SpeedTest import *
 
 def search_methyl_groups(residue, v=True):
     """this function will search a residue of a protein for methyl groups by iterating over all atoms and if the atom
@@ -158,7 +158,7 @@ def faster_dihedral(p):
     return np.degrees(np.arctan2(y, x))
 
 
-#@time_runtime
+@time_runtime
 @njit
 def fastest_dihedral(p):
     # TODO put this to https://stackoverflow.com/questions/20305272/dihedral-torsion-angle-from-four-points-in-cartesian-coordinates-in-python
@@ -175,10 +175,10 @@ def fastest_dihedral(p):
 
 #@time_runtime
 @njit(parallel=True)
-def fast_dihedral_multi(j, arr, p):
+def fast_dihedral_multi(p, arr):
     """this was supposed to be faster  than fast dihedral, but it didnt change program runtime significant
     maybe one day I have an idea to improve it"""
-    for i in prange(j):
+    for i in prange(p.shape[0]):
         ind = 4 * i
         b1 = p[ind + 2] - p[ind + 1]
         b0, b1, b2 = -(p[ind + 1] - p[ind]), b1 / np.sqrt((b1 ** 2).sum()), p[ind + 3] - p[ind + 2]
@@ -186,7 +186,7 @@ def fast_dihedral_multi(j, arr, p):
         w = b2 - np.dot(b2, b1) * b1
         x = np.dot(v, w)
         y = np.dot(np.cross(b1, v), w)
-        arr[i] = np.degrees(np.arctan2(y, x))
+        arr[i] = 180.0*np.arctan2(y, x)/np.pi
 
 
 @njit
@@ -221,7 +221,7 @@ def pos_xyz(p, npos, capos, cpos):
 
     return [x, y, z]
 
-
+@time_runtime
 @njit
 def pos_xyz_o(out, p, npos, capos, cpos,  p2=np.array([0]), norm=True):
     """this function calculates the position of point p depending on the plane that is span by npos,capos,cpos
@@ -262,9 +262,9 @@ def P2(x):
     """second legendre polynomial"""
     return (3 * x * x - 1) / 2
 
-
+@time_runtime
 @njit(parallel=True)  # speedup by factor 1600!
-def get_ct_S2(ct,S2, v, sparse=1):
+def get_ct_S2(ct,S2, v, indices,sparse=1):
     """
     calculating the correlation functions or an array of vectors
 
@@ -285,20 +285,22 @@ def get_ct_S2(ct,S2, v, sparse=1):
             r = 1
         l2 = l - i  # second range, just not for recalculating it every time<<<<<x
         for k in prange(ct.shape[0]):  # iterating over the number of vectors    v
-            ct[k, i] = P2(np.array([np.dot(v[k, j], v[k, j + i]) for j in range(0, l2, r)])).mean()
+            if indices[k]:
+                ct[k, i] = P2(np.array([np.dot(v[k, j], v[k, j + i]) for j in range(0, l2, r)])).mean()
         # just leaving the old calculation here to make it better visible what i actually calculate:
         # arr = np.zeros(l-i)
         # for j in prange(l-i):
         #    arr[j] = P2(np.dot(v[j],v[j+i]))
         # ct[i] = arr.mean()#np.average(P2(np.array([np.dot(v[j], v[j + i]) for j in prange(l - i)])))
     for k in prange(ct.shape[0]):
-        S2[k] = 3/2*((v[k, :, 0]**2).mean()**2    # <xi²>²
-                   + (v[k, :, 1]**2).mean()**2    # <yi²>²
-                   + (v[k, :, 2]**2).mean()**2    # <zi²>²
-                   + 2*(v[k, :, 0]*v[k, :, 1]).mean()**2  # <xiyi>²
-                   + 2*(v[k, :, 0]*v[k, :, 2]).mean()**2  # <xizi>²
-                   + 2*(v[k, :, 1]*v[k, :, 2]).mean()**2  # <yizi>²
-                     )-1/2
+        if indices[k]:
+            S2[k] = 3/2*((v[k, :, 0]**2).mean()**2    # <xi²>²
+                       + (v[k, :, 1]**2).mean()**2    # <yi²>²
+                       + (v[k, :, 2]**2).mean()**2    # <zi²>²
+                       + 2*(v[k, :, 0]*v[k, :, 1]).mean()**2  # <xiyi>²
+                       + 2*(v[k, :, 0]*v[k, :, 2]).mean()**2  # <xizi>²
+                       + 2*(v[k, :, 1]*v[k, :, 2]).mean()**2  # <yizi>²
+                         )-1/2
 
 #@guvectorize([(float32[:, :, :], float32[:, :])], '(n,m,o)->(n,m)', target="parallel")
 #just put the comment to remove the warning

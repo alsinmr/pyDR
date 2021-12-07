@@ -2,6 +2,7 @@ from os import listdir, system, mkdir
 from os.path import join, exists, abspath, dirname
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 import MDAnalysis as MDA
 from calcs import *
@@ -48,8 +49,18 @@ class KaiMarkov():
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
+        self.sim_dict = {'cts':None,
+                         "S2s":None,
+                         'dihedrals':None,
+                         'residues':{}}
+        self.dihedral_atomgroups = []
+        self.vector_atomgroups = []
+
         self.select_simulation(kwargs.get("simulation"))
         self.get_methyl_groups()
+        self.create_data_container()
+
+        return
 
         # the length of self.dih is 3 times the number of methylgroups, as well as the length of areas and hops
         self.dih = np.zeros((len(self.hydrogens_dihedral), self.length), dtype=self.default_float)
@@ -73,12 +84,54 @@ class KaiMarkov():
         self.cts = np.ones((len(self.ct_vectors), self.length), dtype=self.default_float)
         self.S2s = np.zeros((len(self.ct_vectors)), self.default_float)
 
-    def get_methyl_groups(self):
-        def add_ct(label, atoms):
-            this["ct_labels"].append(label)
-            self.ct_vector_groups.append(MDA.AtomGroup([this[_] for _ in atoms]))
-            this["ct_indices"].append(len(self.ct_vector_groups) - 1)
+    def create_data_container(self):
+        self.sim_dict["dihedrals"] = self.dihedrals = \
+            np.zeros((len(self.dihedral_atomgroups), self.length), dtype= self.default_float)
+        self.areas = np.zeros((len(self.dihedral_atomgroups), self.length), dtype=self.default_float)
+        self.hops = np.zeros((len(self.dihedral_atomgroups), self.length), dtype=bool)
+        self.hopability = np.zeros((len(self.dihedral_atomgroups), self.length), dtype= self.default_float)
 
+        self.ct_vectors = np.zeros((len(self.vector_atomgroups), self.length, 3), dtype=self.default_float)
+        self.sim_dict["cts"] = self.cts = np.ones((len(self.vector_atomgroups), self.length), dtype=self.default_float)
+        self.sim_dict["S2s"] = self.S2s = np.zeros(len(self.vector_atomgroups), dtype=self.default_float)
+
+    def is_res_in_dict(self,resid):
+        '''check if the residue is already in the calculation dicitonary, if not, create a key and the important lists'''
+        resname = self.universe.residues[resid-1].resname + str(resid)
+        if not resname in self.sim_dict['residues'].keys():
+            self.sim_dict['residues'][resname] = {"dihedrals":[], "ct_vecs":[]}
+        return resname
+
+    def add_dihedral_by_ids(self, atomlist, name=""):
+        #todo put this and the next function in one and add argument for choosing dihedral or vector
+        assert len(atomlist)==4, "atomlist has to contain 4 atom ids, contains {}".format(len(atomlist))
+        if isinstance(atomlist, list) or isinstance(atomlist,np.ndarray):
+            #todo something is goofing around here, but i dont understand what
+            atomlist = MDA.AtomGroup(self.universe.atoms[atomlist-1])
+        resname = self.is_res_in_dict(atomlist[0].residue.resid)
+        dih = {"atom_ids":[], "name":"", "id":None}
+        dih["atom_ids"] = atomlist.ids
+        dih["name"] = name
+        self.sim_dict['residues'][resname]["dihedrals"].append(dih)
+        self.dihedral_atomgroups.append(atomlist)
+        dih["id"] = len(self.dihedral_atomgroups)-1
+
+
+    def add_vector_for_ct_by_ids(self, atomlist, name=""):
+        assert len(atomlist)==4 or len(atomlist)==5, "atomlist ahs to contain 4 or 5 atom ids, contains {}".format(len(atomlist))
+        if isinstance(atomlist, list) or isinstance(atomlist,np.ndarray):
+            #todo something is goofing around here, but i dont understand what
+            atomlist = MDA.AtomGroup(self.universe.atoms[atomlist-1])
+        resname = self.is_res_in_dict(atomlist[0].residue.resid)
+        vec = {"atom_ids":[], "name":"", "id":None}
+        vec["atom_ids"] = atomlist.ids
+        vec["name"] = name
+        self.sim_dict['residues'][resname]["ct_vecs"].append(vec)
+        self.vector_atomgroups.append(atomlist)
+        vec["id"] = len(self.vector_atomgroups)-1
+
+    def get_methyl_groups(self):
+        make_AG = lambda alist: MDA.AtomGroup([this[_] for _ in alist])
         assert self.sel_sim and self.pdb, "You have to select a PDB file AND a simulation before "
         if self.universe is None:
             self.universe = MDA.Universe(self.pdb, self.sel_sim)
@@ -94,11 +147,9 @@ class KaiMarkov():
             if len(methyls):
                 group_label = "{}_{}".format(res.resname, res.resnum + 147)
                 this = dix[group_label] = {}
-
                 this["ct_indices"] = []
                 this["ct_labels"] = []
                 print(i, res.resname, res.resnum + 147, "contains", len(methyls), "methyl groups")
-                #self.residues.append(i)
                 chain_for_3d_plot = dix[group_label]["chain"] = ["C", "CA", "N", "CA", "CB"]
                 this["N"] = res.atoms[0]
                 this["H1"] = methyls[0][0]  # this is only useful if you have only one H
@@ -107,9 +158,7 @@ class KaiMarkov():
                 this["C"] = methyls[0][-1]
                 this["CA"] = methyls[0][-2]
                 this["CB"] = methyls[0][-3]
-                chi1 = chi2 = 0
-                add_ct(r'$\chi_{1,lib.}$' if "ALA" not in res.resname else r'$CH_{3,lib.}$', ["CB", "N", "CA", "C"])
-
+                self.add_vector_for_ct_by_ids(make_AG(["CB", "N", "CA", "C"]),r'$\chi_{1,lib.}$' if "ALA" not in res.resname else r'$CH_{3,lib.}$')
                 # todo add methionin
                 if "ILE" in res.resname:
                     for _ in ["CG2", "CB", "CG1", "CD"]:
@@ -118,33 +167,30 @@ class KaiMarkov():
                     this["CG1"] = methyls[1][4]
                     this["CD"] = methyls[1][3]
                     this["H2"] = methyls[1][0]
-                    #add_ct("CB_CG2", ["CG2", "C", "CB", "CA"])  # this is also Chi1 rot basically
-                    add_ct(r'$\chi_{1,rot.}$', ["CG1", "C", "CB", "CA"])  # "CB_CG1"
-                    add_ct(r'$\chi_{2,lib.}$', ["CG1", "CA", "CB", "CG2"])
-                    add_ct(r'$\chi_{2,rot.}$', ["CD", "CB", "CG1", "CG2"])  # "CG1_CD"
-                    add_ct(r'$CH_{3,rot.}^1$', ["H1", "CB", "CG2", "CG1"])  # CG2_H1
-                    add_ct(r'$CH_{3,rot.}^2$', ["H2", "CG1", "CD", "CB"])  # CD_H2
                     #TODO maybe uncomment this sometime, will give you total movement of the CH vector compared to the
                     #TODO peptide plane
-                    #add_ct(r'$CH_{3,tot.}^1$',["H1","N","CA","C","CG2"])
-                    #add_ct(r'$CH_{3,tot.}^2$', ["H2", "N", "CA", "C", "CD"])
-                    self.chi1_groups_dihedral.append(MDA.AtomGroup([this["C"], this["CA"], this["CB"], this["CG1"]]))
-                    self.chi2_groups_dihedral.append(MDA.AtomGroup([this["CA"], this["CB"], this["CG1"], this["CD"]]))
-                    chi1 = chi2 = 1
+                    self.add_dihedral_by_ids(make_AG(["C","CA","CB","CG1"]), "chi1")
+                    self.add_dihedral_by_ids(make_AG(["CA", "CB", "CG1", "CD"]), "chi2")
+                    self.add_vector_for_ct_by_ids(make_AG(["CG1", "C", "CB", "CA"]), r'$\chi_{1,rot.}$')
+                    self.add_vector_for_ct_by_ids(make_AG(["CG1", "CA", "CB", "CG2"]), r'$\chi_{2,lib.}$')
+                    self.add_vector_for_ct_by_ids(make_AG(["CD", "CB", "CG1", "CG2"]), r'$\chi_{2,rot.}$')
+                    self.add_vector_for_ct_by_ids(make_AG(["H1", "CB", "CG2", "CG1"]), r'$CH_{3,rot.}^1$')
+                    self.add_vector_for_ct_by_ids(make_AG(["H2", "CG1", "CD", "CB"]), r'$CH_{3,rot.}^2$')
+                    self.add_vector_for_ct_by_ids(make_AG(["H1","N","CA","C","CG2"]),"met-to-plane")
+                    #self.add_vector_for_ct_by_ids(make_AG(["H2", "N", "CA", "C", "CD"]), "met-to-plane_2")
                 elif "VAL" in res.resname:
                     for _ in ["CG1", "CB", "CG2"]:
                         chain_for_3d_plot.append(_)
                     this["CG1"] = methyls[0][-4]  # in "VAL" this is CG1
                     this["CG2"] = methyls[1][3]  # in "VAL this is CG2
                     this["H2"] = methyls[1][0]
-                    add_ct(r'$\chi_{1,rot.}$', ["CG1", "C", "CB", "CA"])  # "CB_CG1"
-                    add_ct(r'$CH_{3,lib.}^2$', ["CG2", "CG1", "CB", "CA"])  # "CB_CG2"
-                    add_ct(r'$CH_{3,rot.}^1$', ["H1", "CB", "CG1", "CG2"])
-                    add_ct(r'$CH_{3,rot.}^2$', ["H2", "CB", "CG2", "CG1"])
-                    #add_ct(r'$CH_{3,tot.}^1$',["H1","N","CA","C","CG1"])
-                    #add_ct(r'$CH_{3,tot.}^2$', ["H2", "N", "CA", "C", "CG2"])
-                    self.chi1_groups_dihedral.append(MDA.AtomGroup([this["C"], this["CA"], this["CB"], this["CG2"]]))
-                    chi1 = 1
+                    self.add_vector_for_ct_by_ids(make_AG(["CG1","C","CB","CA"]),r'$\chi_{1,rot.}$')
+                    self.add_vector_for_ct_by_ids(make_AG(["CG2", "CG1", "CB", "CA"]), r'$CH_{3,lib.}^2$')
+                    self.add_vector_for_ct_by_ids(make_AG(["H1", "CB", "CG1", "CG2"]), r'$CH_{3,rot.}^1$')
+                    self.add_vector_for_ct_by_ids(make_AG(["H2", "CB", "CG2", "CG1"]), r'$CH_{3,rot.}^2$')
+                    self.add_vector_for_ct_by_ids(make_AG(["H1","N","CA","C","CG1"]), "met-to-plane")
+                    self.add_vector_for_ct_by_ids(make_AG(["H2","N","CA","C","CG2"]), "met-to-plane_2")
+                    self.add_dihedral_by_ids(make_AG(["C","CA","CB","CG2"]),"chi1")
                 elif "LEU" in res.resname:
                     for _ in ["CG", "CD1", "CG", "CD2"]:
                         chain_for_3d_plot.append(_)
@@ -152,31 +198,25 @@ class KaiMarkov():
                     this["CD1"] = methyls[0][3]
                     this["CD2"] = methyls[1][3]
                     this["H2"] = methyls[1][0]
-                    add_ct(r'$\chi_{1,rot.}$', ["CG", "CA", "CB", "C"])  # "CB_CG"
-                    add_ct(r'$\chi_{2,rot.}$', ["CD1", "CA", "CG", "CB"])  # "CG_CD1"
-                    # add_ct("CG_CD2", ["CD2", "CA", "CG", "CB"])
-                    add_ct(r'$CH_{3,rot.}^1$', ["H1", "CG", "CD1", "CD2"])  # "CD1_H1"
-                    add_ct(r'$CH_{3,rot.}^2$', ["H2", "CG", "CD2", "CD1"])  # "CD2_H2"
-                    #add_ct(r'$CH_{3,tot.}^1$',["H1","N","CA","C","CD1"])
-                    #add_ct(r'$CH_{3,tot.}^2$', ["H2", "N", "CA", "C", "CD2"])
-                    self.chi1_groups_dihedral.append(MDA.AtomGroup([this["C"], this["CA"], this["CB"], this["CG"]]))
-                    self.chi2_groups_dihedral.append(MDA.AtomGroup([this["CA"], this["CB"], this["CG"], this["CD2"]]))
-                    chi1 = chi2 = 1
+                    self.add_vector_for_ct_by_ids(make_AG(["CG", "CA", "CB", "C"]),r'$\chi_{1,rot.}$')
+                    self.add_vector_for_ct_by_ids(make_AG(["CD1", "CA", "CG", "CB"]),r'$\chi_{2,rot.}$')
+                    self.add_vector_for_ct_by_ids(make_AG(["H1", "CG", "CD1", "CD2"]),r'$CH_{3,rot.}^1$')
+                    self.add_vector_for_ct_by_ids(make_AG(["H2", "CG", "CD2", "CD1"]),r'$CH_{3,rot.}^2$')
+                    self.add_vector_for_ct_by_ids(make_AG(["H1","N","CA","C","CD1"]),"met-to-plane")
+                    self.add_vector_for_ct_by_ids(make_AG(["H2","N","CA","C","CD2"]),"met-to-plane_2")
+                    self.add_dihedral_by_ids(make_AG(["C","CA","CB","CG"]),"chi1")
+                    self.add_dihedral_by_ids(make_AG(["CA","CB","CG","CD2"]),"chi2")
                 elif "THR" in res.resname:
                     this["CG2"] = methyls[0][3]
                     chain_for_3d_plot.append("CG2")
-                    add_ct(r'$\chi_{1,rot.}$', ["CG2", "CA", "CB", "C"])  # "CB_CG2"
-                    add_ct(r'$CH_{3,rot.}$', ["H1", "CA", "CG2", "CB"])  # "CG2_H1"
-                    #add_ct(r'$CH_{3,tot.}^1$', ["H1", "N", "CA", "C", "CG2"])
-                    self.chi1_groups_dihedral.append(MDA.AtomGroup([this["C"], this["CA"], this["CB"], this["CG2"]]))
-                    chi1 = 1
+                    self.add_vector_for_ct_by_ids(make_AG(["CG2", "CA", "CB", "C"]),r'$\chi_{1,rot.}$')
+                    self.add_vector_for_ct_by_ids(make_AG(["H1", "CA", "CG2", "CB"]),r'$CH_{3,rot.}$')
+                    #self.add_vector_for_ct_by_ids(make_AG(["H1","N","CA","C","CG2"]),"met-to-plane")
+                    self.add_dihedral_by_ids(make_AG(["C","CA","CB","CG2"]))
                 elif "ALA" in res.resname:
-                    add_ct(r'$CH_{3,rot.}$', ["H1", "CA", "CB", "C"])  # "CB_H1"
-                    add_ct(r'$C-H_{lib.}$', ["H1", "H12", "CB", "CA"])
-                    #add_ct(r'$CH_{3,tot.}^1$', ["H1", "N", "CA", "C", "CB"])
-                    # add_ct(r'$C-H_{lib.}H3$',["H1", "H12", "CB", "H13"])
-                if chi1: this['chi1'] = len(self.chi1_groups_dihedral) - 1
-                if chi2: this['chi2'] = len(self.chi2_groups_dihedral) - 1
+                    self.add_vector_for_ct_by_ids(make_AG(["H1", "CA", "CB", "C"]),r'$CH_{3,rot.}$')
+                    self.add_vector_for_ct_by_ids(make_AG(["H1","N","CA","C","CB"]),"met-to-plane")
+                    self.add_vector_for_ct_by_ids(make_AG(["H1", "H12", "CB", "CA"]),r'$C-H_{lib.}$')
                 this["labels"] = []
                 for j, m in enumerate(methyls):
                     met_label = group_label + ("_B" if j else ("_A" if len(methyls) == 2 else ""))
@@ -196,6 +236,7 @@ class KaiMarkov():
                         group[[0, 3, 4, 5]])  # presetting this saves much time for calculations
                     self.hydrogens_dihedral.append(group[[1, 3, 4, 5]])
                     self.hydrogens_dihedral.append(group[[2, 3, 4, 5]])
+                    self.add_dihedral_by_ids(group[[0,3,4,5]],"CH3_{}".format(j+1))
 
         assert len(self.hydrogens_dihedral), "No methylgroups detected"
         print("Total:", int(len(self.hydrogens_dihedral) / 3), "methylgroups detected")
@@ -249,43 +290,78 @@ class KaiMarkov():
             self.length = len(self.universe.trajectory)
         # todo put segment selection here if more than one segment is available
 
-    def save_state(self):
-        #todo make the saving and loading in a way, that every bond information + ct + S2 is stored in a dictionary for
-        #todo the specific simulation
+    def load_new(self):
+        dihedral_calc_indices = np.ones(len(self.dihedral_atomgroups))
+        ct_calc_indices = np.ones(len(self.vector_atomgroups))
+        fn = join("calced_data",self.sel_sim_name+".npy")
+        if exists(fn):
+            loaded = np.load(fn, allow_pickle=True).item()
+            for key in self.sim_dict['residues'].keys():
+                if not key in loaded:
+                    continue
+                for dih in self.sim_dict['residues'][key]['dihedrals']:
+                    for dih2 in loaded[key]['dihedrals']:
+                        if (dih['atom_ids'] == dih2['atom_ids']).sum() == len(dih['atom_ids']) \
+                                and dih2['values'].shape[0] >= self.length:
+                            self.sim_dict['dihedrals'][dih['id']] = dih2['values'][:self.length,]
+                            dihedral_calc_indices[dih['id']]=0
+                for ct in self.sim_dict['residues'][key]['ct_vecs']:
+                    for ct2 in loaded[key]["ct_vecs"]:
+                        if len(ct['atom_ids']) == len(ct2['atom_ids']):
+                            if (ct['atom_ids'] == ct2['atom_ids']).sum() == len(ct['atom_ids']) \
+                                    and ct2['values'].shape[0] >= self.length:
+                                self.sim_dict['cts'][ct['id']] = ct2['values'][:self.length,]
+                                self.sim_dict['S2s'][ct['id']] = ct2['S2']
+                                ct_calc_indices[ct['id']] = 0
+        return dihedral_calc_indices, ct_calc_indices
 
-        dir = join(self.dir,"calced_data")
-        if not exists(dir):
-            mkdir(dir)
-        fn = join(dir, "{}_{}.npy")
-        if len(self.residues) == 0 and len(self.universe.trajectory) == self.length:
-            np.save(fn.format("dih",self.sel_sim_name),self.dih.astype(self.save_float))
-            np.save(fn.format("dih_chi1", self.sel_sim_name), self.dih_chi1.astype(self.save_float))
-            np.save(fn.format("dih_chi2", self.sel_sim_name), self.dih_chi2.astype(self.save_float))
-            np.save(fn.format("cts", self.sel_sim_name), self.cts.astype(self.save_float))
-            np.save(fn.format("S2s", self.sel_sim_name), self.S2s.astype(self.save_float))
-            print("dihedrals, cts and S2s saved into file")
+    def save_new(self):
+        #assert 0, "change before save again!"
+        #todo append to existing structure instead of overwriting
+        #rearrange the dictionary, just save the 'residues' part and remove the index, put instead the values
+        #directly to the thing
 
+        #todo add sparse values to dict
+        for res in self.sim_dict['residues'].keys():
+            for dih in self.sim_dict['residues'][res]['dihedrals']:
+                dih["values"] = self.sim_dict['dihedrals'][dih['id']].astype("float16")
+            for ct in self.sim_dict['residues'][res]['ct_vecs']:
+                ct["values"] = self.sim_dict['cts'][ct['id']].astype("float16")
+                ct["S2"] = self.sim_dict['S2s'][ct['id']].astype("float16")
 
-    def load_state(self):
-        fn = join(self.dir,"calced_data","{}_{}.npy")
-        if exists(fn.format("dih",self.sel_sim_name)) and len(self.residues)==0 and len(self.universe.trajectory)==self.length:
-            dih = np.load(fn.format("dih",self.sel_sim_name)).astype(self.default_float)
-            assert dih.shape[0]==self.dih.shape[0], "number of requested dihedrals not fitting"
-            self.dih = dih
-            self.dih_chi1 = np.load(fn.format("dih_chi1",self.sel_sim_name)).astype(self.default_float)
-            self.dih_chi2 = np.load(fn.format("dih_chi2",self.sel_sim_name)).astype(self.default_float)
-            cts = np.load(fn.format("cts",self.sel_sim_name)).astype(self.default_float)
-            assert cts.shape[0]==self.cts.shape[0], "Number of requested cts not fitting, {} vs {}\n" \
-                                                    "Maybe you added/removed a ct in self.get_methyl_groups. If yes, " \
-                                                    "undo it or manually remove files in calced_data/" \
-                                                    "".format(cts.shape[0],self.cts.shape[0])
-            self.cts = cts
-            self.S2s = np.load(fn.format("S2s",self.sel_sim_name)).astype(self.default_float)
-            print("dihedrals, cts and S2s loaded from file")
-            return 1
-        else:
-            print(fn.format("dih",self.sel_sim_name),"not found")
-            return 0
+        self.sim_dict["cts"] = self.sim_dict["cts"].astype("float16")
+        self.sim_dict["dihedrals"] = self.sim_dict["dihedrals"].astype("float16")
+        self.sim_dict["S2s"] = self.sim_dict["S2s"].astype("float16")
+        np.save(join("calced_data",self.sel_sim_name+".npy"), self.sim_dict['residues'])
+
+    def calc_new(self, **kwargs):
+        traj = self.universe.trajectory
+        assert self.length <= len(traj), "Length {} exceeding length of trajectory ({}), set length to {}" \
+                                         "".format(self.length, len(traj), len(traj))
+        dihedral_calc, ct_calc = self.load_new()
+        if kwargs.get("force_calc"):
+            dihedral_calc[:] = 1
+            ct_calc[:] = 1
+        print(dihedral_calc.sum(), ct_calc.sum())
+        if dihedral_calc.sum() or ct_calc.sum():
+            for i in range(self.length):
+                if i%10000==0: print(i)
+                traj[i]
+                for j, group in enumerate(self.dihedral_atomgroups):
+                    if dihedral_calc[j]:
+                        self.dihedrals[j,i] = fastest_dihedral(group.positions)
+                for j, group in enumerate(self.vector_atomgroups):
+                    if ct_calc[j]:
+                        pos_xyz_o(self.ct_vectors[j, i], *group.positions)
+
+            np.save("ct_vecs_3pw_400000.npy",self.ct_vectors)
+            if ct_calc.sum():
+                get_ct_S2(self.cts, self.S2s, self.ct_vectors, ct_calc,
+                          kwargs.get("sparse") if kwargs.get("sparse") is not None else 1)
+            print("please dont save!")
+            #self.save_new()
+        print(self.sim_dict["S2s"], self.sim_dict["S2s"].shape)
+
 
     def calc(self, **kwargs):
         '''doing all importand calculations for the anylsis
@@ -349,6 +425,65 @@ class KaiMarkov():
                 self.hopability_chi1[j, i] = np.sum(self.hops_chi1[j, i * part:(i + 1) * part]) / part
             for j in range(len(self.chi2_groups_dihedral)):
                 self.hopability_chi2[j, i] = np.sum(self.hops_chi2[j, i * part:(i + 1) * part]) / part
+
+    def plot_single_res(self, label):
+        def tc_str(z):
+            unit = 's'
+            if z <= -12: z, unit = z + 15, 'fs'
+            if z <= -9: z, unit = z + 12, 'ps'
+            if z <= -6: z, unit = z + 9, 'ns'
+            if z <= -3: z, unit = z + 6, r'$\mu$s'
+            if z <= 0: z, unit = z + 3, 'ms'
+            tc = np.round(10 ** z, -1 if z >= 2 else (0 if z >= 1 else 1))
+            return '{:2} '.format(tc if tc < 10 else int(tc)) + unit
+        fig = plt.figure()
+        ax = fig.add_subplot(211)
+        ax.plot(np.array([self.cts[vec['id']] for vec in self.sim_dict['residues'][label]['ct_vecs']]).T)
+        ax.legend([ct['name'] for ct in self.sim_dict['residues'][label]['ct_vecs']])
+        bx = fig.add_subplot(212)
+        bx.plot(np.array([np.sort(self.dihedrals[dih['id']]) for dih in self.sim_dict['residues'][label]['dihedrals']]).T)
+        bx.legend([dih['name'] for dih in self.sim_dict['residues'][label]['dihedrals']])
+
+        fig.suptitle(label)
+        cts = self.cts[np.array([vec['id'] for vec in self.sim_dict['residues'][label]['ct_vecs']])]
+        D = DR.data()
+        D.load(Ct={'Ct': cts
+            , 't': np.linspace(0, int(self.length / 1000) * self.universe.trajectory.dt, self.length)})
+        n_dets = self.n_dets if self.n_dets else 8
+        remove_S2 = 1
+        D.detect.r_auto3(n=n_dets)
+        fit = D.fit()
+        tick_labels = ['~' + tc_str(z0) for z0 in fit.sens.info.loc['z0']]
+        tick_labels[0] = '<' + tick_labels[1][1:]
+        # tick_labels[-1] = '>' + tick_labels[-2][1:]
+        tick_labels = tick_labels[:n_dets - 1]  # removed last label because no data were there
+        page_2 = plt.figure()
+        h = int((cts.shape[0] + 1) / 2) + 1
+        page_2.set_size_inches(8.3, 11.7 / 8 * h)  # reduce page size for less cts
+        ax0 = page_2.add_subplot(h, 1, 1)
+        ax0.plot(D.sens.z(), fit.sens.rhoz().T)
+        ax0.set_xlim(-14, -3)
+        ax0.set_title("Detector Sensitivities")
+        ax0.set_ylabel(r'$(1-S^2)$')
+        ax0.set_xlabel(r'$\log_{10}(\tau_c/s)$')
+        ax0.set_yticks([0, 1])
+        ax = [page_2.add_subplot(h, 2, 3 + i) for i in range(cts.shape[0])]
+        for d in range(n_dets - remove_S2):
+            for r in range(cts.shape[0]):
+                ax[r].bar(d, fit.R[r, d])
+        for r in range(cts.shape[0]):
+            maxR = np.max(fit.R[r, :-remove_S2])
+            ylim = np.round(maxR + .06, 1) if maxR < .5 else .75 if maxR < .72 else 1
+            print(ylim)
+            ax[r].set_ylim(0, ylim)
+            ax[r].text(n_dets / 2, ylim * .75, self.sim_dict['residues'][label]['ct_vecs'][r]['name'], bbox=TEXTBOX)
+            ax[r].set_xticks(range(n_dets - remove_S2))
+            if r < cts.shape[0] - 2:
+                ax[r].set_xticklabels([])
+            else:
+                ax[r].set_xticklabels(tick_labels, rotation=66)
+            if r % 2 == 0:
+                ax[r].set_ylabel(r'$\rho_n^{(\Theta,S)}$')
 
     def plot_all(self):
         """this function creates the plots for all examined residues depending on the number of methyl groups and
@@ -805,7 +940,7 @@ class KaiMarkov():
         page_2 = plot_detectors()
         return page_1, page_2
 
-def MEthylCOrrealation():
+def MethylCOrrealation():
     M = KaiMarkov(n=500,  simulation=2, residues=[])
     M.calc(sparse=10)
     M.universe.trajectory[0]
@@ -850,7 +985,7 @@ def MEthylCOrrealation():
 
 
 
-def main():
+def get_detectors_for_simulation():
     M = KaiMarkov(simulation=0)
     #
 
@@ -912,6 +1047,22 @@ def main():
                 f.write("\n")
             except:
                 pass
+
+
+@time_runtime
+def main():
+    #M = KaiMarkov(simulation=1)
+    #M.calc_new(sparse=0)
+    #plt.plot(M.cts.T)
+    #for key in M.sim_dict['residues'].keys():
+    #    M.plot_single_res(key)
+
+    M = KaiMarkov(simulation=0, residues=[12,58,9,57])
+    M.calc_new(sparse=10,force_calc=True)
+    # plt.plot(M.cts.T)
+    for key in M.sim_dict['residues'].keys():
+        M.plot_single_res(key)
+
 
 if __name__ == "__main__":
     main()
