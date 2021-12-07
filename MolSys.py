@@ -42,35 +42,15 @@ class MolSys():
             assert value is None or value<len(self._uni),'{} molecules are currently loaded'.format(len(self._uni))
         super().__setattr__(name,value)
   
-
-class Trajectory(XTCReader):
-    """
-    Trajectory object used to override the slicing behavior of the MDAnalysis
-    XTCReader object (allow one to initialize the trajectory while starting or
-    ending at different frames, and also allow skipping frames). 
-    """
-
-    def __init__(self,filename,t0=0,tf=-1,step=1,dt=None,convert_units=True,sub=None,refresh_offsets=False,**kwargs):
-        """
-        Initialize the trajectory object. Here, one should  provide the original
-        trajectory object (universe.trajectory, which is already initialized) 
-        along with optional arguments t0,tf,step, and dt.
-        
-        t0:     Index of first time point (default 0)
-        tf:     Index of last time point (default -1)
-        step:   Step size between time points (default 1)
-        dt:     Replace dt if stored incorrectly (ns)
-                (Note: property dt will return this value multiplied by step)
-        
-        """
-        super().__init__(filename,convert_units,sub,refresh_offsets,**kwargs)
+class Trajectory():
+    def __init__(self,traj,t0=0,tf=-1,step=1,dt=None):
         self.t0=t0
-        self.__tf=super().__len__() #Real length of the trajectory
+        self.__tf=len(traj)
         self.tf=tf
         self.step=step
-
-        self.__dt=dt if dt else super().dt
-    
+        self.__dt=dt
+        self.traj=traj
+            
     @property
     def dt(self):
         return self.__dt*self.step
@@ -115,6 +95,82 @@ class Trajectory(XTCReader):
     
     def __iter__(self):
         return self[:]
+    
+        
+        
+
+#class trajectory(XTCReader):
+#    """
+#    Trajectory object used to override the slicing behavior of the MDAnalysis
+#    XTCReader object (allow one to initialize the trajectory while starting or
+#    ending at different frames, and also allow skipping frames). 
+#    """
+#
+#    def __init__(self,filename,t0=0,tf=-1,step=1,dt=None,convert_units=True,sub=None,refresh_offsets=False,**kwargs):
+#        """
+#        Initialize the trajectory object. Here, one should  provide the original
+#        trajectory object (universe.trajectory, which is already initialized) 
+#        along with optional arguments t0,tf,step, and dt.
+#        
+#        t0:     Index of first time point (default 0)
+#        tf:     Index of last time point (default -1)
+#        step:   Step size between time points (default 1)
+#        dt:     Replace dt if stored incorrectly (ns)
+#                (Note: property dt will return this value multiplied by step)
+#        
+#        """
+#        super().__init__(filename,convert_units,sub,refresh_offsets,**kwargs)
+#        self.t0=t0
+#        self.__tf=super().__len__() #Real length of the trajectory
+#        self.tf=tf
+#        self.step=step
+#
+#        self.__dt=dt if dt else super().dt
+#    
+#    @property
+#    def dt(self):
+#        return self.__dt*self.step
+#    
+#    def __setattr__(self,name,value):
+#        "Make sure t0, tf, step are integers"
+#        if name in ['t0','tf','step']:
+#            value=int(value)
+#        if name=='tf':
+#            assert value<=self.__tf,"tf must be less than or equal to the original trajectory length ({} frames)".format(self.__tf)
+#            value%=self.__tf #Take care of negative indices
+#        super().__setattr__(name,value)
+#        
+#    def __getitem__(self,index):
+#        if np.array(index).dtype=='bool':
+#            i=np.zeros(self.tf-self.t0,dtype=bool)
+#            i[::self.step]=True
+#            index=np.concatenate((np.zeros(self.t0,dtype=bool),i,np.zeros(self.__tf-self.tf,dtype=bool)))
+#            return super().__getitem__(index)
+#        elif isinstance(index,slice):
+#            stop=index.stop if index.stop else len(self)
+#            assert stop<=self.__len__(),'stop index must be less than or equal to the truncated trajectory length'
+#            start=index.start if index.start else 0
+#            
+#            stop=stop if stop==len(self) else stop%len(self)
+#            step=index.step if index.step else 1
+#            
+#            def iterate():
+#                for k in range(start,stop,step):
+#                    yield self[k]
+#            return iterate()
+#        else:
+#            assert index<self.__len__(),"index must be less than the truncated trajectory length"
+#            index%=self.__len__() #Take care of negative indices
+#            return super().__getitem__(self.t0+index*self.step)
+#    
+#    def _apply_limits(self, frame):
+#        return frame
+#    
+#    def __len__(self):
+#        return int((self.tf-self.t0)/self.step)
+#    
+#    def __iter__(self):
+#        return self[:]
     
         
         

@@ -40,8 +40,14 @@ A=[vr[i]*vr[j] for i,j in zip([0,1,2,0,0,1],[0,1,2,1,2,2])]
 ct_calc=Ct_funs.Ct_calc(A,weight=[3/2,3/2,3/2,3,3,3],offset=-1/2)
 
 t0=time()
-for _ in range(10):
-    ct_calc.run()
-    ct=ct_calc.cleanup()
+ct_calc.run()
+ct=ct_calc.cleanup()
+totaltime=time()-t0
+print(totaltime)
+
+ct_calc._mode='CtJit'
+t0=time()
+ct_calc.run()
+ct=ct_calc.cleanup()
 totaltime=time()-t0
 print(totaltime)
