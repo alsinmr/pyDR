@@ -8,6 +8,7 @@ Created on Tue Dec  7 12:12:16 2021
 
 import numpy as np
 import types
+from numba import njit,prange
 
 class Ct_calc():
     def __init__(self,A,B=None,weight=None,offset=0,index=None,sparse=1):
@@ -102,7 +103,7 @@ def CtFT():
         return ct
     return ct,cleanup
         
-def Ct(a,b,index):
+def Ct():
     def ct(a,b,index=None):
         index=index if index else np.ones(a.shape[-1])
         ct0=np.zeros([index[-1]+1,a.shape[0]])
@@ -114,7 +115,16 @@ def Ct(a,b,index):
         ct=ct0.T
         ct/=get_count(index) if index else np.arange(ct.shape[-1],0,-1)
         return ct
-        
+    return ct,cleanup
+    
+@njit(parallel=True)
+def CtJit(a,b):
+    ct=np.ones(a.shape)
+    for k in prange(1,a.shape[-1]):
+        ct[k]=np.mean(np.array([a[n]*b[n+k] for n in prange(0,a.shape[-1]-k)]))
+    return ct
+    
+    
         
 
         
