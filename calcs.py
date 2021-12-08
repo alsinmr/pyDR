@@ -1,6 +1,8 @@
 import numpy as np
 from numba import *
+from numba import cuda
 from SpeedTest import *
+from math import sqrt
 
 def search_methyl_groups(residue, v=True):
     """this function will search a residue of a protein for methyl groups by iterating over all atoms and if the atom
@@ -317,3 +319,67 @@ def get_ct2( v, ct):
         l2 = l - i  # second range, just not for recalculating it every time<<<<<x
         for k in prange(ct.shape[0]):#ct.shape[0]):  # iterating over the number of vectors    v
             ct[k, i] = np.array([np.dot(v[k, j], v[k, j + i]) for j in range(0, l2, r)]).mean()
+
+
+
+@time_runtime
+@njit(parallel=True)  # speedup by factor 1600!
+def get_S2(S2, v, indices):
+    """
+    S2 = 3/2 (<xi²>² + <yi²>² + <zi²>² + 2 <xiyi>² + 2<xizi>² + 2<yizi>²) - 1/2
+    """
+    for k in prange(v.shape[0]):
+        if indices[k]:
+            S2[k] = 3/2*((v[k, :, 0]**2).mean()**2    # <xi²>²
+                       + (v[k, :, 1]**2).mean()**2    # <yi²>²
+                       + (v[k, :, 2]**2).mean()**2    # <zi²>²
+                       + 2*(v[k, :, 0]*v[k, :, 1]).mean()**2  # <xiyi>²
+                       + 2*(v[k, :, 0]*v[k, :, 2]).mean()**2  # <xizi>²
+                       + 2*(v[k, :, 1]*v[k, :, 2]).mean()**2  # <yizi>²
+                         )-1/2
+
+@cuda.jit(device=True)
+def cuP2(x):
+    """second legendre polynomial"""
+    return (3 * x * x - 1) / 2
+
+@cuda.jit(device=True)
+def dot(v1,v2):
+    return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]
+
+
+@cuda.jit()
+def ct_kernel(cts,vecs, indices, sparse):
+    startX,startY= cuda.grid(2)
+    gridX = cuda.gridDim.x * cuda.blockDim.x;
+    gridY = cuda.gridDim.y * cuda.blockDim.y;
+    for i in prange(startX,cts.shape[1],gridX):  #length of trajectory
+        for k in prange(startY,cts.shape[0],gridY):  # number of correlation funcitons
+            if indices[k]:
+                if sparse:
+                    r = max(int(sqrt((cts.shape[1] - i))/sparse),1)
+                else:
+                    r=1
+                c = 0
+
+                for j in range(0,cts.shape[1]-i,r):  # number of pairs
+                    cts[k, i] += cuP2(dot(vecs[k, j], vecs[k, j + i]))
+                    c+=1
+                cts[k,i] /= c
+
+
+@time_runtime
+def calc_CT_on_cuda(cts, S2s, vecs, indices, sparse):
+    #todo calculate griddim depending on ct shape
+    blockdim = (32,4)
+    griddim = (4096,16)
+    cts[indices,1:]=0
+    cts[indices,0]=1
+
+    dev_vecs = cuda.to_device(vecs)
+    dev_cts = cuda.to_device(cts)
+    dev_ind = cuda.to_device(indices)
+    ct_kernel[griddim,blockdim](dev_cts,dev_vecs, dev_ind, sparse)
+    dev_cts.copy_to_host(cts)
+    get_S2(S2s, vecs, indices)
+

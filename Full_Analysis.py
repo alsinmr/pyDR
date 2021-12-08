@@ -177,7 +177,7 @@ class KaiMarkov():
                     self.add_vector_for_ct_by_ids(make_AG(["H1", "CB", "CG2", "CG1"]), r'$CH_{3,rot.}^1$')
                     self.add_vector_for_ct_by_ids(make_AG(["H2", "CG1", "CD", "CB"]), r'$CH_{3,rot.}^2$')
                     self.add_vector_for_ct_by_ids(make_AG(["H1","N","CA","C","CG2"]),"met-to-plane")
-                    #self.add_vector_for_ct_by_ids(make_AG(["H2", "N", "CA", "C", "CD"]), "met-to-plane_2")
+                    self.add_vector_for_ct_by_ids(make_AG(["H2", "N", "CA", "C", "CD"]), "met-to-plane_2")
                 elif "VAL" in res.resname:
                     for _ in ["CG1", "CB", "CG2"]:
                         chain_for_3d_plot.append(_)
@@ -211,7 +211,7 @@ class KaiMarkov():
                     chain_for_3d_plot.append("CG2")
                     self.add_vector_for_ct_by_ids(make_AG(["CG2", "CA", "CB", "C"]),r'$\chi_{1,rot.}$')
                     self.add_vector_for_ct_by_ids(make_AG(["H1", "CA", "CG2", "CB"]),r'$CH_{3,rot.}$')
-                    #self.add_vector_for_ct_by_ids(make_AG(["H1","N","CA","C","CG2"]),"met-to-plane")
+                    self.add_vector_for_ct_by_ids(make_AG(["H1","N","CA","C","CG2"]),"met-to-plane")
                     self.add_dihedral_by_ids(make_AG(["C","CA","CB","CG2"]))
                 elif "ALA" in res.resname:
                     self.add_vector_for_ct_by_ids(make_AG(["H1", "CA", "CB", "C"]),r'$CH_{3,rot.}$')
@@ -291,8 +291,8 @@ class KaiMarkov():
         # todo put segment selection here if more than one segment is available
 
     def load_new(self):
-        dihedral_calc_indices = np.ones(len(self.dihedral_atomgroups))
-        ct_calc_indices = np.ones(len(self.vector_atomgroups))
+        dihedral_calc_indices = np.ones(len(self.dihedral_atomgroups)).astype(bool)
+        ct_calc_indices = np.ones(len(self.vector_atomgroups)).astype(bool)
         fn = join("calced_data",self.sel_sim_name+".npy")
         if exists(fn):
             loaded = np.load(fn, allow_pickle=True).item()
@@ -356,10 +356,14 @@ class KaiMarkov():
 
             np.save("ct_vecs_3pw_400000.npy",self.ct_vectors)
             if ct_calc.sum():
-                get_ct_S2(self.cts, self.S2s, self.ct_vectors, ct_calc,
+                #get_ct_S2(self.cts, self.S2s, self.ct_vectors, ct_calc,
+                #          kwargs.get("sparse") if kwargs.get("sparse") is not None else 1)
+                calc_CT_on_cuda(self.cts,self.S2s, self.ct_vectors, ct_calc,
                           kwargs.get("sparse") if kwargs.get("sparse") is not None else 1)
-            print("please dont save!")
-            #self.save_new()
+
+
+            #print("please dont save!")
+            self.save_new()
         print(self.sim_dict["S2s"], self.sim_dict["S2s"].shape)
 
 
@@ -474,7 +478,6 @@ class KaiMarkov():
         for r in range(cts.shape[0]):
             maxR = np.max(fit.R[r, :-remove_S2])
             ylim = np.round(maxR + .06, 1) if maxR < .5 else .75 if maxR < .72 else 1
-            print(ylim)
             ax[r].set_ylim(0, ylim)
             ax[r].text(n_dets / 2, ylim * .75, self.sim_dict['residues'][label]['ct_vecs'][r]['name'], bbox=TEXTBOX)
             ax[r].set_xticks(range(n_dets - remove_S2))
@@ -1051,17 +1054,12 @@ def get_detectors_for_simulation():
 
 @time_runtime
 def main():
-    #M = KaiMarkov(simulation=1)
-    #M.calc_new(sparse=0)
-    #plt.plot(M.cts.T)
+    for sim in [0,2,4]:
+        M = KaiMarkov(simulation=sim, residues=[])
+        M.calc_new(sparse=0)#,force_calc=True)
+        return
     #for key in M.sim_dict['residues'].keys():
     #    M.plot_single_res(key)
-
-    M = KaiMarkov(simulation=0, residues=[12,58,9,57])
-    M.calc_new(sparse=10,force_calc=True)
-    # plt.plot(M.cts.T)
-    for key in M.sim_dict['residues'].keys():
-        M.plot_single_res(key)
 
 
 if __name__ == "__main__":

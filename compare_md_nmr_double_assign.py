@@ -40,20 +40,23 @@ counts = []
 for label in het.label:
     counts.append(len(label.split(",")))
     for lab in label.split(","):
-        for key in M.full_dict.keys():
-            if lab[:3] in key:
-                for ind, ctlab in enumerate(M.full_dict[key]["ct_labels"]):
-                    if "CH" in ctlab and "rot" in ctlab:
-                        if "2" in ctlab or not "1" in ctlab:
-                            print(key, ctlab)
-                            indices.append(M.full_dict[key]["ct_indices"][ind])
-                            labels.append(key)
+        for key in M.sim_dict["residues"].keys():
+            print(key[:3], int(key[3:])+147)
+            if int(lab[:3]) == int(key[3:])+147:
+                print(M.sim_dict['residues'][key]['ct_vecs'])
+                for ctlab in M.sim_dict["residues"][key]["ct_vecs"]:
+                    if "met-to-plane" == ctlab['name']:
+                        print(key, ctlab)
+                        indices.append(ctlab['id'])
+                        labels.append(key)
 print(het.label,len(het.label))
 print(labels,len(labels))
 print(counts,len(counts),sum(counts))
 print(indices,len(indices))
+
+
 indices = np.array(indices)
-sims = [4,0,5,3,2]
+sims = [3,0,4,2,1]
 legend = []
 closes_val = np.zeros((len(het.label),3))
 col = np.zeros((len(het.label),3)).astype(int)
@@ -65,7 +68,7 @@ for j,sim in enumerate(sims):
     M = KaiMarkov(simulation=sim)
     legend.append(M.sel_sim_name)
     if not exists("sim{}_R.npy".format(sim)):
-        M.calc()
+        M.calc_new()
         cts = M.cts[indices]
         D = DR.data()
         D.load(Ct={'Ct': cts
@@ -74,7 +77,7 @@ for j,sim in enumerate(sims):
         D.detect.r_target(target=targ,n=12)#r_auto3(n=n_dets)
         md = D.fit()
         md.label = labels
-        np.save("sim{}_R.npy".format(sim),md.R)
+        #np.save("sim{}_R.npy".format(sim),md.R)
         R = md.R
     else:
         R = np.load("sim{}_R.npy".format(sim))

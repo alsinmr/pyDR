@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from time import time
 
 #%% Set up a random tumbling motion
-n=int(1e6)          #Number of time points in simulated trajectory (reduce for faster calculations)
+n=int(1e4)          #Number of time points in simulated trajectory (reduce for faster calculations)
 dt=5e-3             #Time step (ns)
 t=np.arange(n)*dt   #Time axis (10 us)
 t[0]=1e-3           #We plot on a log scale. We replace 0 with 1 ps to keep it on the scale (labeling later indicates this)
