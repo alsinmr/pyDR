@@ -105,11 +105,11 @@ def CtFT():
         
 def Ct():
     def ct(a,b,index=None):
-        index=index if index else np.ones(a.shape[-1])
+        index=index if index else np.ones(a.shape[-1],dtype=int)
         ct0=np.zeros([index[-1]+1,a.shape[0]])
         a,b=a.T,b.T
         for k in range(len(index)):
-            ct[index[k]-index[k:]]+=a[k]*b[k:]
+            ct0[index[k]-index[k:]]+=a[k]*b[k:]
         return ct0
     def cleanup(ct0,index=None):
         ct=ct0.T

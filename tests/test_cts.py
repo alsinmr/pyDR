@@ -45,7 +45,7 @@ ct=ct_calc.cleanup()
 totaltime=time()-t0
 print(totaltime)
 
-ct_calc._mode='CtJit'
+ct_calc._mode='Ct'
 t0=time()
 ct_calc.run()
 ct=ct_calc.cleanup()

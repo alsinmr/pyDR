@@ -7,6 +7,8 @@ Created on Mon Dec  6 13:34:36 2021
 """
 import numpy as np
 from MDAnalysis import Universe
+from pyDR import selection
+from pyDR.misc.ProgressBar import ProgressBar
 
 class MolSys():
     """
@@ -33,7 +35,7 @@ class MolSys():
         return self._uni[self.cur_molecule]
     
     @property
-    def trajectory(self):
+    def traj(self):
         return self._traj[self.cur_molecule]
     
     
@@ -41,6 +43,11 @@ class MolSys():
         if name=='cur_molecule':
             assert value is None or value<len(self._uni),'{} molecules are currently loaded'.format(len(self._uni))
         super().__setattr__(name,value)
+        
+    def get_selection(self,resids=None,segids=None,filter_str=None):
+        return selection.sel_simple(self.molecule,sel=None,resids=resids,segids=segids,filter_str=filter_str)
+    def get_pair(self,Nuc,resids=None,segids=None,filter_str=None):
+        return selection.protein_defaults(self.molecule,Nuc=Nuc,resids=resids,segids=segids,filter_str=filter_str)
   
 class Trajectory():
     def __init__(self,traj,t0=0,tf=-1,step=1,dt=None):
@@ -48,8 +55,9 @@ class Trajectory():
         self.__tf=len(traj)
         self.tf=tf
         self.step=step
-        self.__dt=dt
+        self.__dt=dt if dt else traj.dt
         self.traj=traj
+        self.ProgressBar=False
             
     @property
     def dt(self):
@@ -80,6 +88,13 @@ class Trajectory():
             
             def iterate():
                 for k in range(start,stop,step):
+                    if self.ProgressBar:ProgressBar((k+1-start)*step,stop-step,'Loading:','',0,40)
+                    yield self.traj[k]
+            return iterate()
+        elif hasattr(index,'__iter__'):
+            def iterate():
+                for m,k in enumerate(index):
+                    if self.ProgressBar and hasattr(index,'__len__'):ProgressBar(m+1,len(index),'Loading:','',0,40)
                     yield self.traj[k]
             return iterate()
         else:
