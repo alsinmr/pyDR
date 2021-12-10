@@ -41,14 +41,16 @@ for label in het.label:
     counts.append(len(label.split(",")))
     for lab in label.split(","):
         for key in M.sim_dict["residues"].keys():
-            print(key[:3], int(key[3:])+147)
             if int(lab[:3]) == int(key[3:])+147:
-                print(M.sim_dict['residues'][key]['ct_vecs'])
                 for ctlab in M.sim_dict["residues"][key]["ct_vecs"]:
-                    if "met-to-plane" == ctlab['name']:
-                        print(key, ctlab)
-                        indices.append(ctlab['id'])
-                        labels.append(key)
+                    if "met-to-plane" in ctlab['name']:
+                        if ("ILE" in key and "2" in ctlab['name']) or \
+                            ("ALA" in key) or \
+                            ("VAL" in key and  "2" in ctlab['name']) or \
+                            ("LEU" in key and not  "2" in ctlab['name']):
+                            print(key, ctlab)
+                            indices.append(ctlab['id'])
+                            labels.append(key)
 print(het.label,len(het.label))
 print(labels,len(labels))
 print(counts,len(counts),sum(counts))
@@ -111,5 +113,7 @@ fig.legend(legend)
 for i in range(len(sims)):
     bx.bar(i,chi_sq[i])
 fig2.legend(legend)
+
+print(chi_sq)
 
 plt.show()

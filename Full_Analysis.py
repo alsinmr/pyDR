@@ -9,6 +9,7 @@ from calcs import *
 import sys
 sys.path.append('/Users/albertsmith/Documents/GitHub')
 import pyDIFRATE as DR
+from numba.cuda import is_available as cuda_available
 
 # setting default parameters for matplotlib plots
 matplotlib.rcParams.update({"lines.linewidth": 1,
@@ -316,7 +317,7 @@ class KaiMarkov():
         return dihedral_calc_indices, ct_calc_indices
 
     def save_new(self):
-        #assert 0, "change before save again!"
+        assert 0, "change before save again!"
         #todo append to existing structure instead of overwriting
         #rearrange the dictionary, just save the 'residues' part and remove the index, put instead the values
         #directly to the thing
@@ -343,22 +344,26 @@ class KaiMarkov():
             dihedral_calc[:] = 1
             ct_calc[:] = 1
         print(dihedral_calc.sum(), ct_calc.sum())
+
         if dihedral_calc.sum() or ct_calc.sum():
             for i in range(self.length):
-                if i%10000==0: print(i)
+                if i%1000==0: print(i)
                 traj[i]
                 for j, group in enumerate(self.dihedral_atomgroups):
+                    #todo put all atoms in ONE group and make fastest dihedral run in parallel for all atomgroups at the
+                    #todo same time, check the speedup!
                     if dihedral_calc[j]:
                         self.dihedrals[j,i] = fastest_dihedral(group.positions)
                 for j, group in enumerate(self.vector_atomgroups):
                     if ct_calc[j]:
                         pos_xyz_o(self.ct_vectors[j, i], *group.positions)
 
-            np.save("ct_vecs_3pw_400000.npy",self.ct_vectors)
             if ct_calc.sum():
-                #get_ct_S2(self.cts, self.S2s, self.ct_vectors, ct_calc,
-                #          kwargs.get("sparse") if kwargs.get("sparse") is not None else 1)
-                calc_CT_on_cuda(self.cts,self.S2s, self.ct_vectors, ct_calc,
+                if cuda_available():
+                    calc_CT_on_cuda(self.cts,self.S2s, self.ct_vectors, ct_calc,
+                              kwargs.get("sparse") if kwargs.get("sparse") is not None else 1)
+                else:
+                    get_ct_S2(self.cts, self.S2s, self.ct_vectors, ct_calc,
                           kwargs.get("sparse") if kwargs.get("sparse") is not None else 1)
 
 
@@ -1054,10 +1059,9 @@ def get_detectors_for_simulation():
 
 @time_runtime
 def main():
-    for sim in [0,2,4]:
-        M = KaiMarkov(simulation=sim, residues=[])
-        M.calc_new(sparse=0)#,force_calc=True)
-        return
+    M = KaiMarkov(simulation=0, residues=[])
+    M.calc_new()
+
     #for key in M.sim_dict['residues'].keys():
     #    M.plot_single_res(key)
 

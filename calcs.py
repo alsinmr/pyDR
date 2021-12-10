@@ -161,7 +161,7 @@ def faster_dihedral(p):
 
 
 @time_runtime
-@njit
+@njit(fastmath=True)
 def fastest_dihedral(p):
     # TODO put this to https://stackoverflow.com/questions/20305272/dihedral-torsion-angle-from-four-points-in-cartesian-coordinates-in-python
     b1 = p[2] - p[1]
@@ -172,22 +172,24 @@ def fastest_dihedral(p):
     x = v[0] * w[0] + v[1] * w[1] + v[2] * w[2]
     c = np.cross(b1, v)  # maybe when one gets rid of this one it can get a little faster
     y = c[0] * w[0] + c[1] * w[1] + c[2] * w[2]
+    #targ = 180 * np.arctan2(y, x) / np.pi
     return 180 * np.arctan2(y, x) / np.pi
 
 
-#@time_runtime
+@time_runtime
 @njit(parallel=True)
 def fast_dihedral_multi(p, arr):
     """this was supposed to be faster  than fast dihedral, but it didnt change program runtime significant
     maybe one day I have an idea to improve it"""
-    for i in prange(p.shape[0]):
-        ind = 4 * i
+    for i in prange(arr.shape[0]):
+        ind =  i<<2
         b1 = p[ind + 2] - p[ind + 1]
         b0, b1, b2 = -(p[ind + 1] - p[ind]), b1 / np.sqrt((b1 ** 2).sum()), p[ind + 3] - p[ind + 2]
-        v = b0 - np.dot(b0, b1) * b1
-        w = b2 - np.dot(b2, b1) * b1
-        x = np.dot(v, w)
-        y = np.dot(np.cross(b1, v), w)
+        v = b0 - (b0[0] * b1[0] + b0[1] * b1[1] + b0[2] * b1[2]) * b1
+        w = b2 - (b2[0] * b1[0] + b2[1] * b1[1] + b2[2] * b1[2]) * b1
+        x = v[0] * w[0] + v[1] * w[1] + v[2] * w[2]
+        c = np.cross(b1, v)  # maybe when one gets rid of this one it can get a little faster
+        y = c[0] * w[0] + c[1] * w[1] + c[2] * w[2]
         arr[i] = 180.0*np.arctan2(y, x)/np.pi
 
 
@@ -343,6 +345,8 @@ def cuP2(x):
     """second legendre polynomial"""
     return (3 * x * x - 1) / 2
 
+
+#todo test @cuda.reduce
 @cuda.jit(device=True)
 def dot(v1,v2):
     return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]
@@ -372,14 +376,16 @@ def ct_kernel(cts,vecs, indices, sparse):
 def calc_CT_on_cuda(cts, S2s, vecs, indices, sparse):
     #todo calculate griddim depending on ct shape
     blockdim = (32,4)
-    griddim = (4096,16)
+    griddim = (cts.shape[1]>>8,cts.shape[0])
     cts[indices,1:]=0
     cts[indices,0]=1
+    stream = cuda.stream()
+    with stream.auto_synchronize():
+        dev_vecs = cuda.to_device(vecs,stream=stream)
+        dev_cts = cuda.to_device(cts,stream=stream)
+        dev_ind = cuda.to_device(indices,stream=stream)
+        ct_kernel[griddim,blockdim,stream](dev_cts,dev_vecs, dev_ind, sparse)
+        dev_cts.copy_to_host(cts,stream=stream)
 
-    dev_vecs = cuda.to_device(vecs)
-    dev_cts = cuda.to_device(cts)
-    dev_ind = cuda.to_device(indices)
-    ct_kernel[griddim,blockdim](dev_cts,dev_vecs, dev_ind, sparse)
-    dev_cts.copy_to_host(cts)
     get_S2(S2s, vecs, indices)
 
