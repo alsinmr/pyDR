@@ -97,6 +97,9 @@ class Sens():
     @property
     def z(self):
         return self.__z.copy()
+    @property
+    def dz(self):
+        return self.z[1]-self.z[0]
         
 
 #%% Functions dealing with sensitivities    
@@ -111,7 +114,8 @@ class Sens():
             self.info.updated()
             self._norm()
 
-            self.__edited=True
+            self.__edited=True  #This tells any dependent objects that this sensitivity has changed!!
+            "Maybe this would be more reliable with hashing. Ask Kai"
     
     @property
     def edited(self):

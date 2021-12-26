@@ -25,13 +25,15 @@ class Detector(Sens):
         self.info.new_exper(z0=0,zmax=0,Del_z=0,stdev=0)
         self.info.del_exp(0)
         
-        self.__r=None  #Storage for r matrix        
+        self.__r=None  #Storage for r matrix     
         
         self.sens=sens
         _=sens._rho_eff   #Run the calculation of the input once to finalize the input rhoz values
         "We'll throw a warning if the input sensitivity gets updated"
         
-        self.r_opt=r_opt(self)
+        self.SVD=SVD(sens)
+        self.T=None
+        self.opt_pars={}
         
         "If bond-specific, initiate all for all bonds"
         if len(sens)>1:
@@ -83,8 +85,8 @@ class Detector(Sens):
         T matrix
         """
         
-        SVD=self.r_opt.SVD
-        T=self.r_opt.T        
+        SVD=self.SVD
+        T=self.T        
         
         self.__rho=T@SVD.Vt
         self.__rhoCSA=T@SVD.VtCSA
@@ -104,47 +106,12 @@ class Detector(Sens):
     
     #%% Detector optimization
     def _rho(self):
+        assert self.__rho is not None,"First, optimize detectors before calling Detector._rho"
         return self.__rho
     
     def _rhoCSA(self):
         return self.__rhoCSA
     
-    def r_auto(self,n,NegAllow=False):
-        """
-        Generate n detectors that are automatically selected based on the results
-        of SVD
-        """
-        self.r_opt.auto(n=n,NegAllow=NegAllow)
-        
-    def r_zmax(self,zmax,NegAllow=False):
-        """
-        Generate n detectors defined by the correlation time of their maximum. 
-        Specify the list of maxima (zmax)
-        """
-        self.r_opt.zmax(zmax=zmax,NegAllow=NegAllow)
-
-class r_opt():
-    """
-    Class for optimizing detectors sensitivities
-    """
-    def __init__(self,detect):
-        """
-        Initiate the detector optimization object
-        """
-        self.detect=detect
-        self.SVD=SVD(detect.sens)
-        self.T=None
-
-        
-    def no_opt(self,n):
-        """
-        Generate detectors based only on the singular value decomposition (do not
-        use any optimization)
-        """
-        self.SVD(n)     #Run the SVD
-        self.T=np.eye(n) #No optimization
-        self.detect.update_det() ##Re-calculate detectors based on the new T matrix
-
     def opt_z(self,n,z=None,index=None,min_target=None):
         """
         Optimize a detector using n singular values to have amplitude 1 at correlation
@@ -159,28 +126,74 @@ class r_opt():
         """
         
         self.SVD(n)
-        if min_target is None:min_target=np.zeros(self.detect.z.shape)
         assert z is not None or index is not None,"z or index must be provided"
-        if index is None:index=np.argmin(np.abs(self.detect.z-z))
+        if min_target is None:min_target=np.zeros(self.z.shape)
+        if index is None:index=np.argmin(np.abs(self.z-z))
         Vt=self.SVD.Vt
-        return linprog(Vt.sum(1),-Vt.T,-min_target,[Vt[:,index]],1,bounds=(-500,500),\
+        return linprog(Vt.sum(1),A_ub=-Vt.T,b_ub=-min_target,A_eq=[Vt[:,index]],b_eq=1,bounds=(-500,500),\
                   method='interior-point',options={'disp':False})['x']
     
-    def zmax(self,zmax,NegAllow=0):
+    def r_zmax(self,zmax,Normalization='MP',NegAllow=False):
         """
         Re-optimize detectors based on a previous set of detectors (where the 
         maximum of the detectors has been recorded)
         """
         zmax=np.atleast_1d(zmax)
+        zmax.sort()
         n=zmax.size        
         self.SVD(n)
         self.T=np.eye(n)
         for k,z in enumerate(zmax):
             self.T[k]=self.opt_z(n=n,z=z)
-        self.detect.update_det()
-        
+        self.update_det()
+        if NegAllow:self.allowNeg()
+        self.opt_pars={'n':n,'Type':'zmax','Normalization':None,'NegAllow':False,'options':[]}
+        if Normalization:self.ApplyNorm(Normalization)
     
-    def auto(self,n,NegAllow=False):
+    def r_no_opt(self,n):
+        """
+        Generate detectors based only on the singular value decomposition (do not
+        use any optimization)
+        """
+        self.SVD(n)     #Run the SVD
+        self.T=np.eye(n) #No optimization
+        self.update_det() ##Re-calculate detectors based on the new T matrix
+        self.opt_pars={'n':n,'Type':'no_opt','Normalization':None,'NegAllow':False,'options':[]}
+    
+    def r_target(self,target,n=None,Normalization=None):
+        """
+        Generate n detectors where the first m detectors are approximately equal
+        to the rows in target (n>=m). Using larger n than m will result in n-m
+        un-optimized detectors in addition to the m detectors optimized to the
+        target function.
+        
+        Target may be input as a list of vectors having the same length as sens.z,
+        such that each element corresponds to the correlation time already used
+        in this sensitivity object. One may also input a sensitivity object itself,
+        in which case we will try to match the sensitivity of the two objects.
+        Finally, one may input a dictionary with keys 'z' and 'rhoz', to use a
+        different correlation time axis than is used in this sensitivity object
+        (in the latter cases, we use linear extrapolation to match the target
+        sensitivities to the correlation time axis used here)
+        """
+        
+        if hasattr(target,'z') and hasattr(target,'_rho_eff'):
+            z,target=target.z,target._rho_eff[0]
+            target=linear_ex(z,target,self.z)
+        elif isinstance(target,dict):
+            z,target=target['z'],target['rhoz']
+            target=linear_ex(z,target,self.z)
+        if n is None:n=target.shape[0]
+        self.SVD(n)
+
+        self.T=np.eye(n)
+        for k,t in enumerate(target):
+            self.T[k]=lsqlin(self.SVD.Vt.T,t,lsq_solver='exact')['x']
+        
+        self.update_det()    #Re-calculate detectors based on the new T matrix
+        if Normalization:self.ApplyNorm(Normalization)
+    
+    def r_auto(self,n,Normalization='MP',NegAllow=False):
         """
         Generate n detectors that are automatically selected based on the results
         of SVD
@@ -247,7 +260,7 @@ class r_opt():
         
         #Locate where the Vt are sufficiently large for maxima
         i0=np.nonzero(np.any(np.abs(Vt.T)>(np.abs(Vt).max(1)*.75),1))[0]
-        ntc=self.detect.z.size
+        ntc=self.z.size
         untried=np.ones(ntc,dtype=bool)
         untried[:i0[0]]=False
         untried[i0[-1]+1:]=False
@@ -288,8 +301,11 @@ class r_opt():
 #        pks=np.array(index)[i]
         rhoz=np.array(rhoz)[i]
         self.T=np.array(X)[i]    
-        self.detect.update_det()
+        self.update_det()
+        self.opt_pars={'n':n,'Type':'auto','Normalization':None,'NegAllow':False,'options':[]}
+        
         if NegAllow:self.allowNeg()
+        if Normalization:self.ApplyNorm(Normalization)
         
     def allowNeg(self):
         """
@@ -297,59 +313,62 @@ class r_opt():
         oscillations occur. Only applied to first and last detector
         """
         update=False
-        z,rhoz=self.detect.z,self.detect.rhoz
+        z,rhoz=self.z,self.rhoz
         if rhoz[0,0]/rhoz[0].max()>.95:
             i=np.argwhere(rhoz[0]<.01)[0,0]
             M=np.concatenate(([np.ones(z.size)],[np.arange(z.size)]),axis=0).T
             x=np.linalg.lstsq(M[i:],rhoz[0,i:],rcond=None)[0]
             min_target=-(M@x)
-            self.T[0]=self.opt_z(n=self.T.shape[0],z=self.detect.info['zmax',0],min_target=min_target)
+            self.T[0]=self.opt_z(n=self.T.shape[0],z=self.info['zmax',0],min_target=min_target)
             update=True
         if rhoz[-1,-1]/rhoz[-1].max()>.95:
             i=np.argwhere(rhoz[-1]<.01)[-1,0]
             M=np.concatenate(([np.ones(z.size)],[np.arange(z.size)]),axis=0).T
             x=np.linalg.lstsq(M[:i],rhoz[-1,:i],rcond=None)[0]
             min_target=-(M@x)
-            self.T[-1]=self.opt_z(n=self.T.shape[0],z=self.detect.info['zmax',-1],min_target=min_target)
+            self.T[-1]=self.opt_z(n=self.T.shape[0],z=self.info['zmax',-1],min_target=min_target)
             update=True
-        if update:self.detect.update_det()
-            
-    def target(self,target,n=None):
-        """
-        Generate n detectors where the first m detectors are approximately equal
-        to the rows in target (n>=m). Using larger n than m will result in n-m
-        un-optimized detectors in addition to the m detectors optimized to the
-        target function.
+        if update:self.update_det()
+        self.opt_pars['NegAllow']=True
         
-        Target may be input as a list of vectors having the same length as sens.z,
-        such that each element corresponds to the correlation time already used
-        in this sensitivity object. One may also input a sensitivity object itself,
-        in which case we will try to match the sensitivity of the two objects.
-        Finally, one may input a dictionary with keys 'z' and 'rhoz', to use a
-        different correlation time axis than is used in this sensitivity object
-        (in the latter cases, we use linear extrapolation to match the target
-        sensitivities to the correlation time axis used here)
+                    
+    def inclS2(self):
         """
-        
-        if hasattr(target,'z') and hasattr(target,'_rho_eff'):
-            z,target=target.z,target._rho_eff[0]
-            target=linear_ex(z,target,self.detect.z)
-        elif isinstance(target,dict):
-            z,target=target['z'],target['rhoz']
-            target=linear_ex(z,target,self.detect.z)
-        if n is None:n=target.shape[0]
-        self.SVD(n)
+        Creates an additional detector from S2 measurements, where that detector
+        returns the difference between (1-S2) and an optimized sum of the other
+        detectors
+        """
+        pass
+    
+    def R2ex(self):
+        pass
+    
+    def ApplyNorm(self,Normalization='MP'):
+        """
+        Applies normalization to the set of detectors. Options are 'I' with forces
+        the integrals to all equal 1, 'M' which yields detectors with maxima
+        of 1, and 'MP' which also yields detectors with maxima of 1, but prevents
+        the detector derived from S2 from being negative (if set to 'M', the sum
+        of the detectors is 1, but the first detector, derived from S2, may 
+        become negative)
+        """
 
-        self.T=np.eye(n)
-        for k,t in enumerate(target):
-            self.T[k]=lsqlin(self.SVD.Vt.T,t,lsq_solver='exact')['x']
+        assert Normalization[0].lower() in ['m','i'],'Normalization should be "M", "MP", or "I"'
+        for k,rhoz in enumerate(self.__rho):
+            if Normalization.lower()[0]=='m':
+                self.T[k]/=rhoz.max()
+            else:
+                self.T[k]/=rhoz.sum()*self.dz
+        self.opt_pars['Normalization']=Normalization
+        self.update_det()
+            
+            
         
-        self.detect.update_det()    #Re-calculate detectors based on the new T matrix
         
     
 
 
-class SVD(Sens):
+class SVD():
     """
     Class responsible for performing and storing/returning the results of singular
     value decomposition of a given set of sensitivities
