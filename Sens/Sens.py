@@ -50,6 +50,7 @@ class Sens():
         self.__index=-1     #Index for iterating
         self.__norm=None
         self.__edited=False
+    
         
     @property
     def norm(self):
@@ -206,7 +207,7 @@ class Sens():
         __next__ method for iteration
         """
         self.__index+=1
-        if self.__index<self.N:
+        if self.__index<self.__len__():
             return self.__getitem__(self.__index)
         self.__index=-1
         raise StopIteration
@@ -217,7 +218,27 @@ class Sens():
         """
         self.__index=-1
         return self
-
+    
+    def __eq__(self, ob):
+        """
+        We'll define equals as having the same sensitivity for this object and
+        all objects available via iteration. We will allow for minor deviations
+        in the sensitivity, to allow for small errors when data is coming possible
+        from different sources.
+        """
+        if self is ob:return True        #If same object, then equal
+        if len(self)!=len(ob):return False  #If different lengths, then not equal
+        
+        for s,o in zip(self,ob):
+            a,b=s._rho_eff
+            c,d=o._rho_eff
+            if a.shape!=c.shape:return False #Different sizes, then not equal
+            if np.max(np.abs(a-c))>1e-6:return False #Different sensitivities
+            if np.max(np.abs(b-d))>1e-6:return False #Different offsets
+        return True
+            
+    
+#%% Plot rhos
     def plot_rhoz(self,index=None,ax=None,norm=False,**kwargs):
         """
         Plots the sensitivities of the data object.
