@@ -8,12 +8,13 @@ Created on Sun Jan 30 15:58:40 2022
 
 from pyDR.Defaults import Defaults
 from pyDR.Sens import Detector
+from pyDR.Fitting import fit
 import numpy as np
 
 dtype=Defaults['dtype']
 
 class Data():
-    def __init__(self,R=None,R_std=None,sens=None,src_data=None):
+    def __init__(self,R=None,Rstd=None,sens=None,src_data=None):
         """
         Initialize a data object. Optional inputs are R, the data, R_std, the 
         standard deviation of the data, sens, the sensitivity object which
@@ -22,33 +23,36 @@ class Data():
         """
         
         if R is not None:R=np.array(R,dtype=dtype)
-        if R_std is not None:R_std=np.array(R_std,dtype=dtype)
+        if Rstd is not None:Rstd=np.array(Rstd,dtype=dtype)
         
         "We start with some checks on the data sizes, etc"
-        if R is not None and R_std is not None:
-            assert R.shape==R_std.shape,"Shapes of R and R_std must match when initializing a data object"
+        if R is not None and Rstd is not None:
+            assert R.shape==Rstd.shape,"Shapes of R and R_std must match when initializing a data object"
         if R is not None and sens is not None:
             assert R.shape[1]==sens.rhoz.shape[0],"Shape of sensitivity object is not consistent with shape of R"
         
-        self.R=R if R is not None else np.zeros([0,sens.rhoz.shape[0] if sens else 0])
-        self.R_std=R_std if R_std is not None else np.zeros(self.R.shape)
+        self.R=R if R is not None else np.zeros([0,sens.rhoz.shape[0] if sens else 0],dtype=dtype)
+        self.Rstd=Rstd if Rstd is not None else np.zeros(self.R.shape,dtype=dtype)
         self.sens=sens
-        self.__detect=None
+        self.detect=Detector(sens) if sens is not None else None
+        self.src_data=src_data
+        
         
         
     
     def __setattr__(self, name, value):
-        if name=='sens':
-            if self.__detect is not None:print('Warning: Resetting "sens" deletes the current detector object')
-            self.__detect=None
-            assert value.__len__()==1 or value.__len__()==self.R.shape[0],"Sensitivity object length does not match length of R"
-        if name=='detect':
-            assert self.sens is not None,"Define 'sens' before assigning a detector object"
-            if not(value.sens is self.sens):
-                assert value.sens.rhoz.shape==self.sens.rhoz.shape,"Shape of detector input sensitivity does not match sensitivity of the data object"
-                assert value.sens.__len__()==self.sens.__len__(),"Length of detector input sensitivity does not match sensitivty of the data object"
-            if not(value.sens==self.sens):
-                print('Warning: Detector input sensitivity and data sensitivity are not equal')
+        """Special controls for setting particular attributes.
+        """
+        if name=='sens' and value is not None and hasattr(self,'detect') and self.detect is not None:
+            assert self.detect.sens==value,"Detector input sensitivities and data sensitivities should match"
+            if self.detect.sens is not value:
+                print("Warning: Detector object's input sensitivity does is not the same object as the data sensitivity.")
+                print("Changes to the data sensitivity object will not be reflected in the detector behavior")
+        if name=='detect' and value is not None and hasattr(self,'sens') and self.sens is not None:
+            assert self.sens==value.sens,"Detector input sensitivities and data sensitivities should match"
+            if self.sens is not value.sens:
+                print("Warning: Detector object's input sensitivity does is not the same object as the data sensitivity.")
+                print("Changes to the data sensitivity object will not be reflected in the detector behavior")
         super().__setattr__(name, value)
 
         
@@ -61,11 +65,8 @@ class Data():
     def ne(self):
         return self.R.shape[1]
     
-    @property
-    def detect(self):
-        if self.sens.edited:
-            if self.__detect is not None:print("Warning: Data's sensitivity object has been edited. Detector object will also be updated")
-        if self.__detect is None:self.__detect=Detector(self.sens)
-        return self.__detect
+    
+    def fit(self,bounds=True,parallel=True):
+        return fit(self,bounds=bounds,parallel=parallel)
         
         

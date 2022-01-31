@@ -9,3 +9,4 @@ from pyDR import FRET
 from pyDR.MolSys import MolSys
 from pyDR.Defaults import Defaults
 from pyDR import Data
+from pyDR.Fitting import Fitting
