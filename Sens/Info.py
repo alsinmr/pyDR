@@ -24,6 +24,12 @@ class Info():
         
         self.new_parameter(**kwargs)
     
+    def save(self,filename=None,fid=None):
+        """
+        Save the data stored in the info object
+        """
+        pass
+    
     def new_parameter(self,par=None,**kwargs):
         """
         Add a new parameter to all existing experiments. Provide the name of the

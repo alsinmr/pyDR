@@ -51,6 +51,7 @@ class Detector(Sens):
         self.sens=None
         out=super().copy()
         out.sens=sens  #Put back old sensitivity object
+        self.sens=sens
         return out
     
     def lock(self,locked=True):
@@ -206,7 +207,7 @@ class Detector(Sens):
         self.T=np.eye(n)
         for k,t in enumerate(target):
             self.T[k]=lsqlin(self.SVD.Vt.T,t,lsq_solver='exact')['x']    
-        self.opt_pars={'n':n,'Type':'zmax','Normalization':None,'NegAllow':False,'options':[]}
+        self.opt_pars={'n':n,'Type':'target','Normalization':None,'NegAllow':False,'options':[]}
         self.update_det()    #Re-calculate detectors based on the new T matrix
         if Normalization:self.ApplyNorm(Normalization)
     
@@ -363,9 +364,9 @@ class Detector(Sens):
         if self._islocked:return
 
         assert 'n' in self.opt_pars.keys(),'First perform initial detector optimization before including S2'
-        self.opt_pars['options'].append('inclS2')        
         
-        if self.opt_pars['n']<self.rhoz.shape[0]:self.removeS2
+        if 'inclS2' in self.opt_pars['options']:self.removeS2
+        self.opt_pars['options'].append('inclS2')
         
         norm=Normalization if Normalization else self.opt_pars['Normalization']
         if norm.lower()!=self.opt_pars['Normalization'].lower():
