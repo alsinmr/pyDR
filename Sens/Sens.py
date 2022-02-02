@@ -4,6 +4,17 @@
 Created on Tue Nov  9 16:30:05 2021
 
 @author: albertsmith
+
+Some notes:
+    __rho
+    __rhoCSA are intended for storage of calculated sensitivities
+    
+    rhoz
+    _rhozCSA return the sensitivities, after checking for updates
+    
+    Child classes should have functions
+    _rho
+    _rhoCSA which are called by the Sens when storing calculated sensitivities
 """
 
 import numpy as np
@@ -11,6 +22,7 @@ from pyDR.Sens.Info import Info
 from pyDR.misc.disp_tools import set_plot_attr,NiceStr
 import matplotlib.pyplot as plt
 from matplotlib import ticker
+from copy import deepcopy
 
 class Sens():
     def __init__(self,tc=None,z=None):
@@ -49,8 +61,14 @@ class Sens():
         self._parent=None  #If this is a child, keep track of the parent sensitivity
         self.__index=-1     #Index for iterating
         self.__norm=None
-        self.__edited=False
+    
+    def copy(self):
+        """
+        Returns a deep copy of the sensitivity object. 
+        """
+        return deepcopy(self)
         
+    
     @property
     def norm(self):
         """
@@ -84,11 +102,11 @@ class Sens():
         """
         if 'stdev' in self.info.keys and np.all(self.info['stdev']): 
             if 'med_val' in self.info.keys:
-                self.__norm=(self.info['med_val'].astype(float)/self.info['stdev'].astype(float)/self._rho_eff[0].max(axis=1))
+                self.__norm=(self.info['med_val'].astype(float)/self.info['stdev'].astype(float)/self.rhoz.max(axis=1))
             else:
                 self.__norm=1/(self.info['stdev']).astype(float)
         else:
-            self.__norm=1/self._rho_eff[0].max(axis=1)
+            self.__norm=1/self.rhoz.max(axis=1)
             
     @property
     def tc(self):
@@ -100,6 +118,10 @@ class Sens():
     @property
     def dz(self):
         return self.z[1]-self.z[0]
+        
+    @property
+    def _hash(self):
+        return hash(self.rhoz.data.tobytes())
         
 
 #%% Functions dealing with sensitivities    
@@ -113,23 +135,6 @@ class Sens():
             self.__rhoCSA=self._rhoCSA() if hasattr(self,'_rhoCSA') else np.zeros([self.info.N,self.z.size])
             self.info.updated()
             self._norm()
-
-            self.__edited=True  #This tells any dependent objects that this sensitivity has changed!!
-            "Maybe this would be more reliable with hashing. Ask Kai"
-    
-    @property
-    def edited(self):
-        """
-        Determines if the sensitivities of this object have changed
-        """
-        return self.__edited or self.info.edited
-    
-    def updated(self,edited=False):
-        """
-        Call self.updated if the sensitivities have been updated, thus setting
-        self.edited to False
-        """
-        self.__edited=edited
 
     @property
     def rhoz(self):
@@ -163,6 +168,10 @@ class Sens():
         to CSA
         """
         return self._rhozCSA,np.zeros(self._rhozCSA.shape[0])
+    
+    @property
+    def R0(self):
+        return self._rho_eff[1]
     
 #%% Properties relating to iteration over bond-specific sensitivities        
     def __len__(self):
@@ -206,7 +215,7 @@ class Sens():
         __next__ method for iteration
         """
         self.__index+=1
-        if self.__index<self.N:
+        if self.__index<self.__len__():
             return self.__getitem__(self.__index)
         self.__index=-1
         raise StopIteration
@@ -217,7 +226,24 @@ class Sens():
         """
         self.__index=-1
         return self
-
+    
+    def __eq__(self, ob):
+        """
+        We'll define equals as having the same sensitivity for this object and
+        all objects available via iteration. We will allow for minor deviations
+        in the sensitivity, to allow for small errors when data is coming possible
+        from different sources.
+        """
+        if self is ob:return True        #If same object, then equal
+        if len(self)!=len(ob):return False  #If different lengths, then not equal
+        
+        for s,o in zip(self,ob):
+            if s.rhoz.shape!=o.rhoz.shape:return False #Different sizes, then not equal
+            if np.max(np.abs(s.rhoz-o.rhoz))>1e-6:return False #Different sensitivities
+        return True
+            
+    
+    #%% Plot rhoz
     def plot_rhoz(self,index=None,ax=None,norm=False,**kwargs):
         """
         Plots the sensitivities of the data object.

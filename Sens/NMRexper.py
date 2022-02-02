@@ -169,7 +169,7 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,off=0,QC=0,etaQ=0):
     return R
 
 def R2(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,off=0,QC=0,etaQ=0):    
-    return R1p(tc,Nuc,v0,Nuc1=None,CSA=CSA,dXY=dXY,eta=eta,vr=0,v1=0,off=off,QC=QC,etaQ=etaQ)  
+    return R1p(tc,Nuc,v0,Nuc1=Nuc1,CSA=CSA,dXY=dXY,eta=eta,vr=0,v1=0,off=off,QC=QC,etaQ=etaQ)  
 
 def S2(tc):
     """

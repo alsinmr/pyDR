@@ -177,9 +177,19 @@ def defaults(info,**kwargs):
             for m in range(len(v)):
                 if v[m] is None:
                     info_new[k,m]=0
+                    
+
     
-    "Finally, we override the defaults with our input values"
+    "We override the defaults with our input values"
     for key,values in kwargs.items():
         for k,value in enumerate(np.atleast_1d(values)):
             info_new[key,k]=value
+            
+    "Finally, we delete extra entries in Nuc1 and dXY and delete CSA if Type is NOE"
+    for k,i in enumerate(info_new):
+        if i['Type']=='NOE':
+            if i['dXY'].size>1:info_new['dXY',k]=info_new['dXY',k][0]
+            if i['Nuc1'].size>1:info_new['Nuc1',k]=info_new['Nuc1',k][0]
+            info_new['CSA',k]=0
+            
     info.append(info_new)
