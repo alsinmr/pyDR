@@ -128,7 +128,26 @@ def CtJit(a,b):
     for k in prange(1,a.shape[-1]):
         ct[k]=np.mean(np.array([a[n]*b[n+k] for n in prange(0,a.shape[-1]-k)]))
     return ct
-    
+
+from numba import cuda
+
+@cuda.jit()
+def ct_kernel(a,b,ct):
+    startX,startY = cuda.grid(2)
+    gridY = cuda.gridDim.y *cuda.blockDim.y
+    gridX = cuda.gridDim.x * cuda.blockDim.x
+
+    for k in prange(startX,a.shape[-1], gridX):
+        for n in prange(startY, a.shape[-1]-k, gridY):
+            ct
+
+
+def CudaCtJit(a,b):
+    blockdim = (32,4)
+    griddim = (a.shape[1]>>8,a.shape[0])
+    ct = np.zeros(a.shape)
+
+
 
 def trunc_t_axis(nt,n=100,nr=10,**kwargs):
     """
