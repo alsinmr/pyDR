@@ -65,7 +65,7 @@ class KaiMarkov():
         self.get_peptide_planes()
         self.get_methyl_groups()
         self.create_data_container()
-
+        self.ct_x_axis = np.arange(1, self.length + 1, 1)
 
     def create_data_container(self):
         """
@@ -410,8 +410,8 @@ class KaiMarkov():
                 # i decided to save the vectors after loading them
                 # if calculation fails, they will just be reloaded the next time
                 # if it succeeds, we delete the files in the end
-                self.dihedrals = np.load("long_traj_dihedrals.npy")
-                self.ct_vectors = np.load("long_traj_vecs.npy")
+                self.dihedrals = np.load("long_traj_dihedrals.npy").astype(self.default_float)
+                self.ct_vectors = np.load("long_traj_vecs.npy").astype(self.default_float)
             else:
                 for i,_ in enumerate(range(self.offset,self.offset+self.length)):
                     if _ % 1000==0: print(_)
@@ -428,8 +428,8 @@ class KaiMarkov():
                             else:
                                 self.ct_vectors[j,i] = get_peptide_plane_normal(group.positions)
 
-                np.save("long_traj_vecs.npy",self.ct_vectors)
-                np.save("long_traj_dihedrals.npy", self.dihedrals)
+                np.save("long_traj_vecs.npy",self.ct_vectors.astype("float16"))
+                np.save("long_traj_dihedrals.npy", self.dihedrals.astype("float16"))
             if ct_calc.sum():
                 if cuda_available():
                     count =ct_calc.sum()
@@ -452,136 +452,140 @@ class KaiMarkov():
             if self.full_traj and len(self.residues) == 0 and kwargs.get("sparse") == 0:
                 self.save()
 
-    def plot_markov_3D(self, states):
-        print(states.shape)
-        exit()
+    def construct_full_ct_from_states(self, Markov_states, avg_vecs, axis, **kwargs):
+        """
+        Constructing an ct from Markov states with average vectors of the bond and plot them on an axis
+        :param Markov_states: np.ndarray with integers to represent a markov state
+        :param avg_vecs: np.ndarray with shape n x 3
+        :param axis: an axis of matplotlib to plot the resulting correlation funciton
+        :param kwargs: sparse value (integer) with default 50
+        :return: nothing
+        """
+        ct = np.zeros((1,Markov_states.shape[0]),dtype="float32")
+        vecs = np.zeros((1,Markov_states.shape[0],3),dtype="float32")
+        for i in range(Markov_states.shape[0]):
+            vecs[0, i] = avg_vecs[Markov_states[i]]
 
+        sparse = kwargs.get("sparse") if kwargs.get("sparse") else 50
+        calc_CT_on_cuda(ct, np.zeros(1), vecs, np.ones(1, dtype=bool), sparse=sparse)
 
-    def do_markov(self, num=1):
+        ticks = np.array([10, 100, 1000, 10000, 100000, 1000000]).astype(int)
+        ticks //= int(self.dt*(10**12))
+
+        axis.semilogx(self.ct_x_axis, ct[0], color="green", linestyle="dotted")
+        axis.set_ylim(0,1.05)
+        axis.set_xticks(ticks)
+
+        axis.set_yticks([0, .25, .5, .75, 1])
+        axis.set_xticklabels(["10 ps", "100 ps", "1 ns", "10 ns", "100 ns", "1 µs"], rotation=30)
+
+    def do_markov(self, num=0):
         '''working markov example for chi1 and chi2 bond, examining the CC-bond of the second methyl group and
-        determining the correlation funciton from that'''
-        def construct_full_ct_from_states(Markov_states,avg_vecs, axis):
-            ct = np.zeros((1,Markov_states.shape[0]),dtype="float32")
-            vecs = np.zeros((1,Markov_states.shape[0],3),dtype="float32")
-            for i in range(Markov_states.shape[0]):
-                vecs[0,i] = avg_vecs[Markov_states[i]]
-
-            calc_CT_on_cuda(ct,np.zeros(1),vecs,np.ones(1,dtype=bool),sparse=10)
-            axis.semilogx(x_axis,ct[0], color = "green", linewidth=1)
-
-        vecs = np.load("long_traj_vecs.npy")[:,:self.length]
-        print(vecs.shape)
+        determining the correlation funciton from that
+        this funciton is very specific for simulation HETs-MET-4pw and is not by default transferable on other
+        simulations
+        '''
+        vecs = np.load("long_traj_vecs.npy").astype(self.default_float)
         res = []
         chi1 = []
         chi2 = []
-        ch3_1 = []
-        ch3_2 = []
         cc_vecs = []
+        '''searching the simulation dictionary for residues Isoleucin and Leucin to get the ID's of chi1 and chi2
+        dihedrals'''
         for key in self.sim_dict["residues"].keys():
             if "ILE" in key or "LEU" in key:
                 res.append(key)
                 for dih in self.sim_dict['residues'][key]['dihedrals']:
                     if "chi1" in dih['name']:
                         chi1.append(dih['id'])
-                        print(dih)
                     if "chi2" in dih['name']:
                         chi2.append(dih['id'])
-                        print(dih)
-                    if "CH3_1" in dih['name']:
-                        ch3_1.append(dih['id'])
-                        print(dih)
-                    if "CH3_2" in dih['name']:
-                        ch3_2.append(dih['id'])
-                        print(dih)
-
+                    #if "CH3_1" in dih['name']:
+                    #    ch3_1.append(dih['id'])
+                    #if "CH3_2" in dih['name']:
+                    #    ch3_2.append(dih['id'])
                 for vec in self.sim_dict["residues"][key]['ct_vecs']:
-                    #if "chi" in vec['name']and "2" in vec['name'] and "rot" in vec['name']:
-                    #if "met-to-plane_2" in vec['name']:
                     if "C-C-2-plane" in vec['name']:
-                        print(vec)
                         cc_vecs.append(vec['id'])
 
         cc_vecs = np.array(cc_vecs).astype(int)
-        print(cc_vecs)
         vecs = vecs[cc_vecs]
-        print(vecs.shape)
         chi1 = np.array(chi1).astype(int)
         chi2 = np.array(chi2).astype(int)
-        ch3_1 = np.array(ch3_1).astype(int)
-        ch3_2 = np.array(ch3_2).astype(int)
 
-        fig = plt.figure()
-        ax = [fig.add_subplot(2,3,i+1) for i in range(5)]
+
         chi1_states = np.zeros((9,self.dihedrals.shape[1]))
         chi2_states = np.zeros((9,self.dihedrals.shape[1]))
-        states = np.zeros((9,self.dihedrals.shape[1])).astype(int)
+        states = np.zeros((9, self.dihedrals.shape[1])).astype(int)
         chi1_states[:, :] += ((self.dihedrals[chi1, :] >= 0) == (self.dihedrals[chi1, :] < 120)).astype('uint8')
         chi1_states[:, :] += ((self.dihedrals[chi1, :] < 0) == (self.dihedrals[chi1, :] >= -120)).astype('uint8') * 2
         chi2_states[:, :] += ((self.dihedrals[chi2, :] >= 0) == (self.dihedrals[chi2, :] < 120)).astype('uint8')
         chi2_states[:, :] += ((self.dihedrals[chi2, :] < 0) == (self.dihedrals[chi2, :] >= -120)).astype('uint8') * 2
 
-        for m in [0,1,2]:
-            for n in [0,1,2]:
-                states[(chi1_states==m)&(chi2_states==n)] = 3*n +m
+        for m in [0, 1, 2]:
+            for n in [0, 1, 2]:
+                states[(chi1_states == m) & (chi2_states == n)] = 3 * n + m
 
+
+        fig = plt.figure()
+        ax = [fig.add_subplot(2,3,i+1) for i in range(5)]
         plt.suptitle(res[num])
-        ax[0].hist2d((self.dihedrals[chi1[num]]+240)%360,(self.dihedrals[chi2[num]]+240)%360, range=[[0,360],[0,360]],bins=[180,180],cmin=0.1)
-        ax[4].scatter(((self.dihedrals[chi1[num]]+240)%360)[::100],((self.dihedrals[chi2[num]]+240)%360)[::100],s=0.25,c=states[num,:][::100])#, colors=states[0,:])
-        x=[60,300,180,60,300,180,60,300,180]
-        y= [60,60,60,300,300,300,180,180,180]
+        ax[0].hist2d((self.dihedrals[chi1[num]] + 240) % 360,
+                     (self.dihedrals[chi2[num]] + 240) % 360, range=[[0, 360], [0, 360]], bins=[180, 180], cmin=0.1)
+        ax[4].scatter(((self.dihedrals[chi1[num]]+240) % 360)[::100],
+                      ((self.dihedrals[chi2[num]]+240) % 360)[::100], s=0.25, c=states[num, :][::100])
+        x = [60, 300, 180, 60, 300, 180, 60, 300, 180]  # this is a little goofy, but only this way it plots on the
+        y = [60, 60, 60, 300, 300, 300, 180, 180, 180]  # right spots
         avg_vecs = []
-        avg_vecs_B = []
+        avg_vecs_B = []  # separate list to avoid errors resulting from reduced matrices
         for i in range(9):
-            #todo bruachen wir nicht noch die average vectoren von chi1 and chi2?
-            #das ist der average vector des CCMethyl bindungs dings
-            print(states[num,:20]==i)
-            print(vecs[num,0])
-            avg_vec = vecs[i,states[num,:]==i]
-            avg_vec = np.average(avg_vec,axis=0)
-            avg_vec/=np.linalg.norm(avg_vec)
-            print(avg_vec)
+            '''averaging all 9 vectors in their specific state and store them for calculation of the P2 for C(t) later
+            vectors should be normalized'''
+            avg_vec = vecs[num, states[num, :] == i]
+            avg_vec = np.average(avg_vec, axis=0)
+            avg_vec /= np.linalg.norm(avg_vec)
             if not np.isnan(avg_vec[0]):
                 avg_vecs.append(avg_vec)
             avg_vecs_B.append(avg_vec)
-            ax[4].text(x[i],y[i], "{:.2f}\n{:.2f}\n{:.2f}".format(*(avg_vec)), ha="center",va="center")
-            #cA,sA,cB,sB,cG,sG = vf_tools.getFrame(avg_vec)
-            #print(vf_tools.pars2Spher(1,cA=cA, sA=sA, cB = cB, sB = sB, cG=cG,sG=sG))
-        exit()
+            ax[4].text(x[i], y[i], "{:.2f}\n{:.2f}\n{:.2f}".format(*avg_vec), ha="center", va="center")
+
         avg_vecs = np.array(avg_vecs)
-        mmatrix = np.zeros((9,9))
-        to_delete=[]
+        transition_matrix = np.zeros((9, 9))
+        to_delete = []  # if a state is not populated, the dimension of the matrix will be removed after the creation of
+                        # the transition matrix
         for i in range(9):
             for j in range(9):
-                if (states[num,]==i).sum():
-                    mmatrix[j,i] = prob =(((states[num,:-1]==i)&(states[num,1:]==j))).sum()/(states[num,]==i).sum()
+                '''here we calculate the probability to go from state i to state j to create the transition matrix'''
+                if (states[num,] == i).sum():
+                    transition_matrix[j, i] = prob = ((states[num, :-1] == i) & (states[num, 1:] == j)).sum() / \
+                                                     (states[num, ] == i).sum()
                     if i == j:
                         if not np.isnan(prob):
-                            ax[0].text( x[i],y[i],"{:.2f}".format(prob),ha="center", color="black",bbox=TEXTBOX)
+                            '''plot the probability to stay in the same state inside of the Ramachandran plot'''
+                            ax[0].text(x[i], y[i], "{:.2f}".format(prob), ha="center", color="black", bbox=TEXTBOX)
                     else:
+                        '''drawing an arrow between the states with a thickness to represent the transition probability
+                        between these states'''
                         if not np.isnan(prob):
-                            ax[0].arrow(x[i]+np.random.random()*25,y[i]+np.random.random()*25,x[j]-x[i],y[j]-y[i], alpha = prob,
-                                        width=prob/10)
-                    prob*=100
+                            ax[0].arrow(x[i]+np.random.random()*25, y[i]+np.random.random()*25, x[j]-x[i],y[j]-y[i],
+                                        alpha=prob, width=prob/10)
+                    prob *= 100
 
                 else:
-                    mmatrix[i,j] = 1/9
-                    if i==j:
+                    if i == j:
                         to_delete.append(i)
 
         for index in to_delete[::-1]:
-            mmatrix = np.delete(mmatrix,index,1)
-            mmatrix = np.delete(mmatrix,index,0)
+            transition_matrix = np.delete(transition_matrix, index, 1)
+            transition_matrix = np.delete(transition_matrix, index, 0)
 
-        mmatrix/=mmatrix.sum(axis=0)
-        print(num,mmatrix.sum(axis=0))
-        ax[1].imshow(mmatrix,vmin=0,vmax=1)
-        x_axis = np.arange(1,self.length+1,1)
-        ax[3].semilogx(x_axis,self.cts[cc_vecs[num]],color="black")
-        P2mat = np.zeros(mmatrix.shape)
-        for i in range(mmatrix.shape[0]):
-            for j in range(mmatrix.shape[0]):
-                P2mat[j,i] = P2(np.dot(avg_vecs[i],avg_vecs[j]))#
-        print(P2mat)
+        transition_matrix /= transition_matrix.sum(axis=0)  # normalization
+        ax[1].imshow(transition_matrix, vmin=0, vmax=1)
+        ax[3].semilogx(self.ct_x_axis,self.cts[cc_vecs[num]],color="black")
+        P2matrix = np.zeros(transition_matrix.shape)
+        for i in range(transition_matrix.shape[0]):
+            for j in range(transition_matrix.shape[0]):
+                P2matrix[j, i] = P2(np.dot(avg_vecs[i], avg_vecs[j]))#
 
         pop = []
         for l in range(9):
@@ -592,67 +596,56 @@ class KaiMarkov():
 
         tp = np.zeros(self.length)
 
-        for l in range(mmatrix.shape[0]):
-            init = np.zeros(mmatrix.shape[0])
+        for l in range(transition_matrix.shape[0]):
+            init = np.zeros(transition_matrix.shape[0])
             init[l]=1
             ic = np.ones(self.length)
             for i in range(1,self.length):
-                if i %100000==0:print(i,init.sum())
-                init = mmatrix@init
-                ic[i] = (P2mat[l] * init).sum()
+                if i % 100000 == 0: print(i, init.sum())
+                init = transition_matrix @ init
+                ic[i] = (P2matrix[l] * init).sum()
             tp += ic * pop[l]
 
-        ax[3].semilogx(x_axis,tp,color="red")
-        ax[3].set_xlim(1,self.length)
-        ax[3].set_ylim(0,1.05)
-        construct_full_ct_from_states(states[num],avg_vecs_B,ax[3])
+        ax[3].semilogx(self.ct_x_axis, tp, color="red")
+        self.construct_full_ct_from_states(states[num], avg_vecs_B, ax[3])
 
-        for col in range(mmatrix.shape[0]):
-            if (mmatrix[col,:]==1).sum():
-                mmatrix[col,mmatrix[col,:]==1] = 1-(mmatrix.shape[0]-1)*.001
-                mmatrix[col,mmatrix[col,:]==0]=0.001
+        for col in range(transition_matrix.shape[0]):
+            if (transition_matrix[col, :] == 1).sum():
+                transition_matrix[col, transition_matrix[col, :] == 1] = 1 - (transition_matrix.shape[0] - 1) * .001
+                transition_matrix[col, transition_matrix[col, :] == 0] = 0.001
 
-        ematrix = scipy.linalg.logm(mmatrix)/5  #or *5?
+        exchange_matrix = scipy.linalg.logm(transition_matrix) / 5  #or *5?
         try:
-            ax[2].imshow(ematrix.T)#
+            ax[2].imshow(exchange_matrix.T)
         except:
-            pass
-        for a in [ax[0],ax[4]]:
+            print("Exchange Matrix for {} could not be plotted probably because of irrational values".format(res[num]))
+
+        # just some plotting refinements
+        for a in [ax[0], ax[4]]:
             a.set_xlabel(r'$\chi_1$')
             a.set_ylabel(r'$\chi_2$')
-            a.set_xticks([60,180,300])
-            a.set_yticks([60,180,300])
-            a.set_xlim(0,360)
-            a.set_ylim(0,360)
-            a.tick_params(axis="y",rotation=90)
+            a.set_xticks([60, 180, 300])
+            a.set_yticks([60, 180, 300])
+            a.set_xlim(0, 360)
+            a.set_ylim(0, 360)
+            a.tick_params(axis="y", rotation=90)
         for a in [ax[1],ax[2]]:
-            a.set_xticks(range(mmatrix.shape[0]))
-            a.set_yticks(range(mmatrix.shape[0]))
+            a.set_xticks(range(transition_matrix.shape[0]))
+            a.set_yticks(range(transition_matrix.shape[0]))
             a.set_xticklabels([])
             a.set_yticklabels([])
 
-        ticks = np.array([10,100,1000,10000,100000,1000000]).astype(int)
-        ticks//=int(self.dt*(10**12))
-        ax[3].set_xticks(ticks)
-        ax[3].set_yticks([0,.25,.5,.75,1])
-        ax[3].set_xticklabels(["10 ps","","ns","","","µs"])
-        fig.subplots_adjust(wspace=0.22,hspace=0.2,right=0.99,top=0.95,bottom=0.075,left=0.075)
+        fig.subplots_adjust(wspace=0.22, hspace=0.2, right=0.99, top=0.95, bottom=0.075, left=0.075)
+        plt.savefig("{}_C-C_bond.pdf".format(res[num]))
 
-        plt.savefig("{}.pdf".format(res[num]))
-        plt.show()
-
-    def do_markov_3dihedrals(self, num):
-        def construct_full_ct_from_states(Markov_states,avg_vecs, axis):
-            ct = np.zeros((1,Markov_states.shape[0]),dtype="float32")
-            vecs = np.zeros((1,Markov_states.shape[0],3),dtype="float32")
-            for i in range(Markov_states.shape[0]):
-                vecs[0,i] = avg_vecs[Markov_states[i]]
-
-            calc_CT_on_cuda(ct,np.zeros(1),vecs,np.ones(1,dtype=bool),sparse=10)
-            axis.semilogx(x_axis,ct[0], color = "green", linewidth=1)
-
-        vecs = np.load("long_traj_vecs.npy")[:,:self.length]
-        print(vecs.shape)
+    def do_markov_3dihedrals(self, num:int):
+        """
+        basically the same funciton as do_markov, just here we take a third dihedral, the one of the methylgroup itself
+        in account
+        :param num: integer
+        :return:
+        """
+        vecs = np.load("long_traj_vecs.npy")[:, :self.length].astype(self.default_float)
         res = []
         chi1 = []
         chi2 = []
@@ -664,60 +657,50 @@ class KaiMarkov():
                 for dih in self.sim_dict['residues'][key]['dihedrals']:
                     if "chi1" in dih['name']:
                         chi1.append(dih['id'])
-                        print(dih)
                     if "chi2" in dih['name']:
                         chi2.append(dih['id'])
-                        print(dih)
-                    if "CH3_1" in dih['name']:
-                        #ch3_1.append(dih['id'])
-                        print(dih)
                     if "CH3_2" in dih['name']:
                         ch3_2.append(dih['id'])
-                        print(dih)
-
                 for vec in self.sim_dict["residues"][key]['ct_vecs']:
-                    #if "chi" in vec['name']and "2" in vec['name'] and "rot" in vec['name']:
                     if "met-to-plane_2" in vec['name']:
-                    #if "C-C-2-plane" in vec['name']:
-                        print(vec)
                         cc_vecs.append(vec['id'])
-
         cc_vecs = np.array(cc_vecs).astype(int)
         vecs = vecs[cc_vecs]
         chi1 = np.array(chi1).astype(int)
         chi2 = np.array(chi2).astype(int)
         ch3_2 = np.array(ch3_2).astype(int)
 
-        fig = plt.figure()
-        ax = [fig.add_subplot(2,3,i+1) for i in range(5)]
-        chi1_states = np.zeros((9,self.dihedrals.shape[1]))
-        chi2_states = np.zeros((9,self.dihedrals.shape[1]))
-        ch3_2_states = np.zeros((9,self.dihedrals.shape[1]))
-        states = np.zeros((9,self.dihedrals.shape[1])).astype(int)
+
+        '''determining in which state each chi-bond or the methyl group is inside, depending on the dihedral angle'''
+        chi1_states = np.zeros((9, self.dihedrals.shape[1]))
+        chi2_states = np.zeros((9, self.dihedrals.shape[1]))
+        ch3_2_states = np.zeros((9, self.dihedrals.shape[1]))
+
         chi1_states[:, :] += ((self.dihedrals[chi1, :] >= 0) == (self.dihedrals[chi1, :] < 120)).astype('uint8')
         chi1_states[:, :] += ((self.dihedrals[chi1, :] < 0) == (self.dihedrals[chi1, :] >= -120)).astype('uint8') * 2
         chi2_states[:, :] += ((self.dihedrals[chi2, :] >= 0) == (self.dihedrals[chi2, :] < 120)).astype('uint8')
         chi2_states[:, :] += ((self.dihedrals[chi2, :] < 0) == (self.dihedrals[chi2, :] >= -120)).astype('uint8') * 2
+        ch3_2_states[:, :] += ((self.dihedrals[ch3_2, :] >= 0) == (self.dihedrals[ch3_2, :] < 120)).astype('uint8')
+        ch3_2_states[:, :] += ((self.dihedrals[ch3_2, :] < 0) == (self.dihedrals[ch3_2, :] >= -120)).astype('uint8') *2
 
-        ch3_2_states[:,:] += ((self.dihedrals[ch3_2, :] >= 0) == (self.dihedrals[ch3_2, :] < 120)).astype('uint8')
-        ch3_2_states[:,:] += ((self.dihedrals[ch3_2, :] < 0) == (self.dihedrals[ch3_2, :] >= -120)).astype('uint8')*2
+        states = np.zeros((9, self.dihedrals.shape[1])).astype(int)
+        for k in [0, 1, 2]:
+            for m in [0, 1, 2]:
+                for n in [0, 1, 2]:
+                    states[(chi1_states == m) & (chi2_states == n) &( ch3_2_states == k)] = 9 * k + 3 * n + m
+                    # this calculation will result in 1 of 27 states for each timepoint and residue
 
-        for k in [0,1,2]:
-            for m in [0,1,2]:
-                for n in [0,1,2]:
-                    states[(chi1_states==m)&(chi2_states==n)&(ch3_2_states==k)] = 9*k + 3*n +m
-
-        plt.suptitle(res[num])
-        ax[0].hist2d((self.dihedrals[chi1[num]]+240)%360,(self.dihedrals[chi2[num]]+240)%360, range=[[0,360],[0,360]],bins=[180,180],cmin=0.1)
-        ax[4].scatter(((self.dihedrals[chi1[num]]+240)%360)[::100],((self.dihedrals[chi2[num]]+240)%360)[::100],s=0.25,c=states[num,:][::100])#, colors=states[0,:])
-        x=[60,300,180,60,300,180,60,300,180]
-        y= [60,60,60,300,300,300,180,180,180]
+        fig = plt.figure()
+        ax = [fig.add_subplot(2, 3, i + 1) for i in range(5)]
+        fig.suptitle(res[num])
+        ax[0].hist2d((self.dihedrals[chi1[num]]+240) % 360,
+                     (self.dihedrals[chi2[num]]+240) % 360, range=[[0, 360],[0, 360]],bins=[180, 180],cmin=0.1)
+        ax[4].scatter(((self.dihedrals[chi1[num]]+240) % 360)[::100],
+                      ((self.dihedrals[chi2[num]]+240) % 360)[::100], s=0.25, c=states[num, :][::100])
         avg_vecs_indices = []
         avg_vecs = []
         avg_vecs_B = []
         for i in range(27):
-            #todo bruachen wir nicht noch die average vectoren von chi1 and chi2?
-            #das ist der average vector des CCMethyl bindungs dings
             avg_vec = vecs[num,(states[num,:]==i)]
             avg_vec = np.average(avg_vec,axis=0)
             avg_vec/=np.linalg.norm(avg_vec)
@@ -725,166 +708,78 @@ class KaiMarkov():
                 avg_vecs.append(avg_vec)
                 avg_vecs_indices.append(i)
             avg_vecs_B.append(avg_vec)
-            #ax[4].text(x[i],y[i], "{:.2f}\n{:.2f}\n{:.2f}".format(*(avg_vec)), ha="center",va="center")
-            #cA,sA,cB,sB,cG,sG = vf_tools.getFrame(avg_vec)
-            #print(vf_tools.pars2Spher(1,cA=cA, sA=sA, cB = cB, sB = sB, cG=cG,sG=sG))
-        avg_vecs = np.array(avg_vecs)
-        mmatrix = np.zeros((27,27))
-        to_delete=[]
-        for i in range(mmatrix.shape[0]):
-            for j in range(mmatrix.shape[0]):
-                if (states[num,]==i).sum():
-                    mmatrix[j,i] = prob =(((states[num,:-1]==i)&(states[num,1:]==j))).sum()/(states[num,]==i).sum()
-                    #if i == j:
-                    #    if not np.isnan(prob):
-                    #        ax[0].text( x[i],y[i],"{:.2f}".format(prob),ha="center", color="black",bbox=TEXTBOX)
-                    #else:
-                    #    if not np.isnan(prob):
-                    #        ax[0].arrow(x[i]+np.random.random()*25,y[i]+np.random.random()*25,x[j]-x[i],y[j]-y[i], alpha = prob,
-                    #                    width=prob/10)
-                    prob*=100
 
+        avg_vecs = np.array(avg_vecs)
+        transition_matrix = np.zeros((27, 27))
+        to_delete=[]
+        for i in range(transition_matrix.shape[0]):
+            for j in range(transition_matrix.shape[0]):
+                if (states[num,]==i).sum():
+                    transition_matrix[j, i] = ((states[num, :-1] == i) & (states[num, 1:] == j)).sum() / \
+                                              (states[num, ] == i).sum()
                 else:
                     if i==j:
                         to_delete.append(i)
 
         for index in to_delete[::-1]:
-            mmatrix = np.delete(mmatrix,index,1)
-            mmatrix = np.delete(mmatrix,index,0)
+            transition_matrix = np.delete(transition_matrix, index, 1)
+            transition_matrix = np.delete(transition_matrix, index, 0)
 
-        mmatrix/=mmatrix.sum(axis=0)
-        print(num,mmatrix.sum(axis=0))
-        ax[1].imshow(mmatrix,vmin=0,vmax=1)
-        x_axis = np.arange(1,self.length+1,1)
-        ax[3].semilogx(x_axis,self.cts[cc_vecs[num]],color="black")
-        P2mat = np.zeros(mmatrix.shape)
-        for i in range(mmatrix.shape[0]):
-            for j in range(mmatrix.shape[0]):
-                P2mat[j,i] = P2(np.dot(avg_vecs[i],avg_vecs[j]))#
-        print(P2mat)
+        transition_matrix /= transition_matrix.sum(axis=0)
+        ax[1].imshow(transition_matrix, vmin=0, vmax=1)
+        ax[3].semilogx(self.ct_x_axis,self.cts[cc_vecs[num]],color="black")
+        P2matrix = np.zeros(transition_matrix.shape)
+        for i in range(transition_matrix.shape[0]):
+            for j in range(transition_matrix.shape[0]):
+                P2matrix[j, i] = P2(np.dot(avg_vecs[i], avg_vecs[j]))
 
         pop = []
-        for l in range(27):
-            if((states[num, :] == l).sum()) / self.length:
-                pop.append(((states[num, :] == l).sum()) / self.length)
+        for i in range(27):
+            if((states[num, :] == i).sum()) / self.length:
+                pop.append(((states[num, :] == i).sum()) / self.length)
         pop = np.array(pop)
-        print(pop, pop.sum())
 
-        tp = np.zeros(self.length)
-
-        for l in range(mmatrix.shape[0]):
-            init = np.zeros(mmatrix.shape[0])
-            init[l]=1
+        timepoints = np.zeros(self.length)
+        for j in range(transition_matrix.shape[0]):
+            probability_vector = np.zeros(transition_matrix.shape[0])
+            probability_vector[j]=1
             ic = np.ones(self.length)
             for i in range(1,self.length):
-                if i %100000==0:print(i,init.sum())
-                init = mmatrix@init
-                ic[i] = (P2mat[l] * init).sum()
-            tp += ic * pop[l]
+                if i % 100000 == 0: print(i, probability_vector.sum())
+                probability_vector = transition_matrix @ probability_vector
+                ic[i] = (P2matrix[j] * probability_vector).sum()
+            timepoints += ic * pop[j]
 
-        ax[3].semilogx(x_axis,tp,color="red")
-        ax[3].set_xlim(1,self.length)
-        ax[3].set_ylim(0,1.05)
-        construct_full_ct_from_states(states[num],avg_vecs_B,ax[3])
+        ax[3].semilogx(self.ct_x_axis, timepoints, color="red")
+        self.construct_full_ct_from_states(states[num],avg_vecs_B,ax[3])
 
-        for col in range(mmatrix.shape[0]):
-            if (mmatrix[col,:]==1).sum():
-                mmatrix[col,mmatrix[col,:]==1] = 1-(mmatrix.shape[0]-1)*.001
-                mmatrix[col,mmatrix[col,:]==0]=0.001
+        for col in range(transition_matrix.shape[0]):
+            if (transition_matrix[col, :] == 1).sum():
+                transition_matrix[col, transition_matrix[col, :] == 1] = 1 - (transition_matrix.shape[0] - 1) * .001
+                transition_matrix[col, transition_matrix[col, :] == 0] = 0.001
 
-        ematrix = scipy.linalg.logm(mmatrix)/5  #or *5?
+        exchange_matrix = scipy.linalg.logm(transition_matrix) / 5  #or *5?
         try:
-            ax[2].imshow(ematrix.T)#
+            ax[2].imshow(exchange_matrix.T)#
         except:
-            pass
+            print("Exchange matrix for {} could not be plotted".format(res[num]))
         for a in [ax[0],ax[4]]:
             a.set_xlabel(r'$\chi_1$')
             a.set_ylabel(r'$\chi_2$')
-            a.set_xticks([60,180,300])
-            a.set_yticks([60,180,300])
-            a.set_xlim(0,360)
-            a.set_ylim(0,360)
+            a.set_xticks([60, 180, 300])
+            a.set_yticks([60, 180, 300])
+            a.set_xlim(0, 360)
+            a.set_ylim(0, 360)
             a.tick_params(axis="y",rotation=90)
         for a in [ax[1],ax[2]]:
-            a.set_xticks(range(mmatrix.shape[0]))
-            a.set_yticks(range(mmatrix.shape[0]))
+            a.set_xticks(range(transition_matrix.shape[0]))
+            a.set_yticks(range(transition_matrix.shape[0]))
             a.set_xticklabels([])
             a.set_yticklabels([])
+        fig.subplots_adjust(wspace=0.22, hspace=0.2, right=0.99, top=0.95, bottom=0.075, left=0.075)
+        plt.savefig("{}_C-H_bond.pdf".format(res[num]))
 
-        ticks = np.array([10,100,1000,10000,100000,1000000]).astype(int)
-        ticks//=int(self.dt*(10**12))
-        ax[3].set_xticks(ticks)
-        ax[3].set_yticks([0,.25,.5,.75,1])
-        ax[3].set_xticklabels(["10 ps","","ns","","","µs"])
-        fig.subplots_adjust(wspace=0.22,hspace=0.2,right=0.99,top=0.95,bottom=0.075,left=0.075)
-
-        plt.savefig("{}.pdf".format(res[num]))
-        plt.show()
-
-    def oldcalc(self, **kwargs):
-        '''doing all importand calculations for the anylsis
-        available kwargs:
-        "ct_off" disabeling the calculation of ct, for time saving purposes
-        "recalc_ct" forcing to recalculate cts even if they are already stored on drive
-        "sparse" for ct calculation, low sparse value decreases computation time and increases noise'''
-        traj = self.universe.trajectory
-        assert self.length <= len(traj), "Length {} exceeding length of trajectory ({}), set length to {}" \
-                                         "".format(self.length, len(traj), len(traj))
-        if not self.load_state():
-            # iterating over all timepoints defined by length and calculating dihedrals for all methyl hydrogens,
-            # chi_1 and chi_2 bonds. Furthermore calculating the vertices for later C(t) calculation
-            for i in range(self.length):
-                if i % 10000 == 0: print(i)
-                traj[i]
-                for j, group in enumerate(self.hydrogens_dihedral):  # first hydrogen
-                    self.dih[j, i] = fastest_dihedral(group.positions)
-                for j, group in enumerate(self.chi1_groups_dihedral):
-                    self.dih_chi1[j, i] = fastest_dihedral(group.positions)
-                for j, group in enumerate(self.chi2_groups_dihedral):
-                    self.dih_chi2[j, i] = fastest_dihedral(group.positions)
-                for j, group in enumerate(self.ct_vector_groups):
-                    pos_xyz_o(self.ct_vectors[j, i],*group.positions)
-
-            get_ct_S2(self.cts, self.S2s, self.ct_vectors,
-                      kwargs.get("sparse") if kwargs.get("sparse") is not None else 1)
-            self.save_state()
-
-        for i, _ in enumerate(range(0, self.length, int(self.length/2000))):
-            # todo calculate a good number of points for the plot
-            if _ % 10000 == 0: print(_)
-            traj[_]
-            if i == 2000:
-                break
-            for j, group in enumerate(self.plot_hydrogens_rama_3D):  # first hydrogen
-                self.coords_3Dplot[j, i] = get_x_y_z(group.positions)
-        # calculating in which of three areas a methyl hydrogen appears at every timepoint
-        # furthermore check if a hop between timepoints occured by comparing the areas
-        self.areas[:, :] += ((self.dih[:, :] >= 0) == (self.dih[:, :] < 120)).astype('uint8')
-        self.areas[:, :] += ((self.dih[:, :] < 0) == (self.dih[:, :] >= -120)).astype('uint8') * 2
-        self.hops[:, 1:] = self.areas[:, :-1] != self.areas[:, 1:]  # the first element of hops is by definition 0
-        # same for chi1
-        self.chi1_areas[:, :] += ((self.dih_chi1[:, :] >= 0) == (self.dih_chi1[:, :] < 120)).astype('uint8')
-        self.chi1_areas[:, :] += ((self.dih_chi1[:, :] < 0) == (self.dih_chi1[:, :] >= -120)).astype('uint8') * 2
-        self.hops_chi1[:, 1:] = self.chi1_areas[:, :-1] != self.chi1_areas[:, 1:]
-        # and chi2
-        self.chi2_areas[:, :] += ((self.dih_chi2[:, :] >= 0) == (self.dih_chi2[:, :] < 120)).astype('uint8')
-        self.chi2_areas[:, :] += ((self.dih_chi2[:, :] < 0) == (self.dih_chi2[:, :] >= -120)).astype('uint8') * 2
-        self.hops_chi2[:, 1:] = self.chi2_areas[:, :-1] != self.chi2_areas[:, 1:]
-        # how often does it happen that 2 hydrogens appear in the same area?
-        print(np.sum(self.areas[0::3, :] == self.areas[1::3, :]))  # TODO i dont know what todo with it
-        print(np.sum(self.areas[0::3, :] == self.areas[2::3, :]))  # TODO
-        print(np.sum(self.areas[1::3, :] == self.areas[2::3, :]))  # TODO
-        self.part = part = self.length // self.n
-        # calculating the hop probabilty for every methylgroup and chi1 and chi2 bond for every fraction n
-        for i in range(self.n):
-            for j in range(0, len(self.hydrogens_dihedral), 3):
-                self.hopability[j, i] = np.sum(self.hops[j, i * part:(i + 1) * part]) / part
-            for j in range(len(self.chi1_groups_dihedral)):
-                self.hopability_chi1[j, i] = np.sum(self.hops_chi1[j, i * part:(i + 1) * part]) / part
-            for j in range(len(self.chi2_groups_dihedral)):
-                self.hopability_chi2[j, i] = np.sum(self.hops_chi2[j, i * part:(i + 1) * part]) / part
-
-    def plot_backbone_dynamics(self,a=0, calc_type=None):
+    def plot_backbone_dynamics(self, a=0, calc_type=None):
         for key in self.sim_dict['residues']:
             print(key)
             for vec in self.sim_dict['residues'][key]['ct_vecs']:
@@ -977,7 +872,7 @@ class KaiMarkov():
             return '{:2} '.format(tc if tc < 10 else int(tc)) + unit
         if plot_ct:
             fig = plt.figure()
-            fig.set_size_inches(9,8)
+            fig.set_size_inches(9, 8)
 
             ax = fig.add_subplot(211)
             ax.semilogx(np.array([self.cts[vec['id']] for vec in self.sim_dict['residues'][label]['ct_vecs']]).T)
@@ -988,6 +883,7 @@ class KaiMarkov():
             bx.legend([dih['name'] for dih in self.sim_dict['residues'][label]['dihedrals']])
 
             fig.suptitle(label + " - " + self.sel_sim_name)
+
         if not label in self.sim_dict['residues'].keys():
             print("Label {} not found in residue list".format(label))
             return
@@ -1660,15 +1556,17 @@ def get_FA():
 def main():
     #get_FA()
 
-    M= KaiMarkov(simulation=2)#, residues=np.array([72,75,84,94,103,107,109,129,130])-72)
+    M= KaiMarkov(simulation=3)#, residues=np.array([72,75,84,94,103,107,109,129,130])-72)
 
     M.calc(sparse=0)#, force_calculation=True)
-    M.plot_single_res("ILE72", 1)
-
-    plt.show()
-
-    #return
-    M.do_markov()
+    #M.plot_single_res("ILE72", 1)
+    for i in range(9):
+        M.do_markov(i)
+        M.do_markov_3dihedrals(i)
+    exit()
+    for i in range(9):
+        M.do_markov(i)
+    exit()
     #M.do_markov_3dihedrals(0)
     #plt.show()
     #plt.show()
