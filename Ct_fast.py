@@ -112,7 +112,7 @@ dtype=Defaults['dtype']
 
 def nexpow2(n):
     n=int(n)
-    return 1 if n==0 else 2**(n-1).bit_length()
+    return 1 if n==0 else 1<<(n-1).bit_length()
 
 """
 A few notes on Fourier transforms and correlation functions
