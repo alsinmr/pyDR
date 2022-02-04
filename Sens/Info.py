@@ -7,6 +7,7 @@ Created on Tue Nov  9 14:29:46 2021
 """
 
 import numpy as np
+import copy
 
 class Info():
     """
@@ -241,6 +242,7 @@ class Info():
         string+='\n\n[{0} experiments with {1} parameters]'.format(self.N,len(self.keys))        
         return string
     
+    
     @property
     def edited(self):
         """
@@ -270,6 +272,8 @@ class Info():
             self.__values=np.concatenate((self.__values[:,:index],self.__values[:,index+1:]),axis=1)
             self.N+=-1
                 
+    def copy(self):
+        return copy.deepcopy(self)
             
             
         

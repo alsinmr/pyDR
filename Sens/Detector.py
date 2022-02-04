@@ -7,13 +7,16 @@ Created on Sat Nov 13 15:32:58 2021
 """
 
 import numpy as np
-from pyDR.Sens import Sens,Info
+import matplotlib.pyplot as plt
+from matplotlib import ticker
+from pyDR.misc.disp_tools import set_plot_attr,NiceStr
+from pyDR import Sens
 from scipy.sparse.linalg import eigs
 from scipy.optimize import lsq_linear as lsqlin
 from scipy.optimize import linprog
 from pyDR.misc.tools import linear_ex
 
-class Detector(Sens):
+class Detector(Sens.Sens):
     def __init__(self,sens):
         """
         Initiate a detector object with a sensitivity object.
@@ -59,9 +62,7 @@ class Detector(Sens):
         Prevents sensitivites in this detector object from being updated. Usually,
         we run this after performing a fit and storing this detector object as
         the sensitivity of the resulting data object. We do this because it
-        does not make sense to edit the sensitivities of the fitting result
-        (doing so would yield a data object and sensitivity that are not consistent
-         with each other)
+        does not make sense to edit the sensitivities of the results of fitting
         """
         self.__locked=locked
     
@@ -424,7 +425,51 @@ class Detector(Sens):
             else:
                 self.T[k]/=rhoz.sum()*self.dz
         self.opt_pars['Normalization']=Normalization
-        self.update_det()    
+        self.update_det()  
+        
+    def plot_fit(self,index=None,ax=None,norm=False,**kwargs):
+        """
+        Plots the sensitivities of the data object.
+        """
+        
+        if index is None:index=np.ones(self.SVD.M.shape[0],dtype=bool)
+        index=np.atleast_1d(index)
+            
+        assert np.issubdtype(index.dtype,int) or np.issubdtype(index.dtype,bool),"index must be integer or boolean"
+    
+        a=self.SVD.M[index].T #Get sensitivities
+        norm_vec=np.abs(a).max(0) if norm else self.sens.norm
+        a/=norm_vec
+        fit=self.SVD.Mn[index].T
+        fit/=norm_vec
+   
+        if ax is None:
+            fig=plt.figure()
+            ax=fig.add_subplot(111)
+
+        hdl=[*ax.plot(self.z,a,color='red'),*ax.plot(self.z,fit,color='black',linestyle=':')]
+
+        set_plot_attr(hdl,**kwargs)
+        ax.legend([hdl[0],hdl[hdl.__len__()>>1]],['Input','Fit'])
+        
+        ax.set_xlim(self.z[[0,-1]])
+        ticks=ax.get_xticks()
+        nlbls=4
+        step=int(len(ticks)/(nlbls-1))
+        start=0 if step*nlbls==len(ticks) else 1
+        lbl_str=NiceStr('{:q1}',unit='s')
+        ticklabels=['' for _ in range(len(ticks))]
+        for k in range(start,len(ticks),step):ticklabels[k]=lbl_str.format(10**ticks[k])
+        
+        ax.xaxis.set_major_locator(ticker.FixedLocator(ticks))
+        ax.xaxis.set_major_formatter(ticker.FixedFormatter(ticklabels))
+        
+#        ax.set_xticklabels(ticklabels)
+        ax.set_xlabel(r'$\tau_\mathrm{c}$')
+        
+        ax.set_ylabel(r'$\rho_n(z)$')
+               
+        return hdl
 
 class SVD():
     """

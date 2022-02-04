@@ -6,13 +6,17 @@ Created on Tue Feb  1 12:16:06 2022
 @author: albertsmith
 """
 
+import os
 import numpy as np
 from pyDR.Sens import Info
 from pyDR import Sens
 from pyDR import Data
 decode=bytes.decode
 
-def write_file(filename,ob):
+def write_file(filename,ob,overwrite=False):
+    if os.path.exists(filename) and not(overwrite):
+        print('Warning: File {} already exists. Set overwrite=True or choose a different name'.format(filename))
+        return
     with open(filename,'wb') as f:
         object_class=str(ob.__class__).split('.')[-1][:-2]
         object_parent=str(ob.__class__.__base__).split('.')[-1][:-2]
@@ -104,7 +108,7 @@ def write_Detector(f,detect):
         op=detect.opt_pars
         for k in ['n','Type','Normalization','NegAllow']:
             f.write(bytes('{0}:{1}\n'.format(k,op[k]),'utf-8'))
-        f.write(b'options:\n')
+        f.write(b'OPTIONS:\n')
         for o in op['options']:
             f.write(bytes('{}\n'.format(o),'utf-8'))
         f.write(b'END:OPTIONS\n')
@@ -139,7 +143,7 @@ def read_Detector(f):
     opt_pars['Normalization']=decode(f.readline())[14:-1]
     opt_pars['NegAllow']=decode(f.readline())[9:-1]=='True'
     opt_pars['options']=list()
-    if decode(f.readline())[:-1]!='options:':print('Options not correctly initialized')
+    if decode(f.readline())[:-1]!='OPTIONS:':print('Options not correctly initialized')
     for l in f:
         if decode(l)[:-1]=='END:OPTIONS':break
         opt_pars['options'].append(decode(l)[:-1])
@@ -164,7 +168,12 @@ def write_Data(f,data):
     write_Detector(f,data.detect)
     if data.src_data is not None:
         f.write(b'src_data\n')
-        write_Data(f,data.src_data)
+        write_Data(f,data.src_data)    
+    
+    f.write(b'LABEL\n')
+    np.save(f,data.label,allow_pickle=False)
+    f.write(b'END:LABEL\n')
+    
     for k in flds:
         if hasattr(data,k) and getattr(data,k) is not None:
             f.write(bytes('{0}\n'.format(k),'utf-8'))
@@ -185,7 +194,9 @@ def read_Data(f):
         data.src_data=read_Data(f)
     else:
         f.seek(pos)
-    
+    if decode(f.readline())[:-1]!='LABEL':print('Warning: Data label is missing')
+    data.label=np.load(f,allow_pickle=False)
+    if decode(f.readline())[:-1]!='END:LABEL':print('Warning: Data label terminated incorrectly')
     for l in f:
         k=decode(l)[:-1]
         if k=='END:OBJECT':break

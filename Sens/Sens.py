@@ -23,6 +23,7 @@ from pyDR.misc.disp_tools import set_plot_attr,NiceStr
 import matplotlib.pyplot as plt
 from matplotlib import ticker
 from copy import deepcopy
+from pyDR.IO import write_file
 
 class Sens():
     def __init__(self,tc=None,z=None):
@@ -67,7 +68,9 @@ class Sens():
         Returns a deep copy of the sensitivity object. 
         """
         return deepcopy(self)
-        
+    
+    def save(self,filename,overwrite=False):
+        write_file(filename,self,overwrite)
     
     @property
     def norm(self):
@@ -255,11 +258,8 @@ class Sens():
         assert np.issubdtype(index.dtype,int) or np.issubdtype(index.dtype,bool),"index must be integer or boolean"
     
         a=self.rhoz[index].T #Get sensitivities
-        
-        if norm:
-            norm_vec=np.max(np.abs(a),axis=0)
-            a=a/np.tile(norm_vec,[np.size(self.z),1])      
-        
+        a/=np.abs(a).max(0) if norm else 1 
+                
         if ax is None:
             fig=plt.figure()
             ax=fig.add_subplot(111)
@@ -285,6 +285,5 @@ class Sens():
         ax.set_xlabel(r'$\tau_\mathrm{c}$')
         
         ax.set_ylabel(r'$\rho_n(z)$')
-        
-        
+                
         return hdl   
