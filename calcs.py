@@ -1,6 +1,8 @@
 import numpy as np
 from numba import *
-
+from numba import cuda
+from SpeedTest import *
+from math import sqrt
 
 def search_methyl_groups(residue, v=True):
     """this function will search a residue of a protein for methyl groups by iterating over all atoms and if the atom
@@ -78,7 +80,7 @@ def search_methyl_groups(residue, v=True):
     return methyl_groups
 
 
-@njit
+@njit(cache=True)
 def get_x_y_z_old(p1, p2, p3, p):
     """p1 is the carbon of the methyl group
     p is a hydrogen
@@ -106,7 +108,7 @@ def get_x_y_z_old(p1, p2, p3, p):
     return [x, y, z]
 
 
-@njit
+@njit(cache=True)
 def get_x_y_z(p):
     """p[0] is the carbon of the methyl group
     p[3] is a hydrogen
@@ -132,7 +134,13 @@ def get_x_y_z(p):
     z = np.dot(p[3] - p[0], p_n_z)
     return x, y, z
 
-@njit
+@njit(cache=True)
+def get_peptide_plane_normal(p):
+    p_n_x = np.cross(p[1] - p[0], p[2] - p[0])  # setting z-y-plane
+    return p_n_x / np.sqrt((p_n_x ** 2).sum())
+
+
+@njit(cache=True)
 def fast_dihedral(p):
     # TODO put this to https://stackoverflow.com/questions/20305272/dihedral-torsion-angle-from-four-points-in-cartesian-coordinates-in-python
     b1 = p[2] - p[1]
@@ -144,7 +152,7 @@ def fast_dihedral(p):
     y = np.dot(np.cross(b1, v), w)
     return np.degrees(np.arctan2(y, x))
 
-@njit
+@njit(cache=True)
 def faster_dihedral(p):
     # TODO put this to https://stackoverflow.com/questions/20305272/dihedral-torsion-angle-from-four-points-in-cartesian-coordinates-in-python
     b1 = p[2] - p[1]
@@ -158,45 +166,53 @@ def faster_dihedral(p):
     return np.degrees(np.arctan2(y, x))
 
 
-#@time_runtime
-@njit
+#+@time_runtime
+@njit(cache=True)
 def fastest_dihedral(p):
     # TODO put this to https://stackoverflow.com/questions/20305272/dihedral-torsion-angle-from-four-points-in-cartesian-coordinates-in-python
     b1 = p[2] - p[1]
     # b0, b1, b2 = -(p[1] - p[0]) , b1 / np.linalg.norm(b1), p[3] - p[2]
-    b0, b1, b2 = -(p[1] - p[0]), b1 / np.sqrt((b1 ** 2).sum()), p[3] - p[2]
+    b0, b1, b2 = -(p[1] - p[0]), b1 / np.sqrt((b1 *b1 ).sum()), p[3] - p[2]
     v = b0 - (b0[0] * b1[0] + b0[1] * b1[1] + b0[2] * b1[2]) * b1
     w = b2 - (b2[0] * b1[0] + b2[1] * b1[1] + b2[2] * b1[2]) * b1
     x = v[0] * w[0] + v[1] * w[1] + v[2] * w[2]
-    c = np.cross(b1, v)  # maybe when one gets rid of this one it can get a little faster
-    y = c[0] * w[0] + c[1] * w[1] + c[2] * w[2]
+    #c = np.cross(b1, v)  # maybe when one gets rid of this one it can get a little faster
+    #y = c[0] * w[0] + c[1] * w[1] + c[2] * w[2]
+    y = (b1[1] * v[2] - b1[2] * v[1] ) *w[0] + \
+        (b1[2] * v[0] - b1[0] * v[2]) * w[1] + \
+        (b1[0] * v[1] - b1[1] * v[0]) * w[2]
+    #targ = 180 * np.arctan2(y, x) / np.pi
     return 180 * np.arctan2(y, x) / np.pi
 
-
 #@time_runtime
-@njit(parallel=True)
-def fast_dihedral_multi(j, arr, p):
+@njit(cache=True)
+def fast_dihedral_multi(p, arr):
     """this was supposed to be faster  than fast dihedral, but it didnt change program runtime significant
     maybe one day I have an idea to improve it"""
-    for i in prange(j):
-        ind = 4 * i
+    for i in prange(arr.shape[0]):
+        ind =  i<<2
         b1 = p[ind + 2] - p[ind + 1]
-        b0, b1, b2 = -(p[ind + 1] - p[ind]), b1 / np.sqrt((b1 ** 2).sum()), p[ind + 3] - p[ind + 2]
-        v = b0 - np.dot(b0, b1) * b1
-        w = b2 - np.dot(b2, b1) * b1
-        x = np.dot(v, w)
-        y = np.dot(np.cross(b1, v), w)
-        arr[i] = np.degrees(np.arctan2(y, x))
+        b0, b1, b2 = -(p[ind + 1] - p[ind]), b1 / np.sqrt((b1 *b1).sum()), p[ind + 3] - p[ind + 2]
+        v = b0 - (b0[0] * b1[0] + b0[1] * b1[1] + b0[2] * b1[2]) * b1
+        w = b2 - (b2[0] * b1[0] + b2[1] * b1[1] + b2[2] * b1[2]) * b1
+        x = v[0] * w[0] + v[1] * w[1] + v[2] * w[2]
+        #c = np.cross(b1, v)  # maybe when one gets rid of this one it can get a little faster
+        #y = c[0] * w[0] + c[1] * w[1] + c[2] * w[2]
+        y = (b1[1] * v[2] - b1[2] * v[1]) * w[0] + \
+            (b1[2] * v[0] - b1[0] * v[2]) * w[1] + \
+            (b1[0] * v[1] - b1[1] * v[0]) * w[2]
+
+        arr[i] = 180.0*np.arctan2(y, x)/np.pi
 
 
-@njit
+@njit(cache=True)
 def calc_distances(carbon, others):
     # todo i think there must be a faster way to calc this by using all carbons in one function at once
     # todo problem here is the subtraction
     return np.sqrt(((carbon - others) ** 2).sum(1))
 
 
-@njit
+@njit(cache=True)
 def pos_xyz(p, npos, capos, cpos):
     """this funciton is a little outdated, but i don't want to delete it right now, improved version is
     pos_xyz_o"""
@@ -221,9 +237,23 @@ def pos_xyz(p, npos, capos, cpos):
 
     return [x, y, z]
 
-
-@njit
+@njit(cache=True)
 def pos_xyz_o(out, p, npos, capos, cpos,  p2=np.array([0]), norm=True):
+    """
+    :param out: np.ndarray to store the result of the calculation
+    :param p:   np.ndarray with dtype float32 and shape 1 x 3
+                basically the atom(bondvector) you are interested in
+    :param npos:    np.ndarray with dtypy float32 and shape 1x3
+                    position of the Nitrogen in the peptide plane, considering you want to use the PP as reference
+    :param capos:   np.ndarray with dtypy float32 and shape 1x3
+                    position of the C-Alpha in the peptide plane, considering you want to use the PP as reference
+    :param cpos:    np.ndarray with dtypy float32 and shape 1x3
+                    position of the C-Cabonyl in the peptide plane, considering you want to use the PP as reference
+    :param p2:
+    :param norm:
+    :return:
+    """
+
     """this function calculates the position of point p depending on the plane that is span by npos,capos,cpos
     naming if the three points comes from the original idea that the plane is spanned by the peptide plane defined
     by N-CA-C(O)
@@ -231,7 +261,10 @@ def pos_xyz_o(out, p, npos, capos, cpos,  p2=np.array([0]), norm=True):
     is in CA
     p2 is optional position of a atom to be substracted from p, for example if you want the C-H vector of an ILE methyl
     group relative to the peptide plane, the default value had to be chosen like this because of njit, but maybe there
-    is a better way to do this"""
+    is a better way to do this
+    """
+    """
+    """
     # capos = CA.position = (0,0,0) in the end
     # create the z-axis as normal vector of plane between N,CA and C(O)
     nmca = npos - capos  # saves a calculation step later, but looks ugly
@@ -257,21 +290,36 @@ def pos_xyz_o(out, p, npos, capos, cpos,  p2=np.array([0]), norm=True):
     if norm:
         out /= np.sqrt((out ** 2).sum())
 
-@njit
+@njit(cache=True)
 def P2(x):
-    """second legendre polynomial"""
+    """
+    Returns the second legendre polynomial
+
+    :param x: np.ndarray
+              dim 1 x m
+    :returns: x = (3 * x² -1) / 2"""
     return (3 * x * x - 1) / 2
 
-
-@njit(parallel=True)  # speedup by factor 1600!
-def get_ct_S2(ct,S2, v, sparse=1):
+@time_runtime
+@njit(cache=True,parallel=True)  # speedup by factor 1600!
+def get_ct_S2(ct,S2, v, indices,sparse=1):
     """
-    calculating the correlation functions or an array of vectors
+    Cuda Kernel function to calculate the time-auto-correlation function of a vector
 
-    C(t) = <P2(v(0) * v(t))>
+    m is the number of residues
+    n is the length of the trajectory
 
-    the bigger the arg sparse is, the more computation time is needed
-    also, calculating the S2 for the vector with
+    :param cts:     np.ndarray with dtype float32 and shape m x n
+    :param S2:      np.ndarray with dtype float32 and shape m
+    :param v:       np.ndarray with dtype float32 and shape m x n x 3
+    :param indices: np.ndarray with type bool and shape m
+    :param sparse:  integer, determines the quality of the correlation function
+                    0 = best quality
+                    1 = lowest quality
+                    >1 = increasing quality
+                    better quality = longer calculation
+
+    :return: C(t) = <P2(v(0) * v(t))>
 
     S2 = 3/2 (<xi²>² + <yi²>² + <zi²>² + 2 <xiyi>² + 2<xizi>² + 2<yizi>²) - 1/2
     """
@@ -285,20 +333,22 @@ def get_ct_S2(ct,S2, v, sparse=1):
             r = 1
         l2 = l - i  # second range, just not for recalculating it every time<<<<<x
         for k in prange(ct.shape[0]):  # iterating over the number of vectors    v
-            ct[k, i] = P2(np.array([np.dot(v[k, j], v[k, j + i]) for j in range(0, l2, r)])).mean()
+            if indices[k]:
+                ct[k, i] = P2(np.array([np.dot(v[k, j], v[k, j + i]) for j in range(0, l2, r)])).mean()
         # just leaving the old calculation here to make it better visible what i actually calculate:
         # arr = np.zeros(l-i)
         # for j in prange(l-i):
         #    arr[j] = P2(np.dot(v[j],v[j+i]))
         # ct[i] = arr.mean()#np.average(P2(np.array([np.dot(v[j], v[j + i]) for j in prange(l - i)])))
     for k in prange(ct.shape[0]):
-        S2[k] = 3/2*((v[k, :, 0]**2).mean()**2    # <xi²>²
-                   + (v[k, :, 1]**2).mean()**2    # <yi²>²
-                   + (v[k, :, 2]**2).mean()**2    # <zi²>²
-                   + 2*(v[k, :, 0]*v[k, :, 1]).mean()**2  # <xiyi>²
-                   + 2*(v[k, :, 0]*v[k, :, 2]).mean()**2  # <xizi>²
-                   + 2*(v[k, :, 1]*v[k, :, 2]).mean()**2  # <yizi>²
-                     )-1/2
+        if indices[k]:
+            S2[k] = 3/2*((v[k, :, 0]**2).mean()**2    # <xi²>²
+                       + (v[k, :, 1]**2).mean()**2    # <yi²>²
+                       + (v[k, :, 2]**2).mean()**2    # <zi²>²
+                       + 2*(v[k, :, 0]*v[k, :, 1]).mean()**2  # <xiyi>²
+                       + 2*(v[k, :, 0]*v[k, :, 2]).mean()**2  # <xizi>²
+                       + 2*(v[k, :, 1]*v[k, :, 2]).mean()**2  # <yizi>²
+                         )-1/2
 
 #@guvectorize([(float32[:, :, :], float32[:, :])], '(n,m,o)->(n,m)', target="parallel")
 #just put the comment to remove the warning
@@ -315,3 +365,144 @@ def get_ct2( v, ct):
         l2 = l - i  # second range, just not for recalculating it every time<<<<<x
         for k in prange(ct.shape[0]):#ct.shape[0]):  # iterating over the number of vectors    v
             ct[k, i] = np.array([np.dot(v[k, j], v[k, j + i]) for j in range(0, l2, r)]).mean()
+
+
+
+@time_runtime
+@njit(cache=True, parallel=True)
+def get_S2(S2: np.ndarray, v: np.ndarray, indices: np.ndarray):
+    """
+    get_S2(S2, v, indices)
+
+    :param S2:  ndarray
+                float32
+                dim m
+    :param v:   ndarray
+                float32
+                dim m x n x3
+    :param indices:     ndarray
+                        bool
+                        dim m
+
+        m = number of residues
+        n = length of the trajectory
+
+    :return: S2 = 3/2 (<xi²>² + <yi²>² + <zi²>² + 2 <xiyi>² + 2<xizi>² + 2<yizi>²) - 1/2
+    """
+    for k in prange(v.shape[0]):
+        if indices[k]:
+            S2[k] = 3/2*((v[k, :, 0]**2).mean()**2            # <xi²>²
+                       + (v[k, :, 1]**2).mean()**2            # <yi²>²
+                       + (v[k, :, 2]**2).mean()**2            # <zi²>²
+                       + 2*(v[k, :, 0]*v[k, :, 1]).mean()**2  # <xiyi>²
+                       + 2*(v[k, :, 0]*v[k, :, 2]).mean()**2  # <xizi>²
+                       + 2*(v[k, :, 1]*v[k, :, 2]).mean()**2  # <yizi>²
+                         )-1/2
+
+
+
+
+@cuda.jit(device=True)
+def cuP2(x : np.ndarray):
+    """
+    Returns the second legendre polynomial as cuda device funciton
+
+    :param x: np.ndarray
+              dim 1 x m
+    :returns: x = (3 * x² -1) / 2"""
+    return (3 * x * x - 1) / 2
+
+
+#todo test @cuda.reduce
+@cuda.jit(device=True)
+def dot(v1,v2):
+    """
+    cuda device function calculating the dot product of two vectors
+
+    :param v1:  vector shape 1 x 3
+                np.ndarray
+    :param v2:  vector shape 1 x 3
+                np.ndarray
+    :return:    floating point of dot produtct of v1*v2
+    """
+
+
+    return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]
+
+
+@cuda.jit()
+def ct_kernel(cts: np.ndarray,vecs: np.ndarray, indices: np.ndarray, sparse: int):
+    """
+    Cuda Kernel function to calculate the time-auto-correlation function of a vector
+
+    m is the number of residues
+    n is the length of the trajectory
+
+    :param cts: np.ndarray{m,n} with shape m x n
+    :param vecs: np.ndarray with shape m x n x 3
+    :param indices: np.ndarray with type bool and shape m
+    :param sparse:  integer, determines the quality of the correlation function
+                    0 = best quality
+                    1 = lowest quality
+                    >1 = increasing quality
+                    better quality = longer calculation
+
+    :return: C(t) = <P2(v(0) * v(t))>
+
+    """
+    startX,startY= cuda.grid(2)
+    gridX = cuda.gridDim.x * cuda.blockDim.x;
+    gridY = cuda.gridDim.y * cuda.blockDim.y;
+    for i in prange(startX,cts.shape[1],gridX):  #length of trajectory
+        for k in prange(startY,cts.shape[0],gridY):  # number of correlation funcitons
+            if indices[k]:
+                if sparse:
+                    r = max(int(sqrt((cts.shape[1] - i))/sparse),1)
+                else:
+                    r=1
+                c = 0
+
+                for j in range(0,cts.shape[1]-i,r):  # number of pairs
+                    cts[k, i] += cuP2(dot(vecs[k, j], vecs[k, j + i]))
+                    c+=1
+                cts[k,i] /= c
+
+
+@time_runtime
+def calc_CT_on_cuda(cts:np.ndarray, S2s: np.ndarray, vecs: np.ndarray, indices:np.ndarray, sparse=0):
+    """
+    function to prepare the calculation of correlation fucntion on a CUDA kernel
+
+    m = number of residues
+    n = length of trajectory
+
+    :param cts:     np.ndarray with dtype flaot32 and shape m x n
+                    to store output correlation functions
+    :param S2s:     np.ndarray with dtype float32 and shape m
+                    to store output correlation funcitons
+    :param vecs:    np.ndarray with dtype flaot32 and shape m x n x 3
+    :param indices: np.ndarray with dtype bool and shape m
+                    additional array to determine which
+    :param sparse: int, determining the quality of the resulting correlation function
+    :return:    C(t) = <P2(v(0) * v(t))>
+    """
+    #todo I am sure one could optimize the block and griddim further in order to prevent crashing calculations
+    blockdim = (32,4)
+    griddim = (cts.shape[1]>>8,max(cts.shape[0],1))
+    indices = indices.astype(bool)
+    # making sure the correlation function is starting with 1 (by definition) and setting the rest of the ct to 0
+    # to prevent from false calculations in the kernel. The algorithm is here set slightly different from the pure njit
+    # so this is necessary
+    cts[indices,1:]=0
+    cts[indices,0]=1
+    stream = cuda.stream()
+    with stream.auto_synchronize():
+        dev_vecs = cuda.to_device(vecs,stream=stream)
+        dev_cts = cuda.to_device(cts,stream=stream)
+        dev_ind = cuda.to_device(indices,stream=stream)
+        ct_kernel[griddim,blockdim,stream](dev_cts,dev_vecs, dev_ind, sparse)
+        dev_cts.copy_to_host(cts,stream=stream)
+
+    #sinc the calculation of S2 is very very fast already there is no need for writing a CUDA kernel for it
+    get_S2(S2s, vecs, indices)
+

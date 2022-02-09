@@ -9,6 +9,7 @@ Created on Tue Dec  7 12:12:16 2021
 import numpy as np
 import types
 from numba import njit,prange
+from SpeedTest import *
 
 class Ct_calc():
     def __init__(self,A,B=None,weight=None,offset=0,index=None,sparse=1):
@@ -64,12 +65,15 @@ class Ct_calc():
         self.ct_fun,self.cleanup_fun=f() if f.__code__.co_argcount==0 else (f,lambda x,index:x)
         
         for k,(a,b) in enumerate(zip(self.A,self.B)):
+            print(a.shape)
             code=self.ct_fun.__code__
             if 'index' in code.co_varnames[:code.co_argcount]:
+
                 self.ct[k]=self.ct_fun(a,b,index=self.index)
             elif 'sparse' in code.co_varnames[:code.co_argcount]:
                 self.ct[k]=self.ct_fun(a,b,sparse=self.sparse)
             else:
+                print("run")
                 self.ct[k]=self.ct_fun(a,b)
     
     def cleanup(self):
@@ -116,19 +120,35 @@ def Ct():
         ct/=get_count(index) if index else np.arange(ct.shape[-1],0,-1)
         return ct
     return ct,cleanup
-    
+
+
 @njit(parallel=True)
 def CtJit(a,b):
     ct=np.ones(a.shape)
     for k in prange(1,a.shape[-1]):
         ct[k]=np.mean(np.array([a[n]*b[n+k] for n in prange(0,a.shape[-1]-k)]))
     return ct
-    
-    
-        
 
-        
-        
+from numba import cuda
+
+@cuda.jit()
+def ct_kernel(a,b,ct):
+    startX,startY = cuda.grid(2)
+    gridY = cuda.gridDim.y *cuda.blockDim.y
+    gridX = cuda.gridDim.x * cuda.blockDim.x
+
+    for k in prange(startX,a.shape[-1], gridX):
+        for n in prange(startY, a.shape[-1]-k, gridY):
+            ct
+
+
+def CudaCtJit(a,b):
+    blockdim = (32,4)
+    griddim = (a.shape[1]>>8,a.shape[0])
+    ct = np.zeros(a.shape)
+
+
+
 def trunc_t_axis(nt,n=100,nr=10,**kwargs):
     """
     Calculates a log-spaced sampling schedule for an MD time axis. Parameters are

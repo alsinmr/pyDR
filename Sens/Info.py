@@ -7,6 +7,7 @@ Created on Tue Nov  9 14:29:46 2021
 """
 
 import numpy as np
+import copy
 
 class Info():
     """
@@ -19,9 +20,16 @@ class Info():
         self.__values=np.zeros([0,0],dtype=object)
         self.N=0
         self.__edited=False
+        self.__deactivate=False #Use to force Info to always return False for Info.edited
         self.__index=-1
         
         self.new_parameter(**kwargs)
+    
+    def save(self,filename=None,fid=None):
+        """
+        Save the data stored in the info object
+        """
+        pass
     
     def new_parameter(self,par=None,**kwargs):
         """
@@ -60,7 +68,7 @@ class Info():
         """
         if par in self.keys:           
             index=self.keys.index(par)
-            self.keys.pop(par)
+            self.keys.remove(par)
         self.__values=np.delete(self.__values,index,axis=0)
     
     
@@ -234,20 +242,22 @@ class Info():
         string+='\n\n[{0} experiments with {1} parameters]'.format(self.N,len(self.keys))        
         return string
     
+    
     @property
     def edited(self):
         """
         Returns True if any parameters in Info have been changed, thus requiring
         the sensitivities to be re-calculated.
         """
-        return self.__edited
+        return False if self.__deactivate else self.__edited
     
-    def updated(self,edited=False):
+    def updated(self,edited=False,deactivate=False):
         """
         Call self.updated if the sensitivities have been updated, thus setting
         self.edited to False
         """
         self.__edited=edited
+        if deactivate:self.__deactivate=True
         
     def del_exp(self,index):
         """
@@ -262,6 +272,8 @@ class Info():
             self.__values=np.concatenate((self.__values[:,:index],self.__values[:,index+1:]),axis=1)
             self.N+=-1
                 
+    def copy(self):
+        return copy.deepcopy(self)
             
             
         

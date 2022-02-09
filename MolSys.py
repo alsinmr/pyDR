@@ -6,9 +6,11 @@ Created on Mon Dec  6 13:34:36 2021
 @author: albertsmith
 """
 import numpy as np
+import copy
 from MDAnalysis import Universe
 from pyDR import selection
 from pyDR.misc.ProgressBar import ProgressBar
+from pyDR.Selection import select_tools as selt
 
 class MolSys():
     """
@@ -28,9 +30,19 @@ class MolSys():
         self._traj.append(Trajectory(self._uni[-1].trajectory,t0=t0,tf=tf,step=step,dt=dt) \
                           if self._uni[-1].trajectory else None)
         self.cur_molecule=len(self._uni)-1
-        
+    
+    def __getitem__(self,index):
+        """
+        Get a specific molecule from MolSys
+        """
+        out=copy.copy(self)
+        assert index<len(self._uni),"Index exceeds number of molecules in MolSys"
+        out.cur_molecule=index
+        return out
+    
     @property
-    def molecule(self):
+    def uni(self):
+        "Return the universe object corresponding to this element of the MolSys"
         assert len(self._uni)>0,'No molecules loaded'
         return self._uni[self.cur_molecule]
     
@@ -49,6 +61,8 @@ class MolSys():
     def get_pair(self,Nuc,resids=None,segids=None,filter_str=None):
         return selection.protein_defaults(self.molecule,Nuc=Nuc,resids=resids,segids=segids,filter_str=filter_str)
   
+
+
 class Trajectory():
     def __init__(self,traj,t0=0,tf=-1,step=1,dt=None):
         self.t0=t0
@@ -108,82 +122,95 @@ class Trajectory():
     def __iter__(self):
         return self[:]
     
+class MolSelector():
+    def __init__(self,molsys):
+        self._MolSys=molsys
+        self.__mol_no=molsys.cur_molecule
+        self.sel0=None
+        self.sel1=None
+        self._repr_sel=None
         
+    def select_bond(self,Nuc=None,resids=None,segids=None,filter_str=None):
+        """
+        Select a bond according to 'Nuc' keywords
+            '15N','N','N15': select the H-N in the protein backbone
+            'CO','13CO','CO13': select the CO in the protein backbone
+            'CA','13CA','CA13': select the CA in the protein backbone
+            'ivl','ivla','ch3': Select methyl groups 
+                (ivl: ILE,VAL,LEU, ivla: ILE,LEU,VAL,ALA, ch3: all methyl groups)
+                (e.g. ivl1: only take one bond per methyl group)
+                (e.g. ivlr,ivll: Only take the left or right methyl group)
+        """
+        self.sel0,self.sel1=selt.protein_defaults(Nuc=Nuc,mol=self,resids=resids,segids=segids,filter_str=filter_str)
         
+        if Nuc.lower() in ['15n','n15','n','co','13co','co13','ca','13ca','ca13']:
+            self._repr_sel=list()
+            for s in self.sel0:
+                self._repr_sel.append(s.residue.atoms.select_atoms('name H HN N CA'))
+                resi=s.residue.resindex-1
+                if resi>=0 and self.uni.residues[resi].segid==s.segid:
+                    self._repr_sel[-1]+=self.uni.residues[resi].atoms.select_atoms('name C CA')
+        elif Nuc.lower()[:3] in ['ivl','ch3'] and '1' in Nuc:
+            self._repr_sel=list()
+            for s in self.sel0:
+                self._repr_sel.append(s+s.residue.atoms.select_atoms('name H* and around 1.4 name {}'.format(s.name)))
 
-#class trajectory(XTCReader):
-#    """
-#    Trajectory object used to override the slicing behavior of the MDAnalysis
-#    XTCReader object (allow one to initialize the trajectory while starting or
-#    ending at different frames, and also allow skipping frames). 
-#    """
-#
-#    def __init__(self,filename,t0=0,tf=-1,step=1,dt=None,convert_units=True,sub=None,refresh_offsets=False,**kwargs):
-#        """
-#        Initialize the trajectory object. Here, one should  provide the original
-#        trajectory object (universe.trajectory, which is already initialized) 
-#        along with optional arguments t0,tf,step, and dt.
-#        
-#        t0:     Index of first time point (default 0)
-#        tf:     Index of last time point (default -1)
-#        step:   Step size between time points (default 1)
-#        dt:     Replace dt if stored incorrectly (ns)
-#                (Note: property dt will return this value multiplied by step)
-#        
-#        """
-#        super().__init__(filename,convert_units,sub,refresh_offsets,**kwargs)
-#        self.t0=t0
-#        self.__tf=super().__len__() #Real length of the trajectory
-#        self.tf=tf
-#        self.step=step
-#
-#        self.__dt=dt if dt else super().dt
-#    
-#    @property
-#    def dt(self):
-#        return self.__dt*self.step
-#    
-#    def __setattr__(self,name,value):
-#        "Make sure t0, tf, step are integers"
-#        if name in ['t0','tf','step']:
-#            value=int(value)
-#        if name=='tf':
-#            assert value<=self.__tf,"tf must be less than or equal to the original trajectory length ({} frames)".format(self.__tf)
-#            value%=self.__tf #Take care of negative indices
-#        super().__setattr__(name,value)
-#        
-#    def __getitem__(self,index):
-#        if np.array(index).dtype=='bool':
-#            i=np.zeros(self.tf-self.t0,dtype=bool)
-#            i[::self.step]=True
-#            index=np.concatenate((np.zeros(self.t0,dtype=bool),i,np.zeros(self.__tf-self.tf,dtype=bool)))
-#            return super().__getitem__(index)
-#        elif isinstance(index,slice):
-#            stop=index.stop if index.stop else len(self)
-#            assert stop<=self.__len__(),'stop index must be less than or equal to the truncated trajectory length'
-#            start=index.start if index.start else 0
-#            
-#            stop=stop if stop==len(self) else stop%len(self)
-#            step=index.step if index.step else 1
-#            
-#            def iterate():
-#                for k in range(start,stop,step):
-#                    yield self[k]
-#            return iterate()
-#        else:
-#            assert index<self.__len__(),"index must be less than the truncated trajectory length"
-#            index%=self.__len__() #Take care of negative indices
-#            return super().__getitem__(self.t0+index*self.step)
-#    
-#    def _apply_limits(self, frame):
-#        return frame
-#    
-#    def __len__(self):
-#        return int((self.tf-self.t0)/self.step)
-#    
-#    def __iter__(self):
-#        return self[:]
+    @property
+    def repr_sel(self):
+        if self.sel0 is None:
+            print('Warning: No selection currently set')
+            return 
+        if self._repr_sel is None:
+            if self.sel1 is not None:
+                self._repr_sel=[s0+s1 for s0,s1 in zip(self.sel0,self.sel1)]
+            else:
+                self._repr_sel=[s0 for s0 in self.sel0]
+        return self._repr_sel
     
+    def set_selection(i,sel=None,resids=None,segids=None,fitler_str=None):
+        """
+        Define sel1 and sel2 separately. The first argument is 0 or 1, depending on
+        which selection is to be set. Following arguments are:
+            sel: Atom group, string
+        """
+        pass
+    
+    @property
+    def MolSys(self): 
+        """
+        We want to lock the molecule selection at initialization. Here we 
+        always obtain the same element of MolSys
+        """
+        return self._MolSys[self.__mol_no]
+    
+    @property
+    def uni(self):
+        return self.MolSys.uni
+    
+    @property
+    def trajectory(self):
+        return self.MolSys.trajectory
+    
+    @property
+    def pos(self):
+        assert self.sel1 is not None,"First, perform a selection"
+        if hasattr(self.sel1[0],'__len__'):
+            return np.array([s.positions.mean(0) for s in self.sel0])
+        else:
+            return self.sel1.positions
+    
+    @property
+    def v(self):
+        assert self.sel0 is not None and self.sel1 is not None,'vec requires both sel1 and sel2 to be defined'
+        if hasattr(self.sel0[0],'__len__') and hasattr(self.sel1[0],'__len__'):
+            return np.array([s0.positions.mean(0)-s1.positions.mean(0) for s0,s1 in zip(self.sel0,self.sel1)])
+        elif hasattr(self.sel0[0],'__len__'):
+            return np.array([s0.positions.mean(0)-s1.position for s0,s1 in zip(self.sel0,self.sel1)])
+        elif hasattr(self.sel1[0],'__len__'):
+            return np.array([s0.position-s1.positions.mean(0) for s0,s1 in zip(self.sel0,self.sel1)])
+        else:
+            return self.sel0.positions-self.sel1.positions
         
         
-      
+        
+        

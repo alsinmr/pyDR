@@ -7,13 +7,16 @@ Created on Sat Nov 13 15:32:58 2021
 """
 
 import numpy as np
-from pyDR.Sens import Sens,Info
+import matplotlib.pyplot as plt
+from matplotlib import ticker
+from pyDR.misc.disp_tools import set_plot_attr,NiceStr
+from pyDR import Sens
 from scipy.sparse.linalg import eigs
 from scipy.optimize import lsq_linear as lsqlin
 from scipy.optimize import linprog
 from pyDR.misc.tools import linear_ex
 
-class Detector(Sens):
+class Detector(Sens.Sens):
     def __init__(self,sens):
         """
         Initiate a detector object with a sensitivity object.
@@ -24,21 +27,53 @@ class Detector(Sens):
         "Parameters for detectors"
         self.info.new_exper(z0=0,zmax=0,Del_z=0,stdev=0)
         self.info.del_exp(0)
+        self.info.updated(deactivate=True) #Detectors are not calculated from parameters in info, so we don't use this feature
         
-        self.__r=None  #Storage for r matrix        
+        self.__r=None  #Storage for r matrix  
+        self.__locked=False
         
         self.sens=sens
-        _=sens._rho_eff   #Run the calculation of the input once to finalize the input rhoz values
+        _=sens.rhoz   #Run the calculation of the input once to finalize the input rhoz values
         "We'll throw a warning if the input sensitivity gets updated"
         
-        self.r_opt=r_opt(self)
+        self.SVD=SVD(sens)
+        self.T=None
+        self.opt_pars={}
         
         "If bond-specific, initiate all for all bonds"
         if len(sens)>1:
             for s in sens:
                 self.append(Detector(s))
-                
-                
+    
+    def copy(self):
+        """
+        Returns a deep copy of the detector object. Note that we do not deep-copy
+        the original sensitivity object
+        """
+        sens=self.sens  #Hold on to the old sensitivity object
+        self.sens=None
+        out=super().copy()
+        out.sens=sens  #Put back old sensitivity object
+        self.sens=sens
+        return out
+    
+    def lock(self,locked=True):
+        """
+        Prevents sensitivites in this detector object from being updated. Usually,
+        we run this after performing a fit and storing this detector object as
+        the sensitivity of the resulting data object. We do this because it
+        does not make sense to edit the sensitivities of the results of fitting
+        """
+        self.__locked=locked
+    
+    @property
+    def _islocked(self):
+        if self.__locked:
+            print('Detector object is locked. Re-optimization is not allowed')
+            return True
+        return False
+    
+            
     @property
     def r(self):
         """
@@ -46,19 +81,104 @@ class Detector(Sens):
         """
         assert self.__r is not None,"First optimize detectors (r_auto, r_target, r_no_opt)"
         
-        if self.sens.edited:
-            print('Warning: the input sensitivities may have been edited, but the detectors have not been updated')
+        if not(self.SVD.up2date):
+            print('Warning: detector sensitivities should be updated due to a change in input sensitivities')
 
         return self.__r.copy()
+    
+        
+    
+    def update_det(self):
+        """
+        Updates the detector sensitivities, R matrix, info, etc. for a given
+        T matrix
+        """
+        
+        
+        SVD=self.SVD
+        T=self.T        
+        
+        self._Sens__rho=T@SVD.Vt
+        self._Sens__rhoCSA=T@SVD.VtCSA
+        self.__r=((1/self.sens.norm)*(SVD.U@np.linalg.solve(T.T,np.diag(SVD.S))).T).T
+
+        
+        dz=self.z[1]-self.z[0]
+        for k in self.info.keys.copy():self.info.del_parameter(k)
+        self.info.new_parameter(z0=np.array([(self.z*rz).sum()/rz.sum() for rz in self.rhoz]))
+        self.info.new_parameter(zmax=np.array([self.z[np.argmax(rz)] for rz in self.rhoz]))
+        self.info.new_parameter(Del_z=np.array([rz.sum()*dz/rz.max() for rz in self.rhoz]))
+        self.info.new_parameter(stdev=((np.linalg.pinv(self.__r)**2)@self.sens.info['stdev']**2)**0.5)
+    
+    #%% Detector optimization
+    def _rho(self):
+        """
+        This works differently than the other sub-classes. update_det finalizes
+        the value of _rho, and this function just returns that value.
+        """
+        assert 'n' in self.opt_pars,"First, optimize detectors before calling Detector._rho"
+        if not(self.SVD.up2date):
+            print('Warning: detector sensitivities should be updated due to a change in the input sensitivities')
+        return self.rhoz
+    
+    def _rhoCSA(self):
+        return self._Sens__rhoCSA
+    
+    def opt_z(self,n,z=None,index=None,min_target=None):
+        """
+        Optimize a detector using n singular values to have amplitude 1 at correlation
+        time z (or with index, z=self.z[index]). Used for self.auto(n) and
+        self.zmax
+        
+        n: Number of singular values to use
+        z: Target correlation time (this value set to 1)
+        index: Use instead of z (z=self.z[index])
+        min_target: Vector defining the minimum allowed value of the resulting
+        detector sensitivity (default is np.zeros(self.z.shape))
+        """
+        
+        self.SVD(n)
+        assert z is not None or index is not None,"z or index must be provided"
+        if min_target is None:min_target=np.zeros(self.z.shape)
+        if index is None:index=np.argmin(np.abs(self.z-z))
+        Vt=self.SVD.Vt
+        return linprog(Vt.sum(1),A_ub=-Vt.T,b_ub=-min_target,A_eq=[Vt[:,index]],b_eq=1,bounds=(-500,500),\
+                  method='interior-point',options={'disp':False})['x']
+    
+    def r_zmax(self,zmax,Normalization='MP',NegAllow=False):
+        """
+        Re-optimize detectors based on a previous set of detectors (where the 
+        maximum of the detectors has been recorded)
+        """
+        if self._islocked:return
+        
+        zmax=np.atleast_1d(zmax)
+        zmax.sort()
+        n=zmax.size        
+        self.SVD(n)
+        self.T=np.eye(n)
+        for k,z in enumerate(zmax):
+            self.T[k]=self.opt_z(n=n,z=z)
+        self.opt_pars={'n':n,'Type':'zmax','Normalization':None,'NegAllow':False,'options':[]}
+        self.update_det()
+        if NegAllow:self.allowNeg()
+        
+        if Normalization:self.ApplyNorm(Normalization)
     
     def r_no_opt(self,n):
         """
         Generate detectors based only on the singular value decomposition (do not
         use any optimization)
         """
-        self.r_opt.no_opt(n)
+        if self._islocked:return
+        
+        self.SVD(n)     #Run the SVD
+        self.T=np.eye(n) #No optimization
+        self.opt_pars={'n':n,'Type':'no_opt','Normalization':None,'NegAllow':False,'options':[]}
+        self.update_det() ##Re-calculate detectors based on the new T matrix
+        
     
-    def r_target(self,target,n):
+    def r_target(self,target,n=None,Normalization=None):
         """
         Generate n detectors where the first m detectors are approximately equal
         to the rows in target (n>=m). Using larger n than m will result in n-m
@@ -74,117 +194,31 @@ class Detector(Sens):
         (in the latter cases, we use linear extrapolation to match the target
         sensitivities to the correlation time axis used here)
         """
-        self.r_opt.target(target,n)
+        if self._islocked:return
         
-    
-    def update_det(self):
-        """
-        Updates the detector sensitivities, R matrix, info, etc. for a given
-        T matrix
-        """
-        
-        SVD=self.r_opt.SVD
-        T=self.r_opt.T        
-        
-        self.__rho=T@SVD.Vt
-        self.__rhoCSA=T@SVD.VtCSA
-        # self.__r[bond]=np.multiply(np.repeat(np.transpose([1/self.norm]),n,axis=1),\
-        #     np.dot(U,np.linalg.solve(T.T,np.diag(S)).T)
-        self.__r=((1/self.sens.norm)*(SVD.U@np.linalg.solve(T.T,np.diag(SVD.S))).T).T
-        # self.__r=((1/self.sens.norm)*(self.SVD.U@np.diag(self.SVD.S)).T).T
-        
-        dz=self.z[1]-self.z[0]
-        self.info=Info()
-        self.info.new_parameter(z0=np.array([(self.z*rz).sum()/rz.sum() for rz in self.__rho]))
-        self.info.new_parameter(zmax=np.array([self.z[np.argmax(rz)] for rz in self.__rho]))
-        self.info.new_parameter(Del_z=np.array([rz.sum()*dz/rz.max() for rz in self.__rho]))
-        self.info.new_parameter(stdev=((np.linalg.pinv(self.__r)**2)@self.sens.info['stdev']**2)**0.5)
-        
-        self.sens.updated()
-    
-    #%% Detector optimization
-    def _rho(self):
-        return self.__rho
-    
-    def _rhoCSA(self):
-        return self.__rhoCSA
-    
-    def r_auto(self,n,NegAllow=False):
-        """
-        Generate n detectors that are automatically selected based on the results
-        of SVD
-        """
-        self.r_opt.auto(n=n,NegAllow=NegAllow)
-        
-    def r_zmax(self,zmax,NegAllow=False):
-        """
-        Generate n detectors defined by the correlation time of their maximum. 
-        Specify the list of maxima (zmax)
-        """
-        self.r_opt.zmax(zmax=zmax,NegAllow=NegAllow)
-
-class r_opt():
-    """
-    Class for optimizing detectors sensitivities
-    """
-    def __init__(self,detect):
-        """
-        Initiate the detector optimization object
-        """
-        self.detect=detect
-        self.SVD=SVD(detect.sens)
-        self.T=None
-
-        
-    def no_opt(self,n):
-        """
-        Generate detectors based only on the singular value decomposition (do not
-        use any optimization)
-        """
-        self.SVD(n)     #Run the SVD
-        self.T=np.eye(n) #No optimization
-        self.detect.update_det() ##Re-calculate detectors based on the new T matrix
-
-    def opt_z(self,n,z=None,index=None,min_target=None):
-        """
-        Optimize a detector using n singular values to have amplitude 1 at correlation
-        time z (or with index, z=self.z[index]). Used for self.auto(n) and
-        self.zmax
-        
-        n: Number of singular values to use
-        z: Target correlation time (this value set to 1)
-        index: Use instead of z (z=self.z[index])
-        min_target: Vector defining the minimum allowed value of the resulting
-        detector sensitivity (default is np.zeros(self.z.shape))
-        """
-        
+        if hasattr(target,'z') and hasattr(target,'rhoz'):
+            z,target=target.z,target.rhoz
+            target=linear_ex(z,target,self.z)
+        elif isinstance(target,dict):
+            z,target=target['z'],target['rhoz']
+            target=linear_ex(z,target,self.z)
+        if n is None:n=target.shape[0]
         self.SVD(n)
-        if min_target is None:min_target=np.zeros(self.detect.z.shape)
-        assert z is not None or index is not None,"z or index must be provided"
-        if index is None:index=np.argmin(np.abs(self.detect.z-z))
-        Vt=self.SVD.Vt
-        return linprog(Vt.sum(1),-Vt.T,-min_target,[Vt[:,index]],1,bounds=(-500,500),\
-                  method='interior-point',options={'disp':False})['x']
-    
-    def zmax(self,zmax,NegAllow=0):
-        """
-        Re-optimize detectors based on a previous set of detectors (where the 
-        maximum of the detectors has been recorded)
-        """
-        zmax=np.atleast_1d(zmax)
-        n=zmax.size        
-        self.SVD(n)
+
         self.T=np.eye(n)
-        for k,z in enumerate(zmax):
-            self.T[k]=self.opt_z(n=n,z=z)
-        self.detect.update_det()
-        
+        for k,t in enumerate(target):
+            self.T[k]=lsqlin(self.SVD.Vt.T,t,lsq_solver='exact')['x']    
+        self.opt_pars={'n':n,'Type':'target','Normalization':None,'NegAllow':False,'options':[]}
+        self.update_det()    #Re-calculate detectors based on the new T matrix
+        if Normalization:self.ApplyNorm(Normalization)
     
-    def auto(self,n,NegAllow=False):
+    def r_auto(self,n,Normalization='MP',NegAllow=False):
         """
         Generate n detectors that are automatically selected based on the results
         of SVD
         """
+        if self._islocked:return
+        
         self.SVD(n)
         Vt=self.SVD.Vt
         
@@ -247,7 +281,7 @@ class r_opt():
         
         #Locate where the Vt are sufficiently large for maxima
         i0=np.nonzero(np.any(np.abs(Vt.T)>(np.abs(Vt).max(1)*.75),1))[0]
-        ntc=self.detect.z.size
+        ntc=self.z.size
         untried=np.ones(ntc,dtype=bool)
         untried[:i0[0]]=False
         untried[i0[-1]+1:]=False
@@ -288,68 +322,156 @@ class r_opt():
 #        pks=np.array(index)[i]
         rhoz=np.array(rhoz)[i]
         self.T=np.array(X)[i]    
-        self.detect.update_det()
+        self.opt_pars={'n':n,'Type':'auto','Normalization':None,'NegAllow':False,'options':[]}
+        self.update_det()
+
+
         if NegAllow:self.allowNeg()
+        if Normalization:self.ApplyNorm(Normalization)
         
     def allowNeg(self):
         """
         Allows detectors that extend to infinite or 0 tc to dip below 0 where
         oscillations occur. Only applied to first and last detector
         """
+        if self._islocked:return
+        
         update=False
-        z,rhoz=self.detect.z,self.detect.rhoz
+        z,rhoz=self.z,self.rhoz
         if rhoz[0,0]/rhoz[0].max()>.95:
             i=np.argwhere(rhoz[0]<.01)[0,0]
             M=np.concatenate(([np.ones(z.size)],[np.arange(z.size)]),axis=0).T
             x=np.linalg.lstsq(M[i:],rhoz[0,i:],rcond=None)[0]
             min_target=-(M@x)
-            self.T[0]=self.opt_z(n=self.T.shape[0],z=self.detect.info['zmax',0],min_target=min_target)
+            self.T[0]=self.opt_z(n=self.T.shape[0],z=self.info['zmax',0],min_target=min_target)
             update=True
         if rhoz[-1,-1]/rhoz[-1].max()>.95:
             i=np.argwhere(rhoz[-1]<.01)[-1,0]
             M=np.concatenate(([np.ones(z.size)],[np.arange(z.size)]),axis=0).T
             x=np.linalg.lstsq(M[:i],rhoz[-1,:i],rcond=None)[0]
             min_target=-(M@x)
-            self.T[-1]=self.opt_z(n=self.T.shape[0],z=self.detect.info['zmax',-1],min_target=min_target)
+            self.T[-1]=self.opt_z(n=self.T.shape[0],z=self.info['zmax',-1],min_target=min_target)
             update=True
-        if update:self.detect.update_det()
-            
-    def target(self,target,n=None):
-        """
-        Generate n detectors where the first m detectors are approximately equal
-        to the rows in target (n>=m). Using larger n than m will result in n-m
-        un-optimized detectors in addition to the m detectors optimized to the
-        target function.
+        if update:self.update_det()
+        self.opt_pars['NegAllow']=True
         
-        Target may be input as a list of vectors having the same length as sens.z,
-        such that each element corresponds to the correlation time already used
-        in this sensitivity object. One may also input a sensitivity object itself,
-        in which case we will try to match the sensitivity of the two objects.
-        Finally, one may input a dictionary with keys 'z' and 'rhoz', to use a
-        different correlation time axis than is used in this sensitivity object
-        (in the latter cases, we use linear extrapolation to match the target
-        sensitivities to the correlation time axis used here)
+                    
+    def inclS2(self,Normalization=None):
         """
-        
-        if hasattr(target,'z') and hasattr(target,'_rho_eff'):
-            z,target=target.z,target._rho_eff[0]
-            target=linear_ex(z,target,self.detect.z)
-        elif isinstance(target,dict):
-            z,target=target['z'],target['rhoz']
-            target=linear_ex(z,target,self.detect.z)
-        if n is None:n=target.shape[0]
-        self.SVD(n)
+        Creates an additional detector from S2 measurements, where that detector
+        returns the difference between (1-S2) and an optimized sum of the other
+        detectors.
+        """
+        if self._islocked:return
 
-        self.T=np.eye(n)
-        for k,t in enumerate(target):
-            self.T[k]=lsqlin(self.SVD.Vt.T,t,lsq_solver='exact')['x']
+        assert 'n' in self.opt_pars.keys(),'First perform initial detector optimization before including S2'
         
-        self.detect.update_det()    #Re-calculate detectors based on the new T matrix
+        if 'inclS2' in self.opt_pars['options']:self.removeS2
+        self.opt_pars['options'].append('inclS2')
         
+        norm=Normalization if Normalization else self.opt_pars['Normalization']
+        if norm.lower()!=self.opt_pars['Normalization'].lower():
+            self.ApplyNorm(norm)
+            self.opt_pars['Normalization']=norm.upper()
+
+        if norm.lower()=='mp' or norm.lower()=='i':
+            wt=linprog(-(self.rhoz.sum(axis=1)).T,self.rhoz.T,np.ones(self.rhoz.shape[1]),\
+                        bounds=(-500,500),method='interior-point',options={'disp' :False,})['x']
+            rhoz0=[1-(self.rhoz.T@wt).T]
+            rhoz0CSA=[1-(self._rhozCSA.T@wt).T]
+            sc=np.atleast_1d(rhoz0[0].max()) if norm.lower()=='mp' else rhoz0[0].sum()*(self.z[1]-self.z[0])
+            self._Sens__rho=np.concatenate((rhoz0/sc,self.rhoz))
+            self._Sens__rhoCSA=np.concatenate((rhoz0CSA/sc,self._rhozCSA))
+            mat1=np.concatenate((np.zeros([self.__r.shape[0],1]),self.__r),axis=1)
+            mat2=np.atleast_2d(np.concatenate((sc,wt.T),axis=0))
+            self.__r=np.concatenate((mat1,mat2),axis=0)
+        elif norm.lower()=='m':
+            self.__r=np.concatenate((\
+                         np.concatenate((np.zeros([self.__r.shape[0],1]),self.__r),axis=1),\
+                               np.ones([1,self.__r.shape[1]+1])),axis=0)
+            self._Sens__rho=np.concatenate(([1-self._Sens__rho.sum(0)],self._Sens__rho),axis=0)
+            self._Sens__rhoCDA=np.concatenate(([1-self._Sens__rhoCSA.sum(0)],self._Sens__rhoCSA),axis=0)
+        else:
+            assert 0,"Unknown normalization (use 'M','MP', or 'I')"
     
+    def removeS2(self):
+        if self._islocked:return
+        
+        if self.opt_pars['n']==self.rhoz.shape[0]:
+            print('S2 not included')
+            return
+        self._Sens__rho=self.rhoz[1:]
+        self.__r=self.r[:-1,1:]
+        self.opt_pars['options'].remove('inclS2')
+    
+    def R2ex(self):
+        pass
+    
+    def ApplyNorm(self,Normalization='MP'):
+        """
+        Applies normalization to the set of detectors. Options are 'I' with forces
+        the integrals to all equal 1, 'M' which yields detectors with maxima
+        of 1, and 'MP' which also yields detectors with maxima of 1, but prevents
+        the detector derived from S2 from being negative (if set to 'M', the sum
+        of the detectors is 1, but the first detector, derived from S2, may 
+        become negative)
+        """
+        if self._islocked:return
+        
+        assert Normalization[0].lower() in ['m','i'],'Normalization should be "M", "MP", or "I"'
+        for k,rhoz in enumerate(self._Sens__rho):
+            if Normalization.lower()[0]=='m':
+                self.T[k]/=rhoz.max()
+            else:
+                self.T[k]/=rhoz.sum()*self.dz
+        self.opt_pars['Normalization']=Normalization
+        self.update_det()  
+        
+    def plot_fit(self,index=None,ax=None,norm=False,**kwargs):
+        """
+        Plots the sensitivities of the data object.
+        """
+        
+        if index is None:index=np.ones(self.SVD.M.shape[0],dtype=bool)
+        index=np.atleast_1d(index)
+            
+        assert np.issubdtype(index.dtype,int) or np.issubdtype(index.dtype,bool),"index must be integer or boolean"
+    
+        a=self.SVD.M[index].T #Get sensitivities
+        norm_vec=np.abs(a).max(0) if norm else self.sens.norm
+        a/=norm_vec
+        fit=self.SVD.Mn[index].T
+        fit/=norm_vec
+   
+        if ax is None:
+            fig=plt.figure()
+            ax=fig.add_subplot(111)
 
+        hdl=[*ax.plot(self.z,a,color='red'),*ax.plot(self.z,fit,color='black',linestyle=':')]
 
-class SVD(Sens):
+        set_plot_attr(hdl,**kwargs)
+        ax.legend([hdl[0],hdl[hdl.__len__()>>1]],['Input','Fit'])
+        
+        ax.set_xlim(self.z[[0,-1]])
+        ticks=ax.get_xticks()
+        nlbls=4
+        step=int(len(ticks)/(nlbls-1))
+        start=0 if step*nlbls==len(ticks) else 1
+        lbl_str=NiceStr('{:q1}',unit='s')
+        ticklabels=['' for _ in range(len(ticks))]
+        for k in range(start,len(ticks),step):ticklabels[k]=lbl_str.format(10**ticks[k])
+        
+        ax.xaxis.set_major_locator(ticker.FixedLocator(ticks))
+        ax.xaxis.set_major_formatter(ticker.FixedFormatter(ticklabels))
+        
+#        ax.set_xticklabels(ticklabels)
+        ax.set_xlabel(r'$\tau_\mathrm{c}$')
+        
+        ax.set_ylabel(r'$\rho_n(z)$')
+               
+        return hdl
+
+class SVD():
     """
     Class responsible for performing and storing/returning the results of singular
     value decomposition of a given set of sensitivities
@@ -360,6 +482,7 @@ class SVD(Sens):
         and sensitivity reconstruction 
         """
         self.sens=sens
+        self._sens_hash=None
         
         self._U=None
         self._S=None
@@ -388,7 +511,7 @@ class SVD(Sens):
         """
         Matrix on which to perform the SVD
         """
-        return (self.sens._rho_eff[0].T*self.sens.norm).T
+        return (self.sens.rhoz.T*self.sens.norm).T
     
     @property
     def Mn(self):
@@ -399,15 +522,24 @@ class SVD(Sens):
         return self.U@(np.diag(self.S)@self.Vt)
     
     
+    @property
+    def up2date(self):
+        """
+        Returns True if the SVD has been performed on up-to-date sensitivities.
+        Returns False if the SVD has been perormed on out-of-date sensitivities
+        or if SVD has not been run
+        """
+        if self._sens_hash is None or self._sens_hash!=self.sens._hash:return False
+        return True
+    
     def run(self,n):
         """
         Runs the singular value decomposition for the largest n singular values
         """
         
-        if self.sens.edited:
+        if self._sens_hash is not None and not(self.up2date):
             print('Warning: the input sensitivities have been edited-the detector sensitivities will be updated accordingly')
             self._S=None #SVD needs to be re-run
-            self.sens.updated()
         
         self.n=n
         
@@ -421,7 +553,9 @@ class SVD(Sens):
             else:
                 self._U,self._S,self._Vt=[x.real for x in np.linalg.svd(X)] #Full calculation
             
-            self._VtCSA=np.diag(1/self._S)@(self._U.T@(self.sens._rho_effCSA[0].T*self.sens.norm).T)      
+            self._VtCSA=np.diag(1/self._S)@(self._U.T@(self.sens._rho_effCSA[0].T*self.sens.norm).T)
+            
+            self._sens_hash=self.sens._hash     #Store the current hash value of the sensitivity
             
     def __call__(self,n):
         """

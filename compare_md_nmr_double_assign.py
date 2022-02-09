@@ -21,15 +21,18 @@ if "linux" in platform:
 
 het = het.fit()
 fig = plt.figure()
+fig.set_size_inches((6,7))
 ax0 = fig.add_subplot(5,1,1)
 ax0.plot(het.sens.rhoz().T)
-ax = [fig.add_subplot(5,1,2+i) for i in range(4)]
-for i in range(4):
+ax = [fig.add_subplot(7,1,2+i) for i in range(3)]
+ax.append(fig.add_subplot(4,1,4))
+for i in range(3):
     for res in range(het.R.shape[0]):
         ax[i].bar(x=res,height=het.R[res,i], color=cmap(i))
 
-ax[-1].set_xticks(range(het.R.shape[0]))
-ax[-1].set_xticklabels(het.label)
+ax[-2].set_xticks(range(het.R.shape[0]))
+ax[-2].set_xticklabels(het.label,rotation=60)
+
 targ = het.sens.rhoz()[:4]
 targ[0,84:]=0
 indices =[]
@@ -37,35 +40,54 @@ labels = []
 colors = ["red", "orange", "green"]
 M = KaiMarkov(simulation=0)
 counts = []
+
+gs = ["2","2","2"]
+
 for label in het.label:
     counts.append(len(label.split(",")))
     for lab in label.split(","):
-        for key in M.full_dict.keys():
-            if lab[:3] in key:
-                for ind, ctlab in enumerate(M.full_dict[key]["ct_labels"]):
-                    if "CH" in ctlab and "rot" in ctlab:
-                        if "2" in ctlab or not "1" in ctlab:
+        for key in M.sim_dict["residues"].keys():
+            if int(lab[:3]) == int(key[3:])+147:
+                for ctlab in M.sim_dict["residues"][key]["ct_vecs"]:
+                    if "CH" in ctlab['name'] and "rot" in ctlab['name']:
+                        if "ALA" in key or\
+                            ("ILE" in key and gs[0] in ctlab['name']) or\
+                            ("VAL" in key and gs[1] in ctlab['name']) or\
+                            ("LEU" in key and gs[2] in ctlab['name']):
                             print(key, ctlab)
-                            indices.append(M.full_dict[key]["ct_indices"][ind])
+                            indices.append(ctlab['id'])
                             labels.append(key)
+                    '''if "met-to-plane" in ctlab['name']:
+                        if ("ILE" in key and "2" in ctlab['name']) or \
+                            ("ALA" in key) or \
+                            ("VAL" in key and not  "2" in ctlab['name']) or \
+                            ("LEU" in key and  "2" in ctlab['name']):
+                            print(key, ctlab)
+                            indices.append(ctlab['id'])
+                            labels.append(key)'''
+
+title="ILE - CD --- VAL - CG{} --- LEU - CD{}".format(gs[1],gs[2])
+fig.suptitle(title)
 print(het.label,len(het.label))
 print(labels,len(labels))
 print(counts,len(counts),sum(counts))
 print(indices,len(indices))
+
+
 indices = np.array(indices)
-sims = [4,0,5,3,2]
+sims = [3,0,4,2,1]
 legend = []
 closes_val = np.zeros((len(het.label),3))
 col = np.zeros((len(het.label),3)).astype(int)
 
-fig2 = plt.figure()
-bx = fig2.add_subplot(111)
+#fig2 = plt.figure()
+#bx = fig2.add_subplot(111)
 chi_sq = np.zeros(len(sims))
 for j,sim in enumerate(sims):
     M = KaiMarkov(simulation=sim)
     legend.append(M.sel_sim_name)
     if not exists("sim{}_R.npy".format(sim)):
-        M.calc()
+        M.calc_new()
         cts = M.cts[indices]
         D = DR.data()
         D.load(Ct={'Ct': cts
@@ -74,7 +96,7 @@ for j,sim in enumerate(sims):
         D.detect.r_target(target=targ,n=12)#r_auto3(n=n_dets)
         md = D.fit()
         md.label = labels
-        np.save("sim{}_R.npy".format(sim),md.R)
+        #np.save("sim{}_R.npy".format(sim),md.R)
         R = md.R
     else:
         R = np.load("sim{}_R.npy".format(sim))
@@ -104,9 +126,11 @@ print(labels)
 for i in range(3):
     for k in range(len(het.label)):
         ax[i].bar(k+0.3,height=closes_val[k,i], color = cmap(col[k,i]), width=0.2,edgecolor="black")
-fig.legend(legend)
+#fig.legend(legend)
 for i in range(len(sims)):
-    bx.bar(i,chi_sq[i])
-fig2.legend(legend)
-
+    ax[-1].bar(i,chi_sq[i])
+ax[-1].legend(legend)
+ax[-1].set_ylabel(r'$\chi^2$')
+import os
+print(chi_sq)
 plt.show()
