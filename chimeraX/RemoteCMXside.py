@@ -168,6 +168,6 @@ class CMXReceiver():
         if name in self._events:
             self.Stop()             #Stop the event manager
             event=self._events.pop(name) #Remove the event
-            if hasattr(event,'cleanup'):event.cleanup()  #Running delete lets us clean up the object if desired.
+            if hasattr(event,'cleanup'):event.cleanup()  
             self.Start()
         
