@@ -193,11 +193,11 @@ class MolSelector():
     
     @property
     def pos(self):
-        assert self.sel1 is not None,"First, perform a selection"
-        if hasattr(self.sel1[0],'__len__'):
+        assert self.sel0 is not None,"First, perform a selection"
+        if hasattr(self.sel0[0],'__len__'):
             return np.array([s.positions.mean(0) for s in self.sel0])
         else:
-            return self.sel1.positions
+            return self.sel0.positions
     
     @property
     def v(self):

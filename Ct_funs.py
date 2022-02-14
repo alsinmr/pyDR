@@ -9,7 +9,7 @@ Created on Tue Dec  7 12:12:16 2021
 import numpy as np
 import types
 from numba import njit,prange
-from SpeedTest import *
+#from SpeedTest import *
 
 class Ct_calc():
     def __init__(self,A,B=None,weight=None,offset=0,index=None,sparse=1):
