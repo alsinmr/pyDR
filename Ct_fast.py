@@ -260,3 +260,29 @@ def Ct00(v):
             ctf.c=1.5 if k==j else 3
             ctf.add()
     return ctf.Return(offset=-1/2)
+
+from numba import njit,jit
+
+
+def Ct00slow(v):
+    v/=np.sqrt((v**2).sum(0))
+    v=v.T
+    for k in range(v.shape[0]):
+        if k==0:
+            ct=3/2*(v[k]*v[k:]).sum(-1)**2-1/2
+        else:
+            ct[:-k]+=3/2*(v[k]*v[k:]).sum(-1)**2-1/2
+    return ct.T/np.arange(v.shape[0],0,-1)
+
+@njit(parallel=True)
+def Ct00jit(x,y,z):
+    l=np.sqrt(x**2+y**2+z**2)
+    x,y,z=[q.T/l.T for q in [x,y,z]]
+    for k in range(x.shape[0]):
+        if k==0:
+            ct=3/2*(x[k]*x[k:]+y[k]*y[k:]+z[k]*z[k:])**2-1/2
+        else:
+            ct[:-k]=3/2*(x[k]*x[k:]+y[k]*y[k:]+z[k]*z[k:])**2-1/2
+    return ct.T/np.arange(x.shape[0],0,-1)
+    
+    
