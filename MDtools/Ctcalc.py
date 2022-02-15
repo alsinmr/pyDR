@@ -349,6 +349,8 @@ class Ctcalc():
                         
             
     def Return(self,offset=0):
+        if self.Eq[self._i] is None:        #No correlation function calculated
+            return None if self.noCt else None,None
         if self.noCt:return self.Eq[self._i]+offset
         
         if self.mode=='f':
