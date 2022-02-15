@@ -8,9 +8,11 @@ Created on Mon Dec  6 13:34:36 2021
 import numpy as np
 import copy
 from MDAnalysis import Universe
-from pyDR import selection
 from pyDR.misc.ProgressBar import ProgressBar
 from pyDR.Selection import select_tools as selt
+from pyDR.MDtools.vft import pbc_corr
+from pyDR import Defaults
+dtype=Defaults['dtype']
 
 class MolSys():
     """
@@ -56,11 +58,6 @@ class MolSys():
             assert value is None or value<len(self._uni),'{} molecules are currently loaded'.format(len(self._uni))
         super().__setattr__(name,value)
         
-    def get_selection(self,resids=None,segids=None,filter_str=None):
-        return selection.sel_simple(self.molecule,sel=None,resids=resids,segids=segids,filter_str=filter_str)
-    def get_pair(self,Nuc,resids=None,segids=None,filter_str=None):
-        return selection.protein_defaults(self.molecule,Nuc=Nuc,resids=resids,segids=segids,filter_str=filter_str)
-  
 
 
 class Trajectory():
@@ -122,13 +119,23 @@ class Trajectory():
     def __iter__(self):
         return self[:]
     
-class MolSelector():
+class MolSelect():
     def __init__(self,molsys):
-        self._MolSys=molsys
+        super().__setattr__('MolSys',molsys)
         self.__mol_no=molsys.cur_molecule
         self.sel0=None
         self.sel1=None
         self._repr_sel=None
+    
+
+    def __setattr__(self,name,value):
+        """
+        Use to set special behaviors for certain attributes
+        """
+        if name in ['MolSys']:
+            print('Warning: Changing {} is not allowed'.format(name))
+            return
+        super().__setattr__(name,value)
         
     def select_bond(self,Nuc=None,resids=None,segids=None,filter_str=None):
         """
@@ -176,41 +183,39 @@ class MolSelector():
         pass
     
     @property
-    def MolSys(self): 
-        """
-        We want to lock the molecule selection at initialization. Here we 
-        always obtain the same element of MolSys
-        """
-        return self._MolSys[self.__mol_no]
+    def box(self):
+        return self.MolSys.uni.dimensions[:3]
     
     @property
     def uni(self):
         return self.MolSys.uni
     
     @property
-    def trajectory(self):
-        return self.MolSys.trajectory
+    def traj(self):
+        return self.MolSys.traj
     
     @property
     def pos(self):
         assert self.sel0 is not None,"First, perform a selection"
         if hasattr(self.sel0[0],'__len__'):
-            return np.array([s.positions.mean(0) for s in self.sel0])
+            return np.array([s.positions.mean(0) for s in self.sel0],dtype=dtype)
         else:
-            return self.sel0.positions
+            return self.sel0.positions.astype(dtype)
     
     @property
     def v(self):
         assert self.sel0 is not None and self.sel1 is not None,'vec requires both sel1 and sel2 to be defined'
         if hasattr(self.sel0[0],'__len__') and hasattr(self.sel1[0],'__len__'):
-            return np.array([s0.positions.mean(0)-s1.positions.mean(0) for s0,s1 in zip(self.sel0,self.sel1)])
+            out=np.array([s0.positions.mean(0)-s1.positions.mean(0) for s0,s1 in zip(self.sel0,self.sel1)])
         elif hasattr(self.sel0[0],'__len__'):
-            return np.array([s0.positions.mean(0)-s1.position for s0,s1 in zip(self.sel0,self.sel1)])
+            out=np.array([s0.positions.mean(0)-s1.position for s0,s1 in zip(self.sel0,self.sel1)])
         elif hasattr(self.sel1[0],'__len__'):
-            return np.array([s0.position-s1.positions.mean(0) for s0,s1 in zip(self.sel0,self.sel1)])
+            out=np.array([s0.position-s1.positions.mean(0) for s0,s1 in zip(self.sel0,self.sel1)])
         else:
-            return self.sel0.positions-self.sel1.positions
+            out=self.sel0.positions-self.sel1.positions
+        return pbc_corr(out.astype(dtype),self.box)
         
-        
-        
+    def __len__(self):
+        if self.sel0 is None:return 0
+        return len(self.sel0)
         

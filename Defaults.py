@@ -6,5 +6,4 @@ Created on Sun Jan 30 16:11:00 2022
 @author: albertsmith
 """
 
-Defaults={'dtype':'float64'}
-    
+Defaults={'dtype':'float32','dtype_complex':'complex64'}

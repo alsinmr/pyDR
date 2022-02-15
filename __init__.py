@@ -4,11 +4,10 @@
 
 #%% Init file for all of pyDR
 
+from pyDR.Defaults import Defaults
 from pyDR import Selection
 from pyDR import FRET
-from pyDR.MolSys import MolSys
-from pyDR import Ct_funs
-from pyDR.Defaults import Defaults
+from pyDR.MolSys import MolSys,MolSelect
 from pyDR.Data import Data
 from pyDR.Fitting import Fitting
 from pyDR import IO

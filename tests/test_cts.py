@@ -7,47 +7,55 @@ Created on Tue Dec  7 14:23:50 2021
 """
 
 import numpy as np
-from pyDIFRATE.Struct.vf_tools import R,getFrame
-from pyDR import Ct_funs
+import pyDR
+from pyDR.MDtools.Ctcalc import sparse_index
 import matplotlib.pyplot as plt
 from time import time
 
-#%% Set up a random tumbling motion
-n=int(1e4)          #Number of time points in simulated trajectory (reduce for faster calculations)
-dt=5e-3             #Time step (ns)
-t=np.arange(n)*dt   #Time axis (10 us)
-t[0]=1e-3           #We plot on a log scale. We replace 0 with 1 ps to keep it on the scale (labeling later indicates this)
+pdb='/Volumes/My Book/HETs/HETs_5chain_B.pdb'
+xtc='/Volumes/My Book/HETs/MDSimulation/HETs_5chain_MET_4pw_cb10_2micros.xtc'
+
+molsys=pyDR.MolSys(pdb,xtc,step=1)
+
+sel=pyDR.MolSelect(molsys)
+
+sel.select_bond(Nuc='ivla1l',segids='B')
 
 
-dr=0.5              #Step size (in degrees) for rotation of the molecule in solution (determines correlation time)
+index=sparse_index(len(sel.traj),n=-1)
 
-gamma_r=np.random.rand(n)*2*np.pi
-
-vr=[np.array([0,0,1])]  #Start out with vector pointing along z
-for k in range(n-1):    #Loop over all time points
-    sc=getFrame(vr[-1])     #Get frame of current vector direction
-    """Below is the direction of the vector due to a step of dr degrees (see simulation parameters),
-    occuring at an angle of gamma_r[k] (given in the frame of the current vector direction)
-    """
-    vr0=[np.cos(gamma_r[k])*np.sin(dr*np.pi/180),np.sin(gamma_r[k])*np.sin(dr*np.pi/180),np.cos(dr*np.pi/180)]
-    "We rotate vr0 into the lab frame frome the frame of the vector direcion, and append this angle"
-    vr.append(R(vr0,*sc))
-vr=np.array(vr).T #Convert into a numpy array
+v=np.zeros([len(index),*sel.v.shape])
+for k,_ in enumerate(sel.traj[index]):
+    v[k]=sel.v
+v=pyDR.MDtools.vft.norm(v.T)
 
 
-#%% Now calculate the correlation function
-A=[np.atleast_2d(vr[i]*vr[j]) for i,j in zip([0,1,2,0,0,1],[0,1,2,1,2,2])]
-ct_calc=Ct_funs.Ct_calc(A,weight=[3/2,3/2,3/2,3,3,3],offset=-1/2)
 
-t0=time()
-ct_calc.run()
-ct=ct_calc.cleanup()
-totaltime=time()-t0
-print(totaltime)
+fig=plt.figure('Test ct calcs')
+fig.clear()
+ax=fig.add_subplot(111)
+for mode in ['f','a']:
+    t0=time()
+    ctc=pyDR.MDtools.Ctcalc(length=1,mode=mode,index=index)
+    
+    for k in range(3):
+        for j in range(k,3):
+            ctc.a=v[k]*v[j]
+            for ctc0 in ctc: 
+                ctc0.b=v[k]*v[j]
+                ctc0.c=3/2 if k==j else 3
+                ctc0.add()
+            
+    ct=[ctc0.Return(offset=-1/2)[0] for ctc0 in ctc]
+    print(time()-t0)
+    ax.plot(ctc.t,ct[0][0])
+    
 
-ct_calc._mode='Ct'
-t0=time()
-ct_calc.run()
-ct=ct_calc.cleanup()
-totaltime=time()-t0
-print(totaltime)
+ctc=pyDR.MDtools.Ctcalc(length=1,mode=mode,index=index,noCt=False)
+for k in range(3):
+    for j in range(k,3):
+        ctc.a=v[k]*v[j]
+        ctc.b=v[k]*v[j]
+        ctc.c=3/2 if k==j else 3
+        ctc.add()
+ct,S2=ctc.Return(offset=-1/2)

@@ -9,11 +9,11 @@ import numpy as np
 import multiprocessing as mp
 import matplotlib.pyplot as plt
 from scipy.optimize import lsq_linear as lsq
-from pyDR.Defaults import Defaults
-from pyDR.Sens import Detector
-from pyDR.IO import write_file
-from pyDR.Data.data_plots import plot_rho,plot_fit
-from pyDR.misc.disp_tools import set_plot_attr
+from ..Defaults import Defaults
+from ..Sens import Detector
+from ..IO import write_file
+from .data_plots import plot_rho,plot_fit
+from ..misc.disp_tools import set_plot_attr
 
 dtype=Defaults['dtype']
 
@@ -42,6 +42,7 @@ class Data():
         self.detect=Detector(sens) if sens is not None else None
         self.src_data=src_data
         self.select=select #Stores the molecule selection for this data object
+        self.vars=dict() #Storage for miscellaneous variable
         
         
     

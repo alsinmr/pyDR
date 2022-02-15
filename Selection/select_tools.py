@@ -237,7 +237,7 @@ def find_methyl(mol,resids=None,segids=None,filter_str=None,select=None):
     
     To just get rid of the gamma methyl on isoleucine, set select to 'ile_d'
     """
-    mol.trajectory[0]
+    mol.traj[0]
     sel0=sel0_filter(mol,resids,segids,filter_str)
     selC0,selH0=sel0.select_atoms('name C*'),sel0.select_atoms('name H*')
     index=np.array([all(b0 in selH0 for b0 in b)\
