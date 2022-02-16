@@ -860,7 +860,7 @@ def Ct_D2inf(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p'
      
     #Flags for calculating correlation function or not, and how to calculate
     noCt=False if (mode[0].lower()=='b' or mode[0].lower()=='c') else True
-    ctc=Ctcalc(mode='a',index=index,noCt=noCt)
+    ctc=Ctcalc(mode='a',index=index,noCt=noCt,length=5)
 #    if calc_ct:
 #        if index is None or index.size/index[-1]>0.25:   #No idea where the cutoff is....
 #            ctFT=True
