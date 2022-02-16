@@ -861,27 +861,7 @@ def Ct_D2inf(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p'
     #Flags for calculating correlation function or not, and how to calculate
     calc_ct=True if (mode[0].lower()=='b' or mode[0].lower()=='c') else False
     ctc=Ctcalc(mode='a',index=index,calc_ct=calc_ct,length=5)
-#    if calc_ct:
-#        if index is None or index.size/index[-1]>0.25:   #No idea where the cutoff is....
-#            ctFT=True
-#            ctDIR=False
-#        else:
-#            ctDIR=True
-#            ctFT=False
-#    else:
-#        ctFT=False
-#        ctDIR=False
-#    
-#    #Size of the output
-#    n=vZ.shape[-1]
-#    N=get_count(index) if index is not None else np.arange(n,0,-1)
-#    n=2*(np.argwhere(N!=0).squeeze()[-1]+1) if ctFT else np.sum(N!=0)
-#    SZ=[1,n] if vZ.ndim==2 else [vZ.shape[1],n]
-        
-    #Pre-allocation for the running sums
-#    if calc_ct:ct0=[np.zeros(SZ,dtype=complex) if cc else None for cc in calc]
-#    d20=[np.zeros(SZ[0],dtype=complex) if cc else None for cc in calc]
-        
+
     "Here we create a generator that contains each term in the correlation function"
     l=loops(vZ=vZ,vXZ=vXZ,nuZ_F=nuZ_F,nuXZ_F=nuXZ_F,nuZ_f=nuZ_f,nuXZ_f=nuXZ_f,calc=calc)
     for l0 in l:
@@ -890,50 +870,27 @@ def Ct_D2inf(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p'
             zzp=l0['eag']*l0['ebd']
         else:
             zzp=l0['az']*l0['bz']
-#        zz=zzp.mean(-1)
+
         
         """zz is the common component for all correlation functions, so we assign
         it to a of the correlation function calculator
         """
         ctc.a=zzp
-        
-#        "Get the FT of zzp if required"
-#        if ctFT:ftzz=FT(zzp,index)
 
         "Loop over all terms C_0p"
-#        for k in range(5):
         for k,ctc0 in enumerate(ctc):
             if calc[k]:             #Loop over all terms
                 p=ct_prods(l0,k)
                 "Assigning p to b to correlate it with the zz component"
                 ctc[k].b=p      
-                ctc[k].add()
-
-#                d20[k]+=p.mean(-1)*zz
-#                if ctFT:ct0[k]+=FT(p,index).conj()*ftzz #Calc ct
-#                if ctDIR:ct0[k]+=fastCT(p,zzp,index,N)
-                
-        
-    
+                ctc[k].add()                    
        
-    "Now calculate inverse transforms if calc_ct"
-#    if ctFT:
-#        print('Use Fourier Transform')
-#        #Here the number of time point pairs for each element of the correlation function
-##        N=get_count(index) if index is not None else np.arange(n,0,-1)
-#        i=N!=0
-#        N=N[i]
-#        #We only take values for N!=0, and then normalize by N
-#        if mmpswap:
-#            ct=[None if ct1 is None else (ifft(ct1.conj(),axis=-1,threads=os.cpu_count())[:,:n>>1])[:,i]/N for ct1 in ct0]
-##            ct=[None if ct1 is None else (ifft(ct1.conj(),axis=-1)[:,:n>>1])[:,i]/N for ct1 in ct0]
-#        else:
-#            ct=[None if ct1 is None else (ifft(ct1,axis=-1,threads=os.cpu_count())[:,:n>>1])[:,i]/N for ct1 in ct0]
-##            ct=[None if ct1 is None else (ifft(ct1,axis=-1)[:,:n>>1])[:,i]/N for ct1 in ct0]
-##        ct=[None if ct1 is None else ct1.conj() for ct1 in ct]   #We have the complex conjugate of the correct correlation function
-#    elif ctDIR:
-#        ct=[None if ct1 is None else ct1/N[N!=0] for ct1 in ct0]
-    
+    """
+    Previously, we had implemented a complex conjugate before inverse FT, in
+    order to account for non-symmetric correlation functions. Currently, this
+    is not impolemented, although would be possible with the CtCalc object
+    """    
+    #Calculate results
     ct,d2=list(),list()
     offsets=[0,0,-1/2,0,0]
     for ctc0,offset in zip(ctc,offsets):
@@ -942,14 +899,9 @@ def Ct_D2inf(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p'
         d2.append(out[1])
     
     "Add offsets to terms C_pp"
-#    offsets=[0,0,-1/2,0,0,-1/2,1/4,1/4,-1/2]
-#    d2=[None if d21 is None else d21+o for d21,o in zip(d20,offsets)]
-#    if calc_ct:ct=[None if ct1 is None else ct1+o for ct1,o in zip(ct,offsets)]
 
     "If a particular value selected with m=0,mp!=0 (C_p0), apply the m/mp swap"
     if mmpswap:     
-#        d2=[m_mp_swap(d2,0,k-2,k-2,0) for k,d2 in enumerate(d2[:5])]
-#        if calc_ct:ct=[m_mp_swap(ct0,0,k-2,k-2,0) for k,ct0 in enumerate(ct[:5])]
         d2=[m_mp_swap(d2,0,k-2,k-2,0) for k,d2 in enumerate(d2)]
         ct=[m_mp_swap(ct0,0,k-2,k-2,0) for k,ct0 in enumerate(ct)]
     
