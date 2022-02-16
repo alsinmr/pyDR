@@ -148,6 +148,10 @@ A few notes on Fourier transforms and correlation functions
     We will assume that input into a is always real, but input into b may be
     complex. Then, we'll split the transforms such that we can apply only 
     real/hermite transforms, thus accelerating the calculation (hopefully?)
+    
+    
+    We haven't used the fact the correlation functions should be symmetric in time.
+    
 """
 
 #%% Class for calculating correlation functions
@@ -192,9 +196,14 @@ class Ctcalc():
     mode deterermines how to calculate the correlation function 
     direct (d) and fourier transform (f) implemented. Default is auto (a)
     
-    index, mode, and length can be set at initialization.
+    sym controls assumptions about the symmetry of the correlation functions. By
+    default, we assume correlation functions are symmetric in time (sym='sym').
+    Alternatively, set sym to '0p' or 'p0' depending on whether the correlation
+    functions are for the initial or final component being 0.
+    
+    index, mode, length, and sym must be set at initialization.
     """
-    def __init__(self,mode='auto',index=None,length=1,dt=0.005,noCt=False):
+    def __init__(self,mode='auto',index=None,length=1,dt=0.005,calc_ct=True,sym='sym'):
         self.A=None     #Storage for Fourier Transformed input
         self.B=list()   #Storage for Fourier Transformed input
         self.a=None     #Storage for direct input
@@ -207,12 +216,14 @@ class Ctcalc():
         self.Eq=list()  #Storage for the equilibrium values 
         self.N=None if index is None else index[-1]+1
         self._i=0       #This is the index to determine which correlation function we're using right now
-        self.noCt=noCt
+        self.calc_ct=calc_ct
+        assert sym in ['sym','0p','p0'],"sym must be 'sym','0p',or 'p0'"
+        self.sym=sym        #'0p','p0','sym'
         if index is not None and np.diff(index).max()>1:    #Check that we actually need index
             self._index=index
         else:
             self._index=None
-        assert mode[0].lower() in ['a','d','f'],"Mode must be 'a' (auto), 'd' (direct), or 'f' (Fourier transform)"
+        assert mode[0].lower() in ['a','d','f'],"mode must be 'a' (auto), 'd' (direct), or 'f' (Fourier transform)"
         self.__mode=mode[0].lower()
         
         self.nc=mp.cpu_count()
@@ -276,10 +287,10 @@ class Ctcalc():
             else:
                 self.bEq[self._i]=value.mean(-1)
                 
-            if self.noCt:return #Exit now if we're only calculating equilibrium values
+            if not(self.calc_ct):return #Exit now if we're only calculating equilibrium values
             #Preparation of the data for sparse sampling
             if self._index is not None and np.diff(self.index).max()>1 and self.mode=='f':
-                value0=np.zeros([*value.shape[:-1],self.N],dtype=dtype).T
+                value0=np.zeros([*value.shape[:-1],self.N],dtype=dtypec if np.iscomplexobj(value) else dtype).T
                 value0[self.index]=value.T
                 value=value0.T
             elif self.mode!='f':
@@ -312,11 +323,20 @@ class Ctcalc():
             super().__setattr__(name,value)
             
     def add(self):
-        if self.Eq[self._i] is None:self.Eq[self._i]=np.zeros(self.aEq.shape,dtype=dtype)
+        "Here we check that the equilibrium values are preallocated"
+        if self.Eq[self._i] is None:
+            if self.bEq[self._i] is not None and np.iscomplexobj(self.bEq[self._i]):
+                self.Eq[self._i]=np.zeros(self.aEq.shape,dtype=dtypec)
+            else:
+                self.Eq[self._i]=np.zeros(self.aEq.shape,dtype=dtype)
         
         self.Eq[self._i]+=self.aEq*self.bEq[self._i]*self.c[self._i] \
             if self.bEq[self._i] is not None else self.aEq**2*self.c[self._i]
-        if self.noCt:return #Exit now if only calculating equilibrium values
+        if not(self.calc_ct):
+            self.B[self._i]=None
+            self.b[self._i]=None
+            self.c[self._i]=1
+            return #Exit now if only calculating equilibrium values
         
         "Here we check that the correlation functions are preallocated"
         if self.mode=='f':
@@ -336,22 +356,36 @@ class Ctcalc():
         if self.mode=='f':
             if self.B[self._i] is not None:
                 if self.B[self._i].__len__()==2:
-                    self.CtFT[self._i][0]+=self.A*self.B[self._i][0]*self.c[self._i]
-                    self.CtFT[self._i][1]+=self.A*self.B[self._i][1]*self.c[self._i]
+                    for ctft,B in zip(self.CtFT[self._i],self.B[self._i]):
+                        if self.sym=='sym': #Don't calculate imaginary components
+                            ctft+=(self.A.real*B.real-self.A.imag*B.imag)*self.c[self._i]
+                        elif self.sym=='0p':
+                            ctft+=self.A*B*self.c[self._i]
+                        else:
+                            ctft+=(self.A*B).conj()*self.c[self._i]
                 else:
-                    self.CtFT[self._i]+=self.A*self.B[self._i]*self.c[self._i]
+                    if self.sym=='sym': #Don't  calculate imaginary components
+                        self.CtFT[self._i]+=(self.A.real*self.B[self._i].real-\
+                            self.A.imag*self.B[self._i].imag)*self.c[self._i]
+                    elif self.ym=='0p':
+                        self.CtFT[self._i]+=self.A*self.B[self._i]*self.c[self._i]
+                    else:
+                        self.CtFT[self._i]+=(self.A*self.B[self._i]).conj()*self.c[self._i]
                 self.B[self._i]=None
+                self.c[self._i]=1
             else:
-                self.CtFT[self._i]+=self.A.conj()*self.A*self.c[self._i]
+                self.CtFT[self._i]+=(self.A.real**2+self.A.imag**2)*self.c[self._i] #A.conj()*A*c
         elif self.mode=='d':
             Ct_jit(self.Ct[self._i],self.index,self.i1,self.a,self.b[self._i],self.c[self._i])
             self.b[self._i]=None
+            self.c[self._i]=None
                         
             
     def Return(self,offset=0):
-        if self.Eq[self._i] is None:        #No correlation function calculated
-            return None if self.noCt else None,None
-        if self.noCt:return self.Eq[self._i]+offset
+        if self.Eq[self._i] is None:        #Nothing calculated
+            return None,None
+        if not(self.calc_ct):
+            return None,self.Eq[self._i]+offset #Only eq. value calculated
         
         if self.mode=='f':
             if len(self.CtFT[self._i])==2:
@@ -365,8 +399,9 @@ class Ctcalc():
             out=self.Ct[self._i].T            
             self.Ct[self._i]=None
 
-        out/=self.norm[self.i] if self._index is not None else self.norm        
-        return out.astype(dtype)+offset,self.Eq[self._i]+offset
+        out/=self.norm[self.i] if self._index is not None else self.norm
+        dt_out=dtypec if np.iscomplexobj(out) else dtype        
+        return out.astype(dt_out)+offset,self.Eq[self._i]+offset #Return correlation function and equilibrium
         
     def __getitem__(self,k):
         self._i=k

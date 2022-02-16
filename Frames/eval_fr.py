@@ -44,9 +44,9 @@ from pyDR import Defaults
 import sys
 sys.path.append('/Users/albertsmith/GitHub')
 from pyDIFRATE.chimera.chimeraX_funs import draw_tensors
-from pyfftw.interfaces.numpy_fft import fft,ifft
+#from pyfftw.interfaces.numpy_fft import fft,ifft
 #from pyfftw.interfaces.scipy_fft import fft,ifft
-import os
+#import os
 
 dtype=Defaults['dtype']
 flags={'ct_finF':True,'ct_m0_finF':False,'ct_0m_finF':False,'ct_0m_PASinF':False,\
@@ -236,7 +236,7 @@ class FrameObj():
                     else:
                         self.frame_info['frame_index'].append(np.arange(nb))
                 self.frame_info['info'].append(info)
-                self._vf.append(fun)    #Append the new function
+                self.vf.append(fun)    #Append the new function
                 self.__frames_loaded=False
                 self.__return_index=None    #This is the return index that was actually used
     
@@ -273,16 +273,16 @@ class FrameObj():
         self.vf=list()
         self.frame_info={'frame_index':list(),'label':None,'info':list()}
     
-    def load_frames(self,t0=0,tf=-1,n=10,nr=10,step=None,dt=None,index=None):
+    def load_frames(self,n=-1,nr=10,index=None):
         """
         Sweeps through the trajectory and loads all frame and tensor vectors, 
         storing the result in vecs
         """
-        tf=self.molecule.mda_object.trajectory.n_frames if tf==-1 or tf is None else int(tf)
-        index=np.arange(t0,tf,step) if step is not None else sparse_index(int(tf-t0),n,nr)+int(t0)
+        tf=len(self.molecule.traj)
+        index=sparse_index(tf,n,nr)
         if self.__frames_loaded:
             if np.all(self.vecs['index']==index):return
-        self.vecs=mol2vec(self,dt=dt,index=index)
+        self.vecs=mol2vec(self,index=index)
         self.__frames_loaded=True
         self.include=None   #If new frames loaded, we should re-set what frames used for correlation functions
         
@@ -786,19 +786,19 @@ def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=
     return out
 
 "This function extracts various frame vectors from trajectory"
-def mol2vec(mol,n=100,nr=10,t0=0,tf=-1,dt=None,index=None):
+def mol2vec(fr_obj,n=100,nr=10,index=None):
     """
     Extracts vectors describing from the frame functions found in the molecule
     object. Arguments are mol, the molecule object, n and nr, which are parameters
     specifying sparse sampling, and dt, which overrides dt found in the trajectory
     """
-        
-    traj=(mol if hasattr(mol,'mda_object') else mol.molecule).mda_object.trajectory
-    if tf is None or tf==-1:tf=traj.n_frames
-    if index is None:
-        index=sparse_index(tf-t0,n,nr)+t0
     
-    return ini_vec_load(traj,mol._vf,mol._vft,mol._frame_info['frame_index'],index=index,dt=dt,info=mol._frame_info['info'])
+    traj=fr_obj.molecule.traj    
+    tf=len(traj)
+    if index is None:
+        index=sparse_index(tf,n,nr)
+    
+    return ini_vec_load(traj,fr_obj.vf,fr_obj.vft,fr_obj.frame_info['frame_index'],index=index,info=fr_obj.frame_info['info'])
     
 "This function takes care of the bulk of the actual calculations"
 def Ct_D2inf(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p',mode='both',index=None):
@@ -859,8 +859,8 @@ def Ct_D2inf(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p'
 
      
     #Flags for calculating correlation function or not, and how to calculate
-    noCt=False if (mode[0].lower()=='b' or mode[0].lower()=='c') else True
-    ctc=Ctcalc(mode='a',index=index,noCt=noCt,length=5)
+    calc_ct=True if (mode[0].lower()=='b' or mode[0].lower()=='c') else False
+    ctc=Ctcalc(mode='a',index=index,calc_ct=calc_ct,length=5)
 #    if calc_ct:
 #        if index is None or index.size/index[-1]>0.25:   #No idea where the cutoff is....
 #            ctFT=True
@@ -890,77 +890,83 @@ def Ct_D2inf(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p'
             zzp=l0['eag']*l0['ebd']
         else:
             zzp=l0['az']*l0['bz']
-        zz=zzp.mean(-1)
+#        zz=zzp.mean(-1)
         
-        "zz is the common component for all correlation functions"
+        """zz is the common component for all correlation functions, so we assign
+        it to a of the correlation function calculator
+        """
         ctc.a=zzp
         
 #        "Get the FT of zzp if required"
 #        if ctFT:ftzz=FT(zzp,index)
 
         "Loop over all terms C_0p"
-        for k in range(5):
+#        for k in range(5):
+        for k,ctc0 in enumerate(ctc):
             if calc[k]:             #Loop over all terms
                 p=ct_prods(l0,k)
-                ctc[k].b=p
+                "Assigning p to b to correlate it with the zz component"
+                ctc[k].b=p      
                 ctc[k].add()
 
 #                d20[k]+=p.mean(-1)*zz
 #                if ctFT:ct0[k]+=FT(p,index).conj()*ftzz #Calc ct
 #                if ctDIR:ct0[k]+=fastCT(p,zzp,index,N)
                 
-                #TODO
-                #CONTINUE EDITING FROM HERE
         
     
        
     "Now calculate inverse transforms if calc_ct"
-    if ctFT:
-        print('Use Fourier Transform')
-        #Here the number of time point pairs for each element of the correlation function
-#        N=get_count(index) if index is not None else np.arange(n,0,-1)
-        i=N!=0
-        N=N[i]
-        #We only take values for N!=0, and then normalize by N
-        if mmpswap:
-            ct=[None if ct1 is None else (ifft(ct1.conj(),axis=-1,threads=os.cpu_count())[:,:n>>1])[:,i]/N for ct1 in ct0]
-#            ct=[None if ct1 is None else (ifft(ct1.conj(),axis=-1)[:,:n>>1])[:,i]/N for ct1 in ct0]
-        else:
-            ct=[None if ct1 is None else (ifft(ct1,axis=-1,threads=os.cpu_count())[:,:n>>1])[:,i]/N for ct1 in ct0]
-#            ct=[None if ct1 is None else (ifft(ct1,axis=-1)[:,:n>>1])[:,i]/N for ct1 in ct0]
-#        ct=[None if ct1 is None else ct1.conj() for ct1 in ct]   #We have the complex conjugate of the correct correlation function
-    elif ctDIR:
-        ct=[None if ct1 is None else ct1/N[N!=0] for ct1 in ct0]
+#    if ctFT:
+#        print('Use Fourier Transform')
+#        #Here the number of time point pairs for each element of the correlation function
+##        N=get_count(index) if index is not None else np.arange(n,0,-1)
+#        i=N!=0
+#        N=N[i]
+#        #We only take values for N!=0, and then normalize by N
+#        if mmpswap:
+#            ct=[None if ct1 is None else (ifft(ct1.conj(),axis=-1,threads=os.cpu_count())[:,:n>>1])[:,i]/N for ct1 in ct0]
+##            ct=[None if ct1 is None else (ifft(ct1.conj(),axis=-1)[:,:n>>1])[:,i]/N for ct1 in ct0]
+#        else:
+#            ct=[None if ct1 is None else (ifft(ct1,axis=-1,threads=os.cpu_count())[:,:n>>1])[:,i]/N for ct1 in ct0]
+##            ct=[None if ct1 is None else (ifft(ct1,axis=-1)[:,:n>>1])[:,i]/N for ct1 in ct0]
+##        ct=[None if ct1 is None else ct1.conj() for ct1 in ct]   #We have the complex conjugate of the correct correlation function
+#    elif ctDIR:
+#        ct=[None if ct1 is None else ct1/N[N!=0] for ct1 in ct0]
+    
+    ct,d2=list(),list()
+    offsets=[0,0,-1/2,0,0]
+    for ctc0,offset in zip(ctc,offsets):
+        out=ctc0.Return(offset=offset)
+        ct.append(out[0])
+        d2.append(out[1])
+    
     "Add offsets to terms C_pp"
-    offsets=[0,0,-1/2,0,0,-1/2,1/4,1/4,-1/2]
-    d2=[None if d21 is None else d21+o for d21,o in zip(d20,offsets)]
-    if calc_ct:ct=[None if ct1 is None else ct1+o for ct1,o in zip(ct,offsets)]
+#    offsets=[0,0,-1/2,0,0,-1/2,1/4,1/4,-1/2]
+#    d2=[None if d21 is None else d21+o for d21,o in zip(d20,offsets)]
+#    if calc_ct:ct=[None if ct1 is None else ct1+o for ct1,o in zip(ct,offsets)]
 
     "If a particular value selected with m=0,mp!=0 (C_p0), apply the m/mp swap"
     if mmpswap:     
-        d2=[m_mp_swap(d2,0,k-2,k-2,0) for k,d2 in enumerate(d2[:5])]
-        if calc_ct:ct=[m_mp_swap(ct0,0,k-2,k-2,0) for k,ct0 in enumerate(ct[:5])]    
+#        d2=[m_mp_swap(d2,0,k-2,k-2,0) for k,d2 in enumerate(d2[:5])]
+#        if calc_ct:ct=[m_mp_swap(ct0,0,k-2,k-2,0) for k,ct0 in enumerate(ct[:5])]
+        d2=[m_mp_swap(d2,0,k-2,k-2,0) for k,d2 in enumerate(d2)]
+        ct=[m_mp_swap(ct0,0,k-2,k-2,0) for k,ct0 in enumerate(ct)]
     
     "Remove extra dimension if input was one dimensional"
     if vZ.ndim==2:
         d2=[None if d21 is None else d21.squeeze() for d21 in d2]
-        if calc_ct:ct=[None if ct1 is None else ct1.squeeze() for ct1 in ct]
+        ct=[None if ct1 is None else ct1.squeeze() for ct1 in ct]
         
     """Extract only desired terms of ct,d2 OR"
     fill in terms of ct, d2 that are calculated with sign swaps/conjugates"""   
     if cmpt in ['0m','m0','0p','p0']:
         d2[3],d2[4]=-d2[1].conj(),d2[0].conj()
-        d2=np.array(d2[:5])
+        d2=np.array(d2)
         if calc_ct:
             ct[3],ct[4]=-ct[1].conj(),ct[0].conj()
-            ct=np.array(ct[:5])
-    elif cmpt in ['mm','pp']:
-        d2[-3],d2[-4]=-d2[-2].conj(),d2[-1].conj()
-        d2=np.array(d2[-4:])
-        if calc_ct:
-            ct[-3],ct[-4]=-ct[-2].conj(),ct[-1].conj()
-            ct=np.concatenate((ct[-4:-2],ct[2:3],ct[-2:]),axis=0)
-    elif cmpt in ['0-2','0-1','00','01','02','-2-2','-1-1','11','22','-20','-10','10','20']:
+            ct=np.array(ct)
+    elif cmpt in ['0-2','0-1','00','01','02','-20','-10','10','20']:
         i=np.argwhere(calc).squeeze()
         d2=d2[i]
         if calc_ct:ct=ct[i]
@@ -1227,92 +1233,92 @@ def Ctsym(A_0m_PASinf,nuZ_f,nuXZ_f=None,nuZ_F=None,nuXZ_F=None,index=None):
     return Ct_D2inf(nuZ_fsym,cmpt='00',mode='ct',index=index)
 
 
-def FT(x,index=None):
-    """
-    Performs a zero-filled Fourier transform (doubling the size). If an index
-    is included, a matrix is created with zeros at all positions not
-    in index, and having the values of the input vector, x, elsewhere.
-    
-    X = FT(x,index=None)
-    """
-    if index is not None:
-        if x.ndim==1:
-            x1=np.zeros(index.max()+1,dtype=complex)
-            x1[index]=x
-        else:
-            x1=np.zeros([x.shape[0],index.max()+1],dtype=complex)
-            x1[:,index]=x
-    else:
-        x1=x
-    n=x1.shape[-1]
-    return fft(x1,2*n,axis=-1,threads=os.cpu_count())
+#def FT(x,index=None):
+#    """
+#    Performs a zero-filled Fourier transform (doubling the size). If an index
+#    is included, a matrix is created with zeros at all positions not
+#    in index, and having the values of the input vector, x, elsewhere.
+#    
+#    X = FT(x,index=None)
+#    """
+#    if index is not None:
+#        if x.ndim==1:
+#            x1=np.zeros(index.max()+1,dtype=complex)
+#            x1[index]=x
+#        else:
+#            x1=np.zeros([x.shape[0],index.max()+1],dtype=complex)
+#            x1[:,index]=x
+#    else:
+#        x1=x
+#    n=x1.shape[-1]
+#    return fft(x1,2*n,axis=-1,threads=os.cpu_count())
 #    return fft(x1,2*n,axis=-1)
 
-def fastCT(x,y,index=None,N=None):
-    """
-    Direct calculation of the linear correlation function of x and y, assuming
-    sparsely sampled vectors
-    
-    ct=fastCT(x,y,index,N)
-    """
-    
-    if index is None:index=np.arange(x.shape[-1])
-    if N is None:N=get_count(index)
-    
-    i=N!=0    
-    N=N[i]
-    i1=(np.cumsum(i)-1).astype(int)
-    
-    ct=np.zeros([np.sum(i),x.shape[0]],dtype=complex)
-    
-    x=x.T
-    y=y.T
-
-    for k in range(x.shape[0]):
-        ct[i1[index[k:]-index[k]]]+=x[k]*y[k:]    
-
-    return ct.T
+#def fastCT(x,y,index=None,N=None):
+#    """
+#    Direct calculation of the linear correlation function of x and y, assuming
+#    sparsely sampled vectors
+#    
+#    ct=fastCT(x,y,index,N)
+#    """
+#    
+#    if index is None:index=np.arange(x.shape[-1])
+#    if N is None:N=get_count(index)
+#    
+#    i=N!=0    
+#    N=N[i]
+#    i1=(np.cumsum(i)-1).astype(int)
+#    
+#    ct=np.zeros([np.sum(i),x.shape[0]],dtype=complex)
+#    
+#    x=x.T
+#    y=y.T
+#
+#    for k in range(x.shape[0]):
+#        ct[i1[index[k:]-index[k]]]+=x[k]*y[k:]    
+#
+#    return ct.T
         
-def Ct_similar(ct0,A,m=None):
-    """
-    Calculate correlation functions from Ct_{00} assuming that all functions
-    have a similar shape (Ct_00 starts from one and decays to A[2]), other 
-    correlation functions start at 0 and increase to A[m]. Required arguments
-    are ct0 (=Ct_{00}), and the 5 elements of A. Optionally, may provide
-    multiple correlation functions with multiple A. All 5 correlation functions
-    are returned unless m is specified
-    
-    Ct=Ct_similar(ct0,A,m=None)
-    """
-    
-    if m==0:
-        return ct0  #Not sure why you'd call this function, but then return original
-    
-    A=np.array(A)
-    if A.ndim==2:
-        if A.shape[1]==5:
-            A=A.T   #Last dimension over bonds
-        if ct0.shape[0]==A.shape[1]:
-            ct0=ct0.T #Last dimension over bonds (for broadcasting)
-            tr=True
-        else:
-            tr=False
-        
-    
-    ct_norm=np.array(((ct0-A[2])/(1-A[2])).real,dtype=complex)
-    
-    if m is None:
-        ct=np.array([(1-ct_norm)*a for a in A])
-        ct[2]=ct0
-    else:
-        ct=(1-ct_norm)*A[m+2]   #Just one element, add 2 to get correct index
-        
-    if tr:ct=ct.swapaxes(-2,-1)
-    
-    return ct
+#def Ct_similar(ct0,A,m=None):
+#    """
+#    Calculate correlation functions from Ct_{00} assuming that all functions
+#    have a similar shape (Ct_00 starts from one and decays to A[2]), other 
+#    correlation functions start at 0 and increase to A[m]. Required arguments
+#    are ct0 (=Ct_{00}), and the 5 elements of A. Optionally, may provide
+#    multiple correlation functions with multiple A. All 5 correlation functions
+#    are returned unless m is specified
+#    
+#    Ct=Ct_similar(ct0,A,m=None)
+#    """
+#    
+#    if m==0:
+#        return ct0  #Not sure why you'd call this function, but then return original
+#    
+#    A=np.array(A)
+#    if A.ndim==2:
+#        if A.shape[1]==5:
+#            A=A.T   #Last dimension over bonds
+#        if ct0.shape[0]==A.shape[1]:
+#            ct0=ct0.T #Last dimension over bonds (for broadcasting)
+#            tr=True
+#        else:
+#            tr=False
+#        
+#    
+#    ct_norm=np.array(((ct0-A[2])/(1-A[2])).real,dtype=complex)
+#    
+#    if m is None:
+#        ct=np.array([(1-ct_norm)*a for a in A])
+#        ct[2]=ct0
+#    else:
+#        ct=(1-ct_norm)*A[m+2]   #Just one element, add 2 to get correct index
+#        
+#    if tr:ct=ct.swapaxes(-2,-1)
+#    
+#    return ct
 
 
-def ini_vec_load(traj,frame_funs,tensor_fun,frame_index=None,index=None,dt=None,info=None):
+def ini_vec_load(traj,frame_funs,tensor_fun,frame_index=None,index=None,info=None):
     """
     Loads vectors corresponding to each frame, defined in a list of frame functions.
     Each element of frame_funs should be a function, which returns one or two
@@ -1332,10 +1338,10 @@ def ini_vec_load(traj,frame_funs,tensor_fun,frame_index=None,index=None,dt=None,
     if hasattr(frame_funs,'__call__'):frame_funs=[frame_funs]  #In case only one frame defined (unusual usage)
 
     nf=len(frame_funs)
-    nt=traj.n_frames
+    nt=len(traj)
     
     if index is None: index=np.arange(nt)
-    if dt is None: dt=traj.dt
+    dt=traj.dt
     
     t=index*dt
     v=[list() for _ in range(nf)]

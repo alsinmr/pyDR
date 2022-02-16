@@ -29,9 +29,12 @@ Created on Thu Feb  6 10:43:33 2020
 """
 
 import numpy as np
-import pyDIFRATE.Struct.vf_tools as vft
-import pyDIFRATE.Struct.select_tools as selt
+from pyDR.MDtools import vft
+from pyDR.Selection import select_tools as selt
 
+"We import frames from other files as well"
+from .special_frames import *    # analysis:ignore
+from .user_frames import *       # analysis:ignore
 #%% Frames
 """
 Here, we define various functions that define the frames of different motions
@@ -58,8 +61,7 @@ def peptide_plane(molecule,resids=None,segids=None,filter_str=None,full=True,sig
         selCA,selH,selN,selCm1,selOm1,selCAm1=selt.peptide_plane(molecule,resids,segids,filter_str)
         
         "Get universe, reset time"
-        uni=molecule.mda_object
-        uni.trajectory.rewind()
+        molecule.traj[0]
         
         "Define function to calculate the vectors defining the plane"
         def vfun():
@@ -70,7 +72,7 @@ def peptide_plane(molecule,resids=None,segids=None,filter_str=None,full=True,sig
                             N.position-Cm1.position,
                             Cm1.position-Om1.position,
                             Cm1.position-CAm1.position])
-                box=uni.dimensions[:3]
+                box=molecule.box
                 v.append(vft.pbc_corr(v0.T,box))
             return v
         
@@ -86,9 +88,8 @@ def peptide_plane(molecule,resids=None,segids=None,filter_str=None,full=True,sig
     else:
         "Peptide plane motion, defined by C,N,O positions"
         selN,selC,selO=selt.peptide_plane(molecule,resids,segids,filter_str,full)
-        uni=molecule.mda_object
         def sub():
-            box=uni.dimensions[0:3]
+            box=molecule.box
             v1=selO.positions-selC.positions
             v2=selN.positions-selC.positions
             v1=vft.pbc_corr(v1.T,box)
@@ -125,17 +126,17 @@ def bond(molecule,sel1=None,sel2=None,sel3=None,Nuc=None,resids=None,segids=None
     elif sel3 is not None:
         sel3=selt.sel_simple(molecule,sel3,resids,segids,filter_str)
     
-    uni=molecule.mda_object
+    uni=molecule.uni
     
     if sel3 is None:
         def sub():
-            box=uni.dimensions[0:3]
+            box=molecule.box
             v=sel1.positions-sel2.positions
             v=vft.pbc_corr(v.T,box)
             return v
     else:
         def sub():
-            box=uni.dimensions[0:3]
+            box=molecule.box
             vZ=sel1.positions-sel2.positions
             vXZ=sel3.positions-sel2.positions
             vZ=vft.pbc_corr(vZ.T,box)
@@ -152,9 +153,9 @@ def LabXY(molecule,sel1=None,sel2=None,Nuc=None,resids=None,segids=None,filter_s
     else:
         sel1=selt.sel_simple(molecule,sel1,resids,segids,filter_str)
         sel2=selt.sel_simple(molecule,sel2,resids,segids,filter_str)
-    uni=molecule.mda_object
+
     def sub():
-        box=uni.dimensions[0:3]
+        box=molecule.box
         v=sel1.positions-sel2.positions
         v=vft.pbc_corr(v.T,box)
         v[2]=0
@@ -170,9 +171,9 @@ def LabZ(molecule,sel1=None,sel2=None,Nuc=None,resids=None,segids=None,filter_st
     else:
         sel1=selt.sel_simple(molecule,sel1,resids,segids,filter_str)
         sel2=selt.sel_simple(molecule,sel2,resids,segids,filter_str)
-    uni=molecule.mda_object
+
     def sub():
-        box=uni.dimensions[0:3]
+        box=molecule.box
         v=sel1.positions-sel2.positions
         v=vft.pbc_corr(v.T,box)
         v[:2]=0
@@ -213,10 +214,10 @@ def bond_rotate(molecule,sel1=None,sel2=None,sel3=None,Nuc=None,resids=None,segi
         sel0=sel1.universe.residues[i].atoms
         sel3=selt.find_bonded(sel2,sel0,sel1,n=1,sort='cchain')[0]
         
-    uni=molecule.mda_object
+
 
     def sub():
-        box=uni.dimensions[0:3]
+        box=molecule.box
         v1=sel1.positions-sel2.positions
         v2=sel2.positions-sel3.positions
         v1=vft.pbc_corr(v1.T,box)
@@ -238,9 +239,10 @@ def superimpose(molecule,sel=None,resids=None,segids=None,filter_str=None,sigma=
     """
     
     sel=selt.sel_lists(molecule,sel,resids,segids,filter_str)    
-    uni=molecule.mda_object
+    uni=molecule.uni
     "Calculate the reference vectors"
     uni.trajectory.rewind()
+    molecule.traj[0]
     vref=list()
     i0=list()
     for s in sel:
@@ -250,7 +252,7 @@ def superimpose(molecule,sel=None,resids=None,segids=None,filter_str=None,sigma=
        
     def sub():
         R=list()
-        box=uni.dimensions[:3]
+        box=molecule.box
         for s,vr,i in zip(sel,vref,i0):
             v=vft.pbc_corr(np.diff(s.positions[i],axis=0).T,box)   #Calculate vectors, periodic boundary correction
             R.append(vft.RMSalign(vr,v))    #Get alignment to reference vector
@@ -272,7 +274,7 @@ def chain_rotate(molecule,sel=None,Nuc=None,resids=None,segids=None,filter_str=N
     have to include a methyl proton)
     """
 
-    uni=molecule.mda_object
+    uni=molecule.uni
 
     "Get the initial selection"
     if Nuc is not None:
@@ -300,7 +302,7 @@ def chain_rotate(molecule,sel=None,Nuc=None,resids=None,segids=None,filter_str=N
             
     
     def sub():
-        box=uni.dimensions[0:3]
+        box=molecule.box
         v=sel2.positions-sel1.positions
         v=vft.pbc_corr(v.T,box)
         return v
@@ -320,8 +322,8 @@ def methylCC(molecule,Nuc=None,resids=None,segids=None,filter_str=None,sigma=0):
     selC1,_=selt.protein_defaults(Nuc,molecule,resids,segids,filter_str)  
     selC1=selC1[::3]    #Above line returns 3 copies of each carbon. Just take 1 copy     
     
-    resids=molecule.mda_object.residues.resids
-    sel0=molecule.mda_object.residues[np.isin(resids,selC1.resids)].atoms
+    resids=molecule.uni.residues.resids
+    sel0=molecule.uni.residues[np.isin(resids,selC1.resids)].atoms
     selC2=selt.find_bonded(selC1,sel0,n=1,sort='cchain')[0]
     selC3=selt.find_bonded(selC2,sel0,exclude=selC1,n=1,sort='cchain')[0]
 #    
@@ -329,7 +331,7 @@ def methylCC(molecule,Nuc=None,resids=None,segids=None,filter_str=None,sigma=0):
 #                                 .format(s.segid,s.resid,s.name)) for s in selC1])
     
     def sub():
-        box=molecule.mda_object.dimensions[:3]
+        box=molecule.box
         v1,v2=selC1.positions-selC2.positions,selC2.positions-selC3.positions
         v1,v2=[vft.pbc_corr(v.T,box) for v in [v1,v2]]
         return v1,v2
@@ -339,7 +341,7 @@ def methylCC(molecule,Nuc=None,resids=None,segids=None,filter_str=None,sigma=0):
 def side_chain_chi(molecule,n_bonds=1,Nuc=None,resids=None,segids=None,filter_str=None,sigma=0):
     """
     Returns a frame that accounts for motion arounda given bond in the side chain,
-    where we are interested in the total methyl dynamics.Ideally, the product of
+    where we are interested in the total methyl dynamics. Ideally, the product of
     all side chain rotations plus the backbone motion and methyl rotation yields
     the total motion. One should provide the same selection arguments as used for
     the methylCC frame, plus one additional argument, n_bonds, which determines
@@ -375,10 +377,9 @@ def side_chain_chi(molecule,n_bonds=1,Nuc=None,resids=None,segids=None,filter_st
         else:
             frame_index.extend([np.nan,np.nan,np.nan])
     frame_index=np.array(frame_index)
-    uni=molecule.mda_object
     
     def sub():
-        box=uni.dimensions[0:3]
+        box=molecule.box
         vZ=sel1.positions-sel2.positions
         vXZ=sel3.positions-sel2.positions
         vZ=vft.pbc_corr(vZ.T,box)
@@ -428,12 +429,11 @@ def librations(molecule,sel1=None,sel2=None,Nuc=None,resids=None,segids=None,fil
                             v3.position-v1.position,
                             v4.position-v1.position,
                             v5.position-v1.position])
-                box=uni.dimensions[:3]
+                box=molecule.box
                 v.append(vft.pbc_corr(v0.T,box))
             return v
         
-        uni=molecule.mda_object
-        uni.trajectory.rewind()
+        molecule.traj[0]
         
         vref=vfun()
         
@@ -445,9 +445,8 @@ def librations(molecule,sel1=None,sel2=None,Nuc=None,resids=None,segids=None,fil
     else:
         sel2,sel3=selt.find_bonded(sel1,sel0,n=2,sort='mass')
         
-        uni=molecule.mda_object
         def sub():
-            box=uni.dimensions[0:3]
+            box=molecule.box
             v1=sel2.positions-sel1.positions
             v2=sel1.positions-sel3.positions
             v1=vft.pbc_corr(v1.T,box)
@@ -493,12 +492,11 @@ def librations0(molecule,sel1=None,sel2=None,Nuc=None,resids=None,segids=None,fi
                         v3.position-v1.position,
                         v4.position-v1.position,
                         v5.position-v1.position])
-            box=uni.dimensions[:3]
+            box=molecule.box
             v.append(vft.pbc_corr(v0.T,box))
         return v
     
-    uni=molecule.mda_object
-    uni.trajectory.rewind()
+    molecule.traj[0]
     
     vref=vfun()
     
@@ -521,10 +519,9 @@ def MOIz(molecule,sel,resids=None,segids=None,filter_str=None):
     """
     
     sel=selt.sel_lists(molecule,sel,resids,segids,filter_str)    
-    uni=molecule.mda_object
-    uni.trajectory[0]
+    molecule.traj[0]
     
-    box=uni.dimensions[:3]
+    box=molecule.box
     
     for k,s in enumerate(sel):
         vr=s.positions
@@ -539,7 +536,7 @@ def MOIz(molecule,sel,resids=None,segids=None,filter_str=None):
     
     def sub():
         v=list()
-        box=uni.dimensions[:3]
+        box=molecule.box
         for s,vr in zip(sel,vref):
             v0=vft.pbc_pos(s.positions.T,box)
             v1=vft.principle_axis_MOI(v0)[:,0]
@@ -574,8 +571,7 @@ def MOIxy(molecule,sel,sel1=None,sel2=None,Nuc=None,index=None,resids=None,segid
         sel1=selt.sel_simple(molecule,sel1,resids,segids,filter_str)
         sel2=selt.sel_simple(molecule,sel2,resids,segids,filter_str)
     
-    uni=molecule.mda_object
-    uni.trajectory[0]
+    molecule.traj[0]
     
     
     for k,s in enumerate(sel):
@@ -594,7 +590,7 @@ def MOIxy(molecule,sel,sel1=None,sel2=None,Nuc=None,index=None,resids=None,segid
         
     def sub():
         vnorm=list()
-        box=uni.dimensions[:3]
+        box=molecule.box
         for s in sel:
             v0=vft.pbc_pos(s.positions.T,box)
             vnorm.append(vft.principle_axis_MOI(v0)[:,0])
@@ -640,15 +636,12 @@ def MOIbeta(molecule,sel,sel1=None,sel2=None,Nuc=None,index=None,resids=None,seg
         sel1=selt.sel_simple(molecule,sel1,resids,segids,filter_str)
         sel2=selt.sel_simple(molecule,sel2,resids,segids,filter_str)
     
-    uni=molecule.mda_object
-    uni.trajectory[0]
+    molecule.traj[0]
     
     
     sel=selt.sel_lists(molecule,sel,resids,segids,filter_str)    
-    uni=molecule.mda_object
-    uni.trajectory[0]
     
-    box=uni.dimensions[:3]
+    box=molecule.box
     
     for k,s in enumerate(sel):
         vr=s.positions
@@ -663,7 +656,7 @@ def MOIbeta(molecule,sel,sel1=None,sel2=None,Nuc=None,index=None,resids=None,seg
     
     def MOIsub():
         v=list()
-        box=uni.dimensions[:3]
+        box=molecule.box
         for s,vr in zip(sel,vref):
             v0=vft.pbc_pos(s.positions.T,box)
             v1=vft.principle_axis_MOI(v0)[:,0]
@@ -685,7 +678,7 @@ def MOIbeta(molecule,sel,sel1=None,sel2=None,Nuc=None,index=None,resids=None,seg
             return 
 
 #    vref=list()
-#    box=uni.dimensions[:3]
+#    box=molecule.box
 #    for s in sel:
 #        v0=vft.pbc_pos(s.positions.T,box)
 #        vref.append(vft.principle_axis_MOI(v0)[:,0])

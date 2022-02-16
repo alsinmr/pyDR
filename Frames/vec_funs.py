@@ -30,12 +30,9 @@ Created on Wed Aug 21 13:21:49 2019
 """
 
 
-import pyDIFRATE.Struct.frames as frames
-import pyDIFRATE.Struct.user_frames as user_frames
-import pyDIFRATE.Struct.special_frames as special_frames
+from . import frames
 import sys
 
-fr=[user_frames,special_frames,frames]
 
 
 def new_fun(Type,molecule,**kwargs):
@@ -52,10 +49,9 @@ def new_fun(Type,molecule,**kwargs):
     """
 
     fun0=None
-    for f in fr:
-        if is_valid(f,Type):
-            fun0=f.__dict__[Type]
-            break
+    if is_valid(frames,Type):
+        fun0=frames.__dict__[Type]
+    
     if fun0 is None:
         raise Exception('Frame "{0}" was not recognized'.format(Type))
     
@@ -95,16 +91,14 @@ def return_frame_info(Type=None):
     
     if Type is None:
         fun_names=list()
-        for f in fr:
-            for n in dir(f):
-                if is_valid(f,n):
-                    fun_names.append(n)
+        for n in dir(frames):
+            if is_valid(frames,n):
+                fun_names.append(n)
         return fun_names
     else:
-        for f in fr:
-            if is_valid(f,Type):
-                code=f.__dict__[Type].__code__
-                return code.co_varnames[1:code.co_argcount]
+        if is_valid(frames,Type):
+            code=frames.__dict__[Type].__code__
+            return code.co_varnames[1:code.co_argcount]
 
         print('Frame "{0}" is not implemented'.format(Type))
         return
@@ -125,9 +119,9 @@ def print_frame_info(Type=None):
         if args is not None:
             print('"{0}" has arguments {1}'.format(Type,args))
     
-def is_valid(mod,Type):
+def is_valid(module,Type):
     """
     Checks if a frame is included in a given module
     """
-    return Type in dir(mod) and hasattr(mod.__dict__[Type],'__code__') and\
-         mod.__dict__[Type].__code__.co_varnames[0]=='molecule'
+    return Type in dir(module) and hasattr(module.__dict__[Type],'__code__') and\
+         module.__dict__[Type].__code__.co_varnames[0]=='molecule'

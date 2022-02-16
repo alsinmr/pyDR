@@ -28,7 +28,7 @@ Created on Mon Sep 20 13:56:00 2021
 @author: albertsmith
 """
 
-from pyDIFRATE.Struct import vf_tools as vft
+from pyDR.MDtools import vft
 import numpy as np
 
 

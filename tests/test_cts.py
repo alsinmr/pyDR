@@ -15,7 +15,7 @@ from time import time
 pdb='/Volumes/My Book/HETs/HETs_5chain_B.pdb'
 xtc='/Volumes/My Book/HETs/MDSimulation/HETs_5chain_MET_4pw_cb10_2micros.xtc'
 
-molsys=pyDR.MolSys(pdb,xtc,step=1)
+molsys=pyDR.MolSys(pdb,xtc,step=10)
 
 sel=pyDR.MolSelect(molsys)
 

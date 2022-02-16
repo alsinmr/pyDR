@@ -13,3 +13,4 @@ from pyDR.Fitting import Fitting
 from pyDR import IO
 from pyDR import Sens
 from pyDR.misc.tools import tools
+from pyDR.Project import Project

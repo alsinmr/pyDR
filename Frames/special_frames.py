@@ -61,13 +61,12 @@ for proteins, because it is relatively simple)
             some_setup
             sel1,sel2,...=molecule_selections (use select_tools for convenience)
             ...
-            uni=molecule.mda_object
             
             def sub()
                 ...
                 v1,v2=some_calculations
                 ...
-                box=uni.dimensions[:3] (periodic boundary conditions)
+                box=molecule.box (periodic boundary conditions)
                 v1=vft.pbc_corr(v1,box)
                 v2=vft.pbc_corr(v2,box)
                 
@@ -79,8 +78,8 @@ for proteins, because it is relatively simple)
 
 
 import numpy as np
-import pyDIFRATE.Struct.vf_tools as vft
-import pyDIFRATE.Struct.select_tools as selt
+from pyDR.MDtools import vft
+from pyDR.Selection import select_tools as selt
 
 def hop_setup(uni,sel1,sel2,sel3,sel4,ntest=1000):
     """
@@ -164,9 +163,9 @@ def chi_hop(molecule,n_bonds=1,Nuc=None,resids=None,segids=None,filter_str=None,
     "Next, we sample the trajectory to get an estimate of the energy minima of the hopping"
     #Note that we are assuming that minima are always separated by 120 degrees
     
-    vr=hop_setup(molecule.mda_object,sel1,sel2,sel3,sel4,ntest)
+    vr=hop_setup(molecule.uni,sel1,sel2,sel3,sel4,ntest)
     
-    box=molecule.mda_object.dimensions
+    box=molecule.box
     if sigma!=0:
         def sub():
             return [vft.pbc_corr((s1.positions-s2.positions).T,box[:3]) \
@@ -229,7 +228,7 @@ def hops_3site(molecule,sel1=None,sel2=None,sel3=None,sel4=None,\
     if 'H' in sel2[0].name:sel1,sel2=sel2,sel1
 
     "Get all atoms in the residues included in the initial selection"
-    uni=molecule.mda_object
+    uni=molecule.uni
     resids=np.unique(np.concatenate([sel1.resids,sel2.resids]))
     sel0=uni.residues[np.isin(uni.residues.resids,resids)].atoms
     
@@ -238,17 +237,17 @@ def hops_3site(molecule,sel1=None,sel2=None,sel3=None,sel4=None,\
     if not(sel4):
         sel4=selt.find_bonded(sel3,sel0,exclude=sel2,n=1,sort='cchain',d=1.65)[0]
         
-    vr=hop_setup(molecule.mda_object,sel1,sel2,sel3,sel4,ntest)
+    vr=hop_setup(molecule.uni,sel1,sel2,sel3,sel4,ntest)
     
-    box=uni.dimensions
+    box=molecule.box
     if sigma!=0:
         def sub():
-            return [vft.pbc_corr((s1.positions-s2.positions).T,box[:3]) \
+            return [vft.pbc_corr((s1.positions-s2.positions).T,box) \
                          for s1,s2 in zip([sel1,sel2,sel3],[sel2,sel3,sel4])]
         return sub,None,{'PPfun':'AvgHop','vr':vr,'sigma':sigma}
     else:
         def sub():
-            v12s,v23s,v34s=[vft.pbc_corr((s1.positions-s2.positions).T,box[:3]) \
+            v12s,v23s,v34s=[vft.pbc_corr((s1.positions-s2.positions).T,box) \
                          for s1,s2 in zip([sel1,sel2,sel3],[sel2,sel3,sel4])]
             v12s=vft.norm(v12s)
             sc=vft.getFrame(v23s,v34s)
@@ -292,14 +291,14 @@ def membrane_grid(molecule,grid_pts,sigma=25,sel0=None,sel='type P',resids=None,
       
     """
 
-    uni=molecule.mda_object
+    uni=molecule.uni
     
     X,Y,Z=uni.dimensions[:3]
     nX,nY=1+2*np.round((np.sqrt(grid_pts)-1)/2*np.array([X/Y,Y/X]))
     dX,dY=X/nX,Y/nY
     
     print('{0:.0f} pts in X, {1:.0f} pts in Y, for {2:.0f} total points'.format(nX,nY,nX*nY))
-    print('Spacing is {0:.2f} A in X, {0:.2f} A in Y'.format(dX,dY))
+    print('Spacing is {0:.2f} A in X, {1:.2f} A in Y'.format(dX,dY))
     print('Center of grid is found at index {0:.0f}'.format(nX*(nY-1)/2+(nX-1)/2))
     print('sigma = {0:.2f} A'.format(sigma))
     
@@ -335,7 +334,7 @@ def membrane_grid(molecule,grid_pts,sigma=25,sel0=None,sel='type P',resids=None,
         "Calculate planes for each element in grid"
         X,Y=grid()
         v=list()
-        box=uni.dimensions[:3]
+        box=molecule.box
         for x,y in zip(X,Y):  
             v0=vft.pbc_corr(np.transpose(sel.positions-[x,y,0]),box)
             d2=v0[0]**2+v0[1]**2
@@ -379,9 +378,8 @@ def hop(molecule,angle=np.arccos(np.sqrt(1/3)),sel1=None,sel2=None,sel3='auto',N
     elif sel3 is not None:
         sel3=selt.sel_simple(molecule,sel3,resids,segids,filter_str)
     
-    uni=molecule.mda_object
-    uni.trajectory[0]
-    box=uni.dimensions[:3]
+    molecule.traj[0]
+    box=molecule.box
     vZ0=vft.pbc_corr((sel1.positions-sel2.positions).T,box)
     priorZ=[vZ0 for _ in range(step)] #List to keep track of previous frames
    
@@ -391,7 +389,7 @@ def hop(molecule,angle=np.arccos(np.sqrt(1/3)),sel1=None,sel2=None,sel3='auto',N
     threshold=np.cos(angle)
 
     def sub():                
-        box=uni.dimensions[0:3]
+        box=molecule.box
         vZ=vft.norm(vft.pbc_corr((sel1.positions-sel2.positions).T,box))
         vXZ=vft.pbc_corr((sel3.positions-sel2.positions).T,box) if sel3 else None
               
