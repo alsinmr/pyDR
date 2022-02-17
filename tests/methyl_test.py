@@ -41,7 +41,7 @@ matplotlib.rc('font', **font)
 
 
 "This loads the MD trajectory into pyDIFRATE"
-tf=20000
+tf=2000
 molsys=DR.MolSys('/Users/albertsmith/Documents/GitHub/Frames_Theory_archive/HETs_ILE254.pdb',
               '/Users/albertsmith/Documents/GitHub/Frames_Theory_archive/HETs_ILE254.xtc',
               tf=tf)
@@ -147,3 +147,4 @@ fig.set_size_inches([180/25.4,220/25.4])
 
 plt.show()
 
+data=fr_obj.frames2data(include=inc,mode='full')

@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from os import listdir
 from os.path import join
 import numpy as np
-import pyDIFRATE as DR
-from pyDIFRATE.data.load_nmr import load_NMR
+#import pyDIFRATE as DR
+#from pyDIFRATE.data.load_nmr import load_NMR
 import MDAnalysis as MDA
 
 
@@ -155,7 +155,7 @@ class pyDR_GUI(QWidget):
 
         H = Header(self)  #creating the Header, this one should stay in program whole time
         self.layout.addWidget(H)
-        self.layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.layout.setAlignment(Qt.AlignTop)
         self.setLayout(self.layout)
 
     def set_body(self, body):

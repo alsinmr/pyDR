@@ -14,6 +14,7 @@ class DataInfo():
     def __init__(self,project):
         self.project=project
         self.data_objs=[None for _ in self.saved_files]
+        self._hashes=[None for _ in self.saved_files]
         if not(os.path.exists(self.directory)):os.mkdir(self.directory)
     
     @property

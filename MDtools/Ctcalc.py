@@ -232,10 +232,12 @@ class Ctcalc():
         self.dt=dt
         
         #Some setup for sparse sampling
+        super().__setattr__('i1',None)
         if self._index is not None:
             super().__setattr__('count',get_count(index))
             super().__setattr__('i',self.count!=0)
             super().__setattr__('i1',(np.cumsum(self.i)-1).astype(int))
+            
     
     @property
     def mode(self):
@@ -378,7 +380,7 @@ class Ctcalc():
         elif self.mode=='d':
             Ct_jit(self.Ct[self._i],self.index,self.i1,self.a,self.b[self._i],self.c[self._i])
             self.b[self._i]=None
-            self.c[self._i]=None
+            self.c[self._i]=1
                         
             
     def Return(self,offset=0):
@@ -521,13 +523,13 @@ def Ct(v):
     the 0 axis and time on the -1 axis.
     """
     v/=np.sqrt((v**2).sum(0))
-    ctf=Ct_fast()
+    ctc=Ctcalc()
     for k in range(3):
         for j in range(k,3):
-            ctf.a=v[k]*v[j]
-            ctf.c=1.5 if k==j else 3
-            ctf.add()
-    return ctf.Return(offset=-1/2)
+            ctc.a=v[k]*v[j]
+            ctc.c=1.5 if k==j else 3
+            ctc.add()
+    return ctc.Return(offset=-1/2)
 
 
     

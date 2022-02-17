@@ -39,6 +39,7 @@ from pyDR import Data
 from .vec_funs import new_fun,print_frame_info
 from . import FramesPostProc as FPP
 from pyDR import Defaults
+from pyDR.Sens import MD
 
 #Temporary inclusion of some parts of pyDIFRATE (old version)
 import sys
@@ -345,17 +346,25 @@ class FrameObj():
         Transfers the frames results to a list of data objects
         """
         self.frames2ct(mode=mode,return_index=return_index,include=include)
-        if self.frame_info['label'] is not None:
-            label=self.frame_info['label']
-        elif self.molecule.label is not None and len(self.molecule.label)==self.ct_out['ct'].shape[0]:
-            label=self.molecule.label
-        else:
-            label=np.arange(self.ct_out['ct'].shape[0])
-        out=ct2data(self.ct_out)
-        for o in out:
-            o.label=label
-            o.sens.molecule=self.molecule
-            o.detect.molecule=self.molecule
+#        if self.frame_info['label'] is not None:
+#            label=self.frame_info['label']
+#        elif self.molecule.label is not None and len(self.molecule.label)==self.ct_out['ct'].shape[0]:
+#            label=self.molecule.label
+#        else:
+#            label=np.arange(self.ct_out['ct'].shape[0])
+        out=ct2data(self.ct_out,self.molecule)
+#        for o in out:
+#            o.label=label
+#            o.sens.molecule=self.molecule
+#            o.detect.molecule=self.molecule
+        
+        frame_names=[vf.__str__().split(' ')[1].split('.')[0] for vf in self.vf]
+        
+        
+        
+        for o,fr0,fr1 in zip(out[2:],['PAS',*frame_names],[*frame_names,'LF']):
+            o.src_info.frame_type='{0}->{1}'.format(fr0,fr1)
+            
                 
         return out
         
@@ -428,13 +437,14 @@ def frames2data(mol=None,v=None,mode='full',n=100,nr=10,tf=None,dt=None):
     ct_out=frames2ct(mol=mol,v=v,return_index=return_index,mode=mode,n=n,nr=nr,tf=tf,dt=dt)
     
     
-    out=ct2data(ct_out)
-    if mol is not None and out[0].R.shape[0]==len(mol.label):
-        for o in out:o.label=mol.label #Pass the molecule label
-    if mol is not None:
-        for d in out:
-            d.sens.molecule=mol
-            d.detect.molecule=mol
+    out=ct2data(ct_out,mol)
+#    if mol is not None and out[0].R.shape[0]==len(mol.label):
+#        for o in out:o.label=mol.label #Pass the molecule label
+#    if mol is not None:
+#        for d in out:
+#            d.sens.molecule=mol
+#            d.detect.molecule=mol
+    
     
     return out
 
@@ -449,7 +459,7 @@ def frames2tensors(mol=None,v=None,n=100,nr=10,tf=None,dt=None):
     return frames2ct(mol=mol,v=v,return_index=return_index,n=n,nr=nr,tf=tf,dt=dt)
 
 "Here we go from the output of frames2ct and load it into a data object"
-def ct2data(ct_out):
+def ct2data(ct_out,mol=None):
     """
     Takes the results of a frames2ct calculation (the ct_out dict) and loads 
     the results into a data object(s) for further processing. One data object 
@@ -466,33 +476,74 @@ def ct2data(ct_out):
     
     out=list()
     
+    md=MD(t=ct_out['t'])
+    stdev=md.info['stdev']
     if 'ct' in ct_out:
-        ct={'Ct':ct_out['ct'],'N':ct_out['N'],'index':ct_out['index'],'t':ct_out['t']}
-        out.append(Data(Ct=ct)) #TODO
+        data=Data(R=ct_out['ct'],sens=md,select=mol,Type='Frames')
+        data.Rstd[:]=stdev #Copy stdev for every data point
+        data.src_info.frame_type='Direct'
+        data.src_info.filename=mol.traj.files
         if 'S2' in ct_out:
-            out[-1].vars['S2']=ct_out['S2']
-        
+            data.src_info.S2=ct_out['S2']
+        out.append(data)
+    
     if 'ct_prod' in ct_out:
-        ct={'Ct':ct_out['ct_prod'],'N':ct_out['N'],'index':ct_out['index'],'t':ct_out['t']}
-        out.append(Data(Ct=ct))
+        data=Data(R=ct_out['ct_prod'],sens=md,select=mol,Type='Frames')
+        data.Rstd[:]=stdev #Copy stdev for every data point
+        data.src_info.frame_type='Direct'
+        data.src_info.filename=mol.traj.files
         if 'A_0m_PASinF' in ct_out:
-            out[-1].vars['A_0m_PASinLF']=ct_out['A_0m_PASinF'][-1]
-        
+            data.src_info.add_storage('tensors',A_0m_PASinF=ct_out['A_0m_PASinF'][-1])
+        data.detect=out[0].detect
+        out.append(data)
+    
     if 'ct_finF' in ct_out:
         for k,ct0 in enumerate(ct_out['ct_finF']):
             ct={'Ct':ct0,'N':ct_out['N'],'index':ct_out['index'],'t':ct_out['t']}
-            out.append(Data(Ct=ct))
+            data=Data(R=ct0,sens=md,select=mol,Type='Frames')
+            data.Rstd[:]=stdev #Copy stdev for every data point
+            data.src_info.filename=mol.traj.files
             if 'A_m0_finF' in ct_out:
-                out[-1].vars['A_m0_finF']=ct_out['A_m0_finF'][k]
+                data.src_info.add_storage('tensors',A_m0_finF=ct_out['A_m0_finF'][k])
             if 'A_0m_finF' in ct_out:
-                out[-1].vars['A_0m_finF']=ct_out['A_0m_finF'][k]
+                data.src_info.add_storage('tensors',A_0m_finF=ct_out['A_0m_finF'][k])
             if 'A_0m_PASinF' in ct_out:
                 if k==0:
                     A0=np.zeros([5,out[-1].R.shape[0]])
                     A0[2]=1
                 else:
                     A0=ct_out['A_0m_PASinF'][k-1]
-                out[-1].vars['A_0m_PASinF']=A0
+                data.src_info.add_storage('tensors',A_0m_PASinF=A0)
+            data.detect=out[0].detect
+            out.append(data)
+    
+#    if 'ct' in ct_out:
+#        ct={'Ct':ct_out['ct'],'N':ct_out['N'],'index':ct_out['index'],'t':ct_out['t']}
+#        out.append(Data(Ct=ct)) #TODO
+#        if 'S2' in ct_out:
+#            out[-1].vars['S2']=ct_out['S2']
+#        
+#    if 'ct_prod' in ct_out:
+#        ct={'Ct':ct_out['ct_prod'],'N':ct_out['N'],'index':ct_out['index'],'t':ct_out['t']}
+#        out.append(Data(Ct=ct))
+#        if 'A_0m_PASinF' in ct_out:
+#            out[-1].vars['A_0m_PASinLF']=ct_out['A_0m_PASinF'][-1]
+#        
+#    if 'ct_finF' in ct_out:
+#        for k,ct0 in enumerate(ct_out['ct_finF']):
+#            ct={'Ct':ct0,'N':ct_out['N'],'index':ct_out['index'],'t':ct_out['t']}
+#            out.append(Data(Ct=ct))
+#            if 'A_m0_finF' in ct_out:
+#                out[-1].vars['A_m0_finF']=ct_out['A_m0_finF'][k]
+#            if 'A_0m_finF' in ct_out:
+#                out[-1].vars['A_0m_finF']=ct_out['A_0m_finF'][k]
+#            if 'A_0m_PASinF' in ct_out:
+#                if k==0:
+#                    A0=np.zeros([5,out[-1].R.shape[0]])
+#                    A0[2]=1
+#                else:
+#                    A0=ct_out['A_0m_PASinF'][k-1]
+#                out[-1].vars['A_0m_PASinF']=A0
 
     return out
 
@@ -728,7 +779,6 @@ def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=
             A_0m_PASinF.append(b)
         ct_0m_PASinF=np.array(ct_0m_PASinF)
         A_0m_PASinF=np.array(A_0m_PASinF)
-#    elif ri[0] or ri[6] or ri[7]:
     elif ri.calc_A_0m_PASinF:
         "Calculate A_0m_PASinF if requested, if ct_prod requested, or if ct_finF requested"
         A_0m_PASinF=list()
@@ -740,7 +790,6 @@ def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=
             A_0m_PASinF.append(b)
         A_0m_PASinF=np.array(A_0m_PASinF)
     
-#    if ri[0] or ri[7]:
     if ri.calc_ct_finF:
         "Calculate ct_finF if requested, or if ct_prod requested"
         ct_finF=list()
@@ -750,18 +799,16 @@ def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=
             else:
                 ct_finF.append((np.moveaxis(ct_m0_finF[k],-1,0)*A_0m_PASinF[k-1]/A_0m_PASinF[k-1][2].real).sum(1).real.T)
         ct_finF=np.array(ct_finF)
-#    if ri[7]:
+
     if ri.ct_prod:
         "Calculate ct_prod"
         ct_prod=ct_finF.prod(0)
         
-#    if ri[8]:
     if ri.ct:
         "Calculate ct if requested"
         ct,S2=Ct_D2inf(vZ,cmpt='00',mode='both',index=index)
         ct=ct.real
         S2=S2.real
-#    elif ri[9]:
     elif ri.S2:
         "Calculate S2 if requested"
         S2=Ct_D2inf(vZ,cmpt='00',mode='d2',index=index)
@@ -1028,14 +1075,10 @@ def loops(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,calc=None):
         
         scfF=vft.getFrame(nuZ_fF,nuXZ_fF)
         vZf=vft.R(vZF,*vft.pass2act(*scfF))
-#        vZf=vft.applyFrame(vZ,nuZ_F=nuZ_f,nuXZ_F=nuXZ_f)
-#        vZf=vft.R(vZF,*scfF)
+
         eFf=[vft.R([1,0,0],*vft.pass2act(*scfF)),\
              vft.R([0,1,0],*vft.pass2act(*scfF)),\
              vft.R([0,0,1],*vft.pass2act(*scfF))]
-#        eFf=[vft.R([1,0,0],*scfF),\
-#             vft.R([0,1,0],*scfF),\
-#             vft.R([0,0,1],*scfF)]
         
         for ea,ax,ay,az in zip(eFf,vXF,vYF,vZF):
             for eb,bx,by,bz in zip(eFf,vXF,vYF,vZF):
@@ -1079,10 +1122,6 @@ def m_mp_swap(X,mpi=0,mi=0,mpf=0,mf=0):
         return X
     
     if np.abs(mi)!=np.abs(mf):      #Test for a position swap
-#        if np.abs(mi)==1 or np.abs(mf)==1:
-#            X=-np.conj(X)   #Sign change and conjugate
-#        elif np.abs(mi)==2 or np.abs(mf)==2:
-#            X=np.conj(X)    #Conjugate
         X=np.conj(X)
     if (mi+mpi)!=(mf+mpf):  #Test for a sign swap
         if np.abs(mi)==1 or np.abs(mf)==1:
@@ -1183,92 +1222,6 @@ def Ctsym(A_0m_PASinf,nuZ_f,nuXZ_f=None,nuZ_F=None,nuXZ_F=None,index=None):
     
     nuZ_fsym=sym_nuZ_f(A_0m_PASinf=A_0m_PASinf,nuZ_f=nuZ_f,nuXZ_f=nuXZ_f,nuZ_F=nuZ_F,nuXZ_F=nuXZ_F)
     return Ct_D2inf(nuZ_fsym,cmpt='00',mode='ct',index=index)
-
-
-#def FT(x,index=None):
-#    """
-#    Performs a zero-filled Fourier transform (doubling the size). If an index
-#    is included, a matrix is created with zeros at all positions not
-#    in index, and having the values of the input vector, x, elsewhere.
-#    
-#    X = FT(x,index=None)
-#    """
-#    if index is not None:
-#        if x.ndim==1:
-#            x1=np.zeros(index.max()+1,dtype=complex)
-#            x1[index]=x
-#        else:
-#            x1=np.zeros([x.shape[0],index.max()+1],dtype=complex)
-#            x1[:,index]=x
-#    else:
-#        x1=x
-#    n=x1.shape[-1]
-#    return fft(x1,2*n,axis=-1,threads=os.cpu_count())
-#    return fft(x1,2*n,axis=-1)
-
-#def fastCT(x,y,index=None,N=None):
-#    """
-#    Direct calculation of the linear correlation function of x and y, assuming
-#    sparsely sampled vectors
-#    
-#    ct=fastCT(x,y,index,N)
-#    """
-#    
-#    if index is None:index=np.arange(x.shape[-1])
-#    if N is None:N=get_count(index)
-#    
-#    i=N!=0    
-#    N=N[i]
-#    i1=(np.cumsum(i)-1).astype(int)
-#    
-#    ct=np.zeros([np.sum(i),x.shape[0]],dtype=complex)
-#    
-#    x=x.T
-#    y=y.T
-#
-#    for k in range(x.shape[0]):
-#        ct[i1[index[k:]-index[k]]]+=x[k]*y[k:]    
-#
-#    return ct.T
-        
-#def Ct_similar(ct0,A,m=None):
-#    """
-#    Calculate correlation functions from Ct_{00} assuming that all functions
-#    have a similar shape (Ct_00 starts from one and decays to A[2]), other 
-#    correlation functions start at 0 and increase to A[m]. Required arguments
-#    are ct0 (=Ct_{00}), and the 5 elements of A. Optionally, may provide
-#    multiple correlation functions with multiple A. All 5 correlation functions
-#    are returned unless m is specified
-#    
-#    Ct=Ct_similar(ct0,A,m=None)
-#    """
-#    
-#    if m==0:
-#        return ct0  #Not sure why you'd call this function, but then return original
-#    
-#    A=np.array(A)
-#    if A.ndim==2:
-#        if A.shape[1]==5:
-#            A=A.T   #Last dimension over bonds
-#        if ct0.shape[0]==A.shape[1]:
-#            ct0=ct0.T #Last dimension over bonds (for broadcasting)
-#            tr=True
-#        else:
-#            tr=False
-#        
-#    
-#    ct_norm=np.array(((ct0-A[2])/(1-A[2])).real,dtype=complex)
-#    
-#    if m is None:
-#        ct=np.array([(1-ct_norm)*a for a in A])
-#        ct[2]=ct0
-#    else:
-#        ct=(1-ct_norm)*A[m+2]   #Just one element, add 2 to get correct index
-#        
-#    if tr:ct=ct.swapaxes(-2,-1)
-#    
-#    return ct
-
 
 def ini_vec_load(traj,frame_funs,tensor_fun,frame_index=None,index=None,info=None):
     """

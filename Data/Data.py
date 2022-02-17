@@ -14,11 +14,12 @@ from ..Sens import Detector
 from ..IO import write_file
 from .data_plots import plot_rho,plot_fit
 from ..misc.disp_tools import set_plot_attr
+from .SrcInfo import SrcInfo
 
 dtype=Defaults['dtype']
 
 class Data():
-    def __init__(self,R=None,Rstd=None,label=None,sens=None,select=None,src_data=None):
+    def __init__(self,R=None,Rstd=None,label=None,sens=None,select=None,src_data=None,Type=None):
         """
         Initialize a data object. Optional inputs are R, the data, R_std, the 
         standard deviation of the data, sens, the sensitivity object which
@@ -37,11 +38,15 @@ class Data():
         
         self.R=np.array(R) if R is not None else np.zeros([0,sens.rhoz.shape[0] if sens else 0],dtype=dtype)
         self.Rstd=np.array(Rstd) if Rstd is not None else np.zeros(self.R.shape,dtype=dtype)
-        self.label=np.array(label) if label is not None else np.arange(self.R.shape[0],dtype=object)
+        if label is None:
+            if select is not None and select.label is not None and len(select.label)==self.R.shape[0]:
+                self.label=select.label
+            else:
+                self.label=np.arange(self.R.shape[0],dtype=object)
         self.sens=sens
         self.detect=Detector(sens) if sens is not None else None
-        self.src_data=src_data
-        self.select=select #Stores the molecule selection for this data object
+        self.src_info=SrcInfo(src_data=src_data,select=select,Type=Type)
+#        self.select=select #Stores the molecule selection for this data object
         self.vars=dict() #Storage for miscellaneous variable
         
         
@@ -61,7 +66,13 @@ class Data():
                 print("Changes to the data sensitivity object will not be reflected in the detector behavior")
         super().__setattr__(name, value)
 
-        
+    @property
+    def select(self):
+        return self.src_info.select
+    
+    @property
+    def src_data(self):
+        return self.src_info.src_data
     
     @property
     def n_data_pts(self):
@@ -74,6 +85,16 @@ class Data():
     @property
     def info(self):
         return self.sens.info if self.sens is not None else None
+    
+    @property
+    def _hash(self):
+        flds=['R','Rstd','S2','S2std','sens','detect']
+        out=0
+        for f in flds:
+            if hasattr(self,f) and getattr(self,f) is not None:
+                x=getattr(self,f)
+                out+=x._hash if hasattr(x,'_hash') else hash(x.data.tobytes())
+        return out
     
     
     def fit(self,bounds=True,parallel=True):

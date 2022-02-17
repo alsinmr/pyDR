@@ -105,7 +105,7 @@ class Trajectory():
     
 class MolSelect():
     def __init__(self,molsys):
-        super().__setattr__('MolSys',molsys)
+        super().__setattr__('molsys',molsys)
         self.sel1=None
         self.sel2=None
         self._repr_sel=None
@@ -179,15 +179,15 @@ class MolSelect():
     
     @property
     def box(self):
-        return self.MolSys.uni.dimensions[:3]
+        return self.molsys.uni.dimensions[:3]
     
     @property
     def uni(self):
-        return self.MolSys.uni
+        return self.molsys.uni
     
     @property
     def traj(self):
-        return self.MolSys.traj
+        return self.molsys.traj
     
     @property
     def pos(self):
