@@ -1,2 +1,30 @@
 # pyDR
-pyDIFRATE with graphical user interface
+pyDR is the latest implementation of the DIFRATE method of analyzing MD and NMR data. At the moment, the project is under development and is unlikely to function stably except in limited cases. 
+
+There is no installation required for this module. Just place in a folder, navigate there and run. However, python3 and the following modules are required. 
+
+Python v. 3.7.3
+numpy v. 1.17.2,
+scipy v. 1.3.0,
+pandas v. 0.25.1,
+MDAnalysis v. 0.19.2,
+matplotlib v. 3.0.3
+pyQT5  (for GUI usage)
+
+Recommended (for speed in processing MD trajectories):
+pyFFTW
+numba
+
+We recommend installing Anaconda: https://docs.continuum.io/anaconda/install/
+The Anaconda installation includes Python, numpy, scipy, pandas, and matplotlib. 
+
+MDAnalysis is installed by running:
+conda config --add channels conda-forge
+conda install mdanalysis
+(https://www.mdanalysis.org/pages/installation_quick_start/)
+
+
+All files are copyrighted under the GNU General Public License. A copy of the license has been provided in the file LICENSE
+
+
+Copyright 2022 Albert Smith-Penzel, Kai Zumpfe

@@ -14,7 +14,7 @@ from ..Sens import Detector
 from ..IO import write_file
 from .data_plots import plot_rho,plot_fit
 from ..misc.disp_tools import set_plot_attr
-from .SrcInfo import SrcInfo
+from .Source import Source
 
 dtype=Defaults['dtype']
 
@@ -45,7 +45,7 @@ class Data():
                 self.label=np.arange(self.R.shape[0],dtype=object)
         self.sens=sens
         self.detect=Detector(sens) if sens is not None else None
-        self.src_info=SrcInfo(src_data=src_data,select=select,Type=Type)
+        self.source=Source(src_data=src_data,select=select,Type=Type)
 #        self.select=select #Stores the molecule selection for this data object
         self.vars=dict() #Storage for miscellaneous variable
         
@@ -67,12 +67,16 @@ class Data():
         super().__setattr__(name, value)
 
     @property
+    def title(self):
+        return self.source.title
+
+    @property
     def select(self):
-        return self.src_info.select
+        return self.source.select
     
     @property
     def src_data(self):
-        return self.src_info.src_data
+        return self.source.src_data
     
     @property
     def n_data_pts(self):

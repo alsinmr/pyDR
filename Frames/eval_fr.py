@@ -346,24 +346,11 @@ class FrameObj():
         Transfers the frames results to a list of data objects
         """
         self.frames2ct(mode=mode,return_index=return_index,include=include)
-#        if self.frame_info['label'] is not None:
-#            label=self.frame_info['label']
-#        elif self.molecule.label is not None and len(self.molecule.label)==self.ct_out['ct'].shape[0]:
-#            label=self.molecule.label
-#        else:
-#            label=np.arange(self.ct_out['ct'].shape[0])
-        out=ct2data(self.ct_out,self.molecule)
-#        for o in out:
-#            o.label=label
-#            o.sens.molecule=self.molecule
-#            o.detect.molecule=self.molecule
-        
+        out=ct2data(self.ct_out,self.molecule)        
         frame_names=[vf.__str__().split(' ')[1].split('.')[0] for vf in self.vf]
-        
-        
-        
+                        
         for o,fr0,fr1 in zip(out[2:],['PAS',*frame_names],[*frame_names,'LF']):
-            o.src_info.frame_type='{0}->{1}'.format(fr0,fr1)
+            o.source.frame_type='{0}->{1}'.format(fr0,fr1)
             
                 
         return out
@@ -437,14 +424,7 @@ def frames2data(mol=None,v=None,mode='full',n=100,nr=10,tf=None,dt=None):
     ct_out=frames2ct(mol=mol,v=v,return_index=return_index,mode=mode,n=n,nr=nr,tf=tf,dt=dt)
     
     
-    out=ct2data(ct_out,mol)
-#    if mol is not None and out[0].R.shape[0]==len(mol.label):
-#        for o in out:o.label=mol.label #Pass the molecule label
-#    if mol is not None:
-#        for d in out:
-#            d.sens.molecule=mol
-#            d.detect.molecule=mol
-    
+    out=ct2data(ct_out,mol)    
     
     return out
 
@@ -481,69 +461,42 @@ def ct2data(ct_out,mol=None):
     if 'ct' in ct_out:
         data=Data(R=ct_out['ct'],sens=md,select=mol,Type='Frames')
         data.Rstd[:]=stdev #Copy stdev for every data point
-        data.src_info.frame_type='Direct'
-        data.src_info.filename=mol.traj.files
+        data.source.frame_type='Direct'
+        data.source.filename=mol.traj.files
         if 'S2' in ct_out:
-            data.src_info.S2=ct_out['S2']
+            data.S2=ct_out['S2']
         out.append(data)
     
     if 'ct_prod' in ct_out:
         data=Data(R=ct_out['ct_prod'],sens=md,select=mol,Type='Frames')
         data.Rstd[:]=stdev #Copy stdev for every data point
-        data.src_info.frame_type='Direct'
-        data.src_info.filename=mol.traj.files
+        data.source.frame_type='Direct'
+        data.source.filename=mol.traj.files
+        data.tensors=dict()
         if 'A_0m_PASinF' in ct_out:
-            data.src_info.add_storage('tensors',A_0m_PASinF=ct_out['A_0m_PASinF'][-1])
+            data.tensors['A_0m_PASinF']=ct_out['A_0m_PASinF'][-1]
         data.detect=out[0].detect
         out.append(data)
     
     if 'ct_finF' in ct_out:
         for k,ct0 in enumerate(ct_out['ct_finF']):
-            ct={'Ct':ct0,'N':ct_out['N'],'index':ct_out['index'],'t':ct_out['t']}
             data=Data(R=ct0,sens=md,select=mol,Type='Frames')
             data.Rstd[:]=stdev #Copy stdev for every data point
-            data.src_info.filename=mol.traj.files
+            data.source.filename=mol.traj.files
+            data.tensors=dict()
             if 'A_m0_finF' in ct_out:
-                data.src_info.add_storage('tensors',A_m0_finF=ct_out['A_m0_finF'][k])
+                data.tensors['A_m0_finF']=ct_out['A_m0_finF'][k]
             if 'A_0m_finF' in ct_out:
-                data.src_info.add_storage('tensors',A_0m_finF=ct_out['A_0m_finF'][k])
+                data.tensors['A_0m_finF']=ct_out['A_0m_finF'][k]
             if 'A_0m_PASinF' in ct_out:
                 if k==0:
                     A0=np.zeros([5,out[-1].R.shape[0]])
                     A0[2]=1
                 else:
                     A0=ct_out['A_0m_PASinF'][k-1]
-                data.src_info.add_storage('tensors',A_0m_PASinF=A0)
+                data.tensors['A_0m_PASinF']=A0
             data.detect=out[0].detect
             out.append(data)
-    
-#    if 'ct' in ct_out:
-#        ct={'Ct':ct_out['ct'],'N':ct_out['N'],'index':ct_out['index'],'t':ct_out['t']}
-#        out.append(Data(Ct=ct)) #TODO
-#        if 'S2' in ct_out:
-#            out[-1].vars['S2']=ct_out['S2']
-#        
-#    if 'ct_prod' in ct_out:
-#        ct={'Ct':ct_out['ct_prod'],'N':ct_out['N'],'index':ct_out['index'],'t':ct_out['t']}
-#        out.append(Data(Ct=ct))
-#        if 'A_0m_PASinF' in ct_out:
-#            out[-1].vars['A_0m_PASinLF']=ct_out['A_0m_PASinF'][-1]
-#        
-#    if 'ct_finF' in ct_out:
-#        for k,ct0 in enumerate(ct_out['ct_finF']):
-#            ct={'Ct':ct0,'N':ct_out['N'],'index':ct_out['index'],'t':ct_out['t']}
-#            out.append(Data(Ct=ct))
-#            if 'A_m0_finF' in ct_out:
-#                out[-1].vars['A_m0_finF']=ct_out['A_m0_finF'][k]
-#            if 'A_0m_finF' in ct_out:
-#                out[-1].vars['A_0m_finF']=ct_out['A_0m_finF'][k]
-#            if 'A_0m_PASinF' in ct_out:
-#                if k==0:
-#                    A0=np.zeros([5,out[-1].R.shape[0]])
-#                    A0[2]=1
-#                else:
-#                    A0=ct_out['A_0m_PASinF'][k-1]
-#                out[-1].vars['A_0m_PASinF']=A0
 
     return out
 
