@@ -16,17 +16,12 @@ https://arxiv.org/abs/2111.09224
 
 There is no installation required for this module. Just place in a folder, navigate there and run. However, python3 and the following modules are required. 
 
-Python v. 3.7.3
-
+Python v. 3.7.3 <br />
 numpy v. 1.17.2
-
 scipy v. 1.3.0,
 pandas v. 0.25.1
-
 MDAnalysis v. 0.19.2
-
 matplotlib v. 3.0.3
-
 pyQT5  (for GUI usage) 
 
 Recommended (for speed in processing MD trajectories):
