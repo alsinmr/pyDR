@@ -1,6 +1,19 @@
 # pyDR
 pyDR is the latest implementation of the DIFRATE method of analyzing MD and NMR data. At the moment, the project is under development and is unlikely to function stably except in limited cases. 
 
+Technical details can be found at:
+"Optimized “detectors” for dynamics analysis in solid-state NMR"
+A.A. Smith, M. Ernst, B.H. Meier
+https://doi.org/10.1063/1.5013316
+
+"Reducing bias in the analysis of solution-state NMR data with dynamics detectors"
+A.A. Smith, M. Ernst, B.H. Meier, F. Ferrage
+https://doi.org/10.1063/1.5111081
+
+"Interpreting NMR dynamic parameters via the separation of reorientational motion in MD simulation"
+A.A. Smith
+https://arxiv.org/abs/2111.09224
+
 There is no installation required for this module. Just place in a folder, navigate there and run. However, python3 and the following modules are required. 
 
 Python v. 3.7.3

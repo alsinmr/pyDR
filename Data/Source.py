@@ -68,6 +68,15 @@ class Source():
         if hasattr(self,'frame_type'):return self.frame_type
         return None
     
+    @property
+    def default_save_location(self):
+        if self.saved_filename is not None:return self.saved_filename
+        disallowed=[c for c in '#%^{}\/<>*_ $!":@+`|='+"'"]
+        filename=self.title
+        for d in disallowed:
+            filename=filename.replace(d,'_')
+        return filename
+    
     def __setattr__(self,name,value):
         if name=='title':
             super().__setattr__('_title',value)
