@@ -97,7 +97,7 @@ def read_Sens(f):
     return getattr(Sens,object_class)(info=info)
     
 
-def write_Detector(f,detect):
+def write_Detector(f,detect,src_fname=None):
     f.write(b'OBJECT:DETECTOR\n')
     if str(detect.sens.__class__).split('.')[-1][:-2]=='Detector':
         write_Detector(f,detect.sens)
@@ -167,6 +167,12 @@ def write_Data(f,data):
     if data.detect is None:data.detect=Sens.Detector(data.sens)
     write_Detector(f,data.detect)
     if data.src_data is not None:
+        #TODO
+        """
+        We need an option here to test if src_data is a string. If it is, then
+        we need to simply write the string into the save file instead of writing the
+        whole data object. We also need to update read_Data to read in the string
+        """
         f.write(b'src_data\n')
         write_Data(f,data.src_data)    
     

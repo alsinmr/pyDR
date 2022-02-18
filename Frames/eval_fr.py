@@ -350,7 +350,7 @@ class FrameObj():
         frame_names=[vf.__str__().split(' ')[1].split('.')[0] for vf in self.vf]
                         
         for o,fr0,fr1 in zip(out[2:],['PAS',*frame_names],[*frame_names,'LF']):
-            o.source.frame_type='{0}->{1}'.format(fr0,fr1)
+            o.source.frame_type='{0}>{1}'.format(fr0,fr1)
             
                 
         return out

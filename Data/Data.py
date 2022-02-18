@@ -101,14 +101,18 @@ class Data():
         return out
     
     
+    def __eq__(self,data):
+        assert self.__class__==data.__class,"Object is not the same type. == not defined"
+        return self._hash==data._hash
+    
     def fit(self,bounds=True,parallel=True):
         return fit(self,bounds=bounds,parallel=parallel)
     
-    def save(self,filename,overwrite=False,save_src=True):
+    def save(self,filename,overwrite=False,save_src=True,src_fname=None):
         if not(save_src):
             src=self.src_data
-            self.src_data=None
-        write_file(filename,self,overwrite)
+            self.src_data=src_fname  #For this to work, we need to update bin_io to save and load by filename
+        write_file(filename=filename,ob=self,overwrite=overwrite)
         if not(save_src):self.src_data=src
         
     def plot(self,errorbars=False,style='plot',fig=None,index=None,rho_index=None,plot_sens=True,split=True,**kwargs):
