@@ -22,7 +22,7 @@ scipy v. 1.3.0,
 pandas v. 0.25.1,
 MDAnalysis v. 0.19.2,
 matplotlib v. 3.0.3
-pyQT5  (for GUI usage)
+pyQT5  (for GUI usage) 
 
 Recommended (for speed in processing MD trajectories):
 pyFFTW
