@@ -10,7 +10,7 @@ import os
 import numpy as np
 from pyDR.Sens import Info
 from pyDR import Sens
-from pyDR import Data
+from ..Data.Data import Data
 decode=bytes.decode
 
 def write_file(filename,ob,overwrite=False):

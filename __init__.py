@@ -8,7 +8,7 @@ from pyDR.Defaults import Defaults
 from pyDR import Selection
 from pyDR import FRET
 from pyDR.MolSys import MolSys,MolSelect
-from pyDR.Data import Data
+from pyDR.Data.Data import Data
 from pyDR.Fitting import Fitting
 from pyDR import IO
 from pyDR import Sens

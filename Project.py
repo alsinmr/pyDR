@@ -43,7 +43,7 @@ class DataInfo():
             index=self.saved_files.index(filename)
         self.data_objs[index]=read_file(os.path.join(self.directory,self.saved_files[index]))
         self._hashes[index]=self.data_objs[index]._hash
-        self.data_objs[-1].project=self
+        self.data_objs[index].project=self
         
     def append_data(self,data):
         filename=None
@@ -72,7 +72,7 @@ class DataInfo():
     def __next__(self):
         self.__i+=1
         if self.__i<len(self):
-            return self.data_objs[self.__i]
+            return self[self.__i]
         else:
             raise StopIteration
             self.__i=-1
