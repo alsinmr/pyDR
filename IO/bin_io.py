@@ -117,7 +117,7 @@ def write_Detector(f,detect,src_fname=None):
             target=target[1:]
         if 'R2ex' in op['options']:
             target=target[:-1]
-        np.save(f,target)
+        np.save(f,target,allow_pickle=False)
     elif detect.opt_pars.__len__()==0:
         f.write(b'Unoptimized detector\n')
     else:
@@ -174,7 +174,10 @@ def write_Data(f,data):
         whole data object. We also need to update read_Data to read in the string
         """
         f.write(b'src_data\n')
-        write_Data(f,data.src_data)    
+        if isinstance(data.src_data,str):
+            f.write(bytes(data.src_data+'\n','utf-8'))
+        else:
+            write_Data(f,data.src_data)    
     
     f.write(b'LABEL\n')
     np.save(f,data.label,allow_pickle=False)
@@ -196,8 +199,11 @@ def read_Data(f):
     
     pos=f.tell()
     if decode(f.readline())[:-1]=='src_data':
-        f.readline()
-        data.src_data=read_Data(f)
+        line=f.readline()
+        if decode(line)[:-1]=='OBJECT:DATA':
+            data.source._src_data=read_Data(f)
+        else:
+            data.source._src_data=decode(line)[:-1]
     else:
         f.seek(pos)
     if decode(f.readline())[:-1]!='LABEL':print('Warning: Data label is missing')
@@ -219,7 +225,7 @@ def write_np_object(f,ob):
     
     Numpy objects are written with this function (possibly recursively)
     Strings are encoded/decoded with bytes and bytes.decode
-    Numpy arrays are encoded with the np.save option (allow_pick=False)
+    Numpy arrays are encoded with the np.save option (allow_pickle=False)
     """
     f.write(b'OBJECT:NUMPY\n')
     np.save(f,np.array(ob.shape),allow_pickle=False)

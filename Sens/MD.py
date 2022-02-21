@@ -34,15 +34,18 @@ class MD(Sens):
         
         super().__init__(tc=tc,z=z)
         
-        assert t is not None,"t must be provided"
-        
-        self.info.new_parameter(t=t)
-        if stdev is None:
-            stdev=np.sqrt(t[1:]/t[-1])
-            stdev=np.concatenate(([stdev[0]/1e3],stdev))
-        self.info.new_parameter(stdev=stdev)
-        if N is not None:self.info.new_parameter(N)
-        
+        if info is not None:
+            self.info=info
+        else:
+            assert t is not None,"t must be provided"
+            
+            self.info.new_parameter(t=t)
+            if stdev is None:
+                stdev=np.sqrt(t[1:]/t[-1])
+                stdev=np.concatenate(([stdev[0]/1e3],stdev))
+            self.info.new_parameter(stdev=stdev)
+            if N is not None:self.info.new_parameter(N)
+            
     @property
     def t(self):
         """

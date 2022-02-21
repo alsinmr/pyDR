@@ -64,6 +64,9 @@ class Data():
             if self.sens is not value.sens:
                 print("Warning: Detector object's input sensitivity does is not the same object as the data sensitivity.")
                 print("Changes to the data sensitivity object will not be reflected in the detector behavior")
+        if name=='src_data':
+            self.source._src_data=value
+            return
         super().__setattr__(name, value)
 
     @property
@@ -102,7 +105,7 @@ class Data():
     
     
     def __eq__(self,data):
-        assert self.__class__==data.__class,"Object is not the same type. == not defined"
+        assert self.__class__==data.__class__,"Object is not the same type. == not defined"
         return self._hash==data._hash
     
     def fit(self,bounds=True,parallel=True):

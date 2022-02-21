@@ -16,10 +16,11 @@ decode=bytes.decode
 class DataInfo():
     def __init__(self,project):
         self.project=project
+        if not(os.path.exists(self.directory)):os.mkdir(self.directory)
         self.data_objs=[None for _ in self.saved_files]
         self._hashes=[None for _ in self.saved_files]
         self.__i=-1
-        if not(os.path.exists(self.directory)):os.mkdir(self.directory)
+        
     
     @property
     def directory(self):
@@ -30,9 +31,9 @@ class DataInfo():
         files=os.listdir(self.directory)
         names=list()
         for fname in files:
-            with open(os.path.join(self.directory,fname),'rb') as f:
-                if decode(f.readline())[:-1]=='OBJECT:DATA':
-                    names.append(fname)
+            # with open(os.path.join(self.directory,fname),'rb') as f:
+            #     if decode(f.readline())[:-1]=='OBJECT:DATA':
+            if fname[0]!='.':names.append(fname)
         return names
                 
     def load_data(self,filename=None,index=None):
@@ -44,14 +45,17 @@ class DataInfo():
         self._hashes[index]=self.data_objs[index]._hash
         self.data_objs[-1].project=self
         
-    def append_data(self,filename=None,data=None):
+    def append_data(self,data):
+        filename=None
+        if isinstance(data,str):
+            filename,data=data,None
         "Adds data to the project (either from file, set 'filename' or loaded data, set 'data')"
         if filename is not None:
             assert os.path.exists(filename),"{} does not exist".format(filename)
             data=read_file(filename)
 
         if data in self:
-            print("Data already in project (index={})").format(self._hashes.index(data._hash))
+            print("Data already in project (index={})".format(self.data_objs.index(data)))
             return
             
         self.data_objs.append(data)
@@ -129,7 +133,7 @@ class DataInfo():
         of saving from the project.
         """
         if i=='all':
-            for i in len(self):
+            for i in range(len(self)):
                 if self[i].R.size>ME:
                     print('Skipping data object {0}. Size of data.R ({1}) exceeds default max elements ({2})'.format(i,self[i].R.size,ME))
                     continue
@@ -137,9 +141,12 @@ class DataInfo():
         else:
             assert i<len(self),"Index {0} to large for project with {1} data objects".format(i,len(self))
             if not(self.saved[i]):
+                src_fname=None
                 if self[i].src_data is not None:
                     k=np.argwhere([self[i].src_data==d for d in self])[0,0]
-                self[i].save(self.save_name[i],overwrite=True,save_src=False,src_fname=self.save_name[k])
+                    self.save(i=k)
+                    src_fname=self.save_name[k]
+                self[i].save(self.save_name[i],overwrite=True,save_src=False,src_fname=src_fname)
                 self._hashes[i]=self[i]._hash #Update the hash so we know this state of the data is saved
           
 
@@ -155,6 +162,9 @@ class Project():
     @property
     def directory(self):
         return self._directory
+    
+    def append_data(self,data):
+        self.data.append_data(data)
         
 
 

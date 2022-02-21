@@ -44,7 +44,7 @@ from pyDR.Sens import MD
 #Temporary inclusion of some parts of pyDIFRATE (old version)
 import sys
 sys.path.append('/Users/albertsmith/GitHub')
-from pyDIFRATE.chimera.chimeraX_funs import draw_tensors
+# from pyDIFRATE.chimera.chimeraX_funs import draw_tensors
 #from pyfftw.interfaces.numpy_fft import fft,ifft
 #from pyfftw.interfaces.scipy_fft import fft,ifft
 #import os
@@ -354,18 +354,19 @@ class FrameObj():
             
                 
         return out
+
+    #TODO add back in some version of draw tensors        
+    # def draw_tensors(self,fr_num,tensor_name='A_0m_PASinF',sc=2.09,tstep=0,disp_mode=None,index=None,scene=None,\
+    #              fileout=None,save_opts=None,chimera_cmds=None,\
+    #              colors=[[255,100,100,255],[100,100,255,255]],marker=None,\
+    #              marker_color=[[100,255,100,255],[255,255,100,255]]):
         
-    def draw_tensors(self,fr_num,tensor_name='A_0m_PASinF',sc=2.09,tstep=0,disp_mode=None,index=None,scene=None,\
-                 fileout=None,save_opts=None,chimera_cmds=None,\
-                 colors=[[255,100,100,255],[100,100,255,255]],marker=None,\
-                 marker_color=[[100,255,100,255],[255,255,100,255]]):
+    #     assert tensor_name in self.A.keys(),'Tensors not found, set tensor_name to one of {0}'.format(self.A.keys())
         
-        assert tensor_name in self.A.keys(),'Tensors not found, set tensor_name to one of {0}'.format(self.A.keys())
-        
-        draw_tensors(self.A[tensor_name][fr_num],mol=self.molecule,sc=sc,tstep=tstep,\
-                     disp_mode=disp_mode,index=index,scene=scene,fileout=fileout,\
-                     save_opts=save_opts,chimera_cmds=chimera_cmds,colors=colors,\
-                     marker=marker,marker_color=marker_color,vft=self.vft)
+    #     draw_tensors(self.A[tensor_name][fr_num],mol=self.molecule,sc=sc,tstep=tstep,\
+    #                  disp_mode=disp_mode,index=index,scene=scene,fileout=fileout,\
+    #                  save_opts=save_opts,chimera_cmds=chimera_cmds,colors=colors,\
+    #                  marker=marker,marker_color=marker_color,vft=self.vft)
         
     def post_process(self,Type=None,*args,**kwargs):
         if Type is None:            
