@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import lsq_linear as lsq
 from ..Defaults import Defaults
 from ..Sens import Detector
-from ..IO import write_file
+from ..IO.bin_write import write_file
 from .data_plots import plot_rho,plot_fit
 from ..misc.disp_tools import set_plot_attr
 from .Source import Source
@@ -66,6 +66,9 @@ class Data():
                 print("Changes to the data sensitivity object will not be reflected in the detector behavior")
         if name=='src_data':
             self.source._src_data=value
+            return
+        if name=='select':
+            self.source.select=value
             return
         super().__setattr__(name, value)
 
@@ -194,10 +197,9 @@ def fit(data,bounds=True,parallel=True):
     (otherwise, defaults to the number of cores available on the computer)
     """
     detect=data.detect.copy()
-    out=Data(sens=detect) #Create output data with sensitivity as input detectors
+    out=Data(sens=detect,src_data=data) #Create output data with sensitivity as input detectors
     out.label=data.label
     out.sens.lock() #Lock the detectors in sens since these shouldn't be edited after fitting
-    out.src_data=data
     out.select=data.select
     
     "Prep data for fitting"

@@ -8,7 +8,7 @@ Created on Wed Feb 16 14:50:19 2022
 
 import os
 import numpy as np
-from pyDR.IO import read_file,write_file
+from pyDR.IO.bin_read import read_file
 from pyDR import Defaults
 ME=Defaults['max_elements']
 decode=bytes.decode
@@ -62,6 +62,24 @@ class DataInfo():
         self._hashes.append(None)   #We only add the hash value if data is saved
         self.data_objs[-1].project=self
         if data.src_data is not None:self.append_data(data=data.src_data) #Recursively append source data
+    
+    def remove_data(self,index,delete=False):
+        """
+        Remove a data object from project. Set delete to True to also delete 
+        saved data in the project folder. Note that this can also delete 
+        associated data. If delete is not set to True, saved data will re-appear
+        upon the next project load even if removed here.
+        """
+            
+        if isinstance(index,int):
+            self.data_objs.remove(index)
+            self._hashes.remove(index)
+            if delete and self.filenames[index] is not None:
+                os.remove(os.path.abspath(self.directory,self.filenames[index]))
+        else:
+            for i in index:self.remove_data(i,delete=delete)
+                
+            
     
     def __getitem__(self,i):
         assert i<len(self.data_objs),"Index exceeds number of data objects in this project"
@@ -147,6 +165,7 @@ class DataInfo():
                     self.save(i=k)
                     src_fname=self.save_name[k]
                 self[i].save(self.save_name[i],overwrite=True,save_src=False,src_fname=src_fname)
+                self[i].source.saved_filename=self.save_name[i]
                 self._hashes[i]=self[i]._hash #Update the hash so we know this state of the data is saved
           
 
@@ -165,6 +184,10 @@ class Project():
     
     def append_data(self,data):
         self.data.append_data(data)
+        
+    def save(self):
+        self.data.save()
+            
         
 
 

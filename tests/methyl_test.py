@@ -156,3 +156,6 @@ from pyDR import Project
 
 proj=Project('/Users/albertsmith/Documents/Dynamics/test_project')
 for d in data:proj.append_data(d)
+
+d.detect.r_auto(5)
+for d in data:proj.append_data(d.fit())

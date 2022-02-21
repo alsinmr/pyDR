@@ -7,14 +7,14 @@ Created on Thu Feb 17 11:22:53 2022
 """
 
 import os
-from pyDR.IO import read_file
+from pyDR.IO.bin_read import read_file
 
 class Source():
     """
     Class to use with data objects to store information about the origin of
     the data.
     """
-    def __init__(self,Type=None,src_data=None,select=None,filename=None,title=None,status='raw',saved_filename=None,n_det=None):
+    def __init__(self,Type='',src_data=None,select=None,filename=None,title=None,status='raw',saved_filename=None,n_det=None):
         self.Type=Type
         self._src_data=src_data
         self.select=select
@@ -23,8 +23,17 @@ class Source():
         self.n_det=n_det
         self._title=title
         self.project=None
+        self._additional_info=None
         assert status[0].lower() in ['r','n','p'],"Status should be 'raw','processed' or 'no-opt'"
         self._status=status
+        if src_data is not None:
+            flds=['Type','select','filename']
+            for f in flds:  #Pass the Type, selection, and original filename
+                if getattr(self,f) is None:setattr(self,f,getattr(src_data.source,f))
+            self.n_det=src_data.detect.rhoz.shape[0]
+            self._status='n' if src_data.detect.opt_pars['Type']=='no_opt' else 'p'
+            self._additional_info=src_data.source.additional_info
+            
         
     @property
     def topo(self):
@@ -91,7 +100,7 @@ class Source():
         Link additional fields that should be included in the title here
         """
         if hasattr(self,'frame_type'):return self.frame_type
-        return None
+        return self._additional_info
     
     @property
     def default_save_location(self):
@@ -103,7 +112,7 @@ class Source():
         return filename+'.data'
     
     def __setattr__(self,name,value):
-        if name=='title':
-            super().__setattr__('_title',value)
+        if name in ['title','status','src_data']:
+            super().__setattr__('_'+name,value)
             return
         super().__setattr__(name,value)

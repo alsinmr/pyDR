@@ -6,7 +6,7 @@ Created on Mon Dec  6 13:34:36 2021
 @author: albertsmith
 """
 import numpy as np
-from MDAnalysis import Universe
+from MDAnalysis import Universe,AtomGroup
 from pyDR.misc.ProgressBar import ProgressBar
 from pyDR.Selection import select_tools as selt
 from pyDR.MDtools.vft import pbc_corr
@@ -19,7 +19,10 @@ class MolSys():
     Object for storage of the molecule or MD trajectory
     """
     def __init__(self,topo=None,traj_files=None,t0=0,tf=-1,step=1,dt=None):
-        self._uni=Universe(topo,traj_files)
+        if traj_files is not None and not(isinstance(traj_files,list) and len(traj_files)==0):
+            self._uni=Universe(topo,traj_files)
+        else:
+            self._uni=Universe(topo)
         self._traj=Trajectory(self.uni.trajectory,t0=t0,tf=tf,step=step,dt=dt) \
             if hasattr(self.uni,'trajectory') else None     
     
@@ -32,7 +35,7 @@ class MolSys():
     def traj(self):
         return self._traj
     @property
-    def file(self):
+    def topo(self):
         return self.uni.filename
         
 
@@ -109,6 +112,7 @@ class MolSelect():
         self.sel1=None
         self.sel2=None
         self._repr_sel=None
+        self.label=None
     
 
     def __setattr__(self,name,value):
@@ -122,7 +126,17 @@ class MolSelect():
         if name=='repr_sel':
             if self.sel1 is not None and len(self.sel1)!=len(value):
                 print('Warning: length of sel1 and repr_sel are not equal. This will cause errors in ChimeraX')
-            super().__setattr__('_repr_sel',value)
+        if name in ['sel1','sel2','repr_sel'] and value is not None:
+            if name=='repr_sel':name='_repr_sel'
+            if isinstance(value,AtomGroup):
+                super().__setattr__(name,value)
+            elif isinstance(value,str):
+                super().__setattr__(name,self.uni.select_atoms(value))
+            else:
+                out=np.zeros(len(value),dtype=object)
+                for k,v in enumerate(value):out[k]=v
+                super().__setattr__(name,out)
+            return
         
         super().__setattr__(name,value)
         
@@ -153,7 +167,7 @@ class MolSelect():
         else:
             for s1,s2 in zip(self.sel1,self.sel2):
                 repr_sel.append(s1+s2)
-        self._repr_sel=np.array(repr_sel,dtype=object)
+        self.repr_sel=repr_sel
             
         self.set_label(label)
 
