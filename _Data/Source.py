@@ -7,7 +7,8 @@ Created on Thu Feb 17 11:22:53 2022
 """
 
 import os
-from pyDR.IO.bin_read import read_file
+# from pyDR.IO.bin_read import read_file
+from ._Data import read_file
 
 class Source():
     """
@@ -69,6 +70,9 @@ class Source():
                 else:
                     print('Warning: source data not found at location {}'.format(self._src_data))
         return self._src_data #Return the source data
+    # @property
+    # def src_data(self):
+    #     return self._src_data
     
     @property
     def status(self):
@@ -82,7 +86,7 @@ class Source():
         if self._title is not None:return self._title
         title=self.status[0]
         if self.n_det is not None:title+='{}'.format(self.n_det)
-        title+=self.Type.capitalize()+':'
+        title+=':'+self.Type.capitalize()+':'
         if self.additional_info is not None:title+=self.additional_info+':'
         title+=self.short_file
         return title

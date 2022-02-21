@@ -45,6 +45,17 @@ class Detector(Sens.Sens):
             for s in sens:
                 self.append(Detector(s))
     
+    def __eq__(self,ob):
+        if self is ob:return True        #If same object, then equal
+        if len(self)!=len(ob):return False  #If different lengths, then not equal
+        if str(self.__class__)!=str(ob.__class__):return False
+        if ('n' in self.opt_pars and 'n' not in ob.opt_pars) or ('n' not in self.opt_pars and 'n' in ob.opt_pars):
+            return False
+        elif 'n' not in self.opt_pars and 'n' not in ob.opt_pars:
+            return self.sens==ob.sens
+        else:
+            return super().__eq__(ob)
+    
     def copy(self):
         """
         Returns a deep copy of the detector object. Note that we do not deep-copy

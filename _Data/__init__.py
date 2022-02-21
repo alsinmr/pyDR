@@ -6,4 +6,4 @@ Created on Sun Jan 30 16:35:56 2022
 @author: albertsmith
 """
 
-from . import Data
+from ._Data import Data,read_file,write_file

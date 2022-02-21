@@ -42,12 +42,12 @@ matplotlib.rc('font', **font)
 
 "This loads the MD trajectory into pyDIFRATE"
 tf=2000
-molsys=DR.MolSys('/Users/albertsmith/Documents/GitHub/Frames_Theory_archive/HETs_ILE254.pdb',
-               '/Users/albertsmith/Documents/GitHub/Frames_Theory_archive/HETs_ILE254.xtc',
-               tf=tf)
-#molsys=DR.MolSys('/Users/albertsmith/Documents/GitHub.nosync/Frames_Theory_archive/HETs_ILE254.pdb',
-#              '/Users/albertsmith/Documents/GitHub.nosync/Frames_Theory_archive/HETs_ILE254.xtc',
-#              tf=tf)
+# molsys=DR.MolSys('/Users/albertsmith/Documents/GitHub/Frames_Theory_archive/HETs_ILE254.pdb',
+#                '/Users/albertsmith/Documents/GitHub/Frames_Theory_archive/HETs_ILE254.xtc',
+#                tf=tf)
+molsys=DR.MolSys('/Users/albertsmith/Documents/GitHub.nosync/Frames_Theory_archive/HETs_ILE254.pdb',
+              '/Users/albertsmith/Documents/GitHub.nosync/Frames_Theory_archive/HETs_ILE254.xtc',
+              tf=tf)
 select=DR.MolSelect(molsys)
 
 #%% Define the frames
@@ -154,8 +154,9 @@ data=fr_obj.frames2data(include=inc,mode='full')
 
 from pyDR import Project
 
-proj=Project('/Users/albertsmith/Documents/Dynamics/test_project')
+proj=Project('/Users/albertsmith/Documents/Dynamics/test_project.nosync',create=True)
 for d in data:proj.append_data(d)
 
 d.detect.r_auto(5)
-for d in data:proj.append_data(d.fit())
+for d in data:d.fit()
+# for d in data:proj.append_data(d.fit())

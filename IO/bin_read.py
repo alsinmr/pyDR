@@ -18,7 +18,8 @@ import os
 import numpy as np
 from pyDR.Sens import Info
 from pyDR import Sens
-from pyDR import Data
+from pyDR._Data._Data import Data
+# from ..Data.Data import Data
 
 from pyDR import MolSys,MolSelect
 decode=bytes.decode
@@ -111,7 +112,10 @@ def read_Data(f):
     line=decode(f.readline())[:-1]
     if line!='OBJECT:DETECTOR':print('Warning: First entry of data object should be the detector')
     detect=read_Detector(f)
-    
+    # if hasattr(Data,'Data'):
+    #     data=Data.Data(sens=detect.sens)
+    # else:
+    #     data=Data(sens=detect.sens)
     data=Data(sens=detect.sens)
     data.detect=detect
     

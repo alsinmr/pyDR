@@ -23,7 +23,7 @@ from pyDR.misc.disp_tools import set_plot_attr,NiceStr
 import matplotlib.pyplot as plt
 from matplotlib import ticker
 from copy import deepcopy
-from pyDR.IO import write_file
+# from pyDR._Data._Data import write_file
 
 class Sens():
     def __init__(self,tc=None,z=None):
@@ -69,8 +69,8 @@ class Sens():
         """
         return deepcopy(self)
     
-    def save(self,filename,overwrite=False):
-        write_file(filename,self,overwrite)
+    # def save(self,filename,overwrite=False):
+    #     write_file(filename,self,overwrite)
     
     @property
     def norm(self):
@@ -241,6 +241,7 @@ class Sens():
         """
         if self is ob:return True        #If same object, then equal
         if len(self)!=len(ob):return False  #If different lengths, then not equal
+        
         
         for s,o in zip(self,ob):
             if s.rhoz.shape!=o.rhoz.shape:return False #Different sizes, then not equal

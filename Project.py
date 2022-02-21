@@ -45,6 +45,7 @@ class DataInfo():
         self._hashes[index]=self.data_objs[index]._hash
         self.data_objs[index].project=self
         
+        
     def append_data(self,data):
         filename=None
         if isinstance(data,str):
@@ -60,7 +61,7 @@ class DataInfo():
             
         self.data_objs.append(data)
         self._hashes.append(None)   #We only add the hash value if data is saved
-        self.data_objs[-1].project=self
+        self.data_objs[-1].source.project=self
         if data.src_data is not None:self.append_data(data=data.src_data) #Recursively append source data
     
     def remove_data(self,index,delete=False):
@@ -72,12 +73,12 @@ class DataInfo():
         """
             
         if isinstance(index,int):
-            self.data_objs.remove(index)
-            self._hashes.remove(index)
+            self.data_objs.pop(index)
+            self._hashes.pop(index)
             if delete and self.filenames[index] is not None:
                 os.remove(os.path.abspath(self.directory,self.filenames[index]))
         else:
-            for i in index:self.remove_data(i,delete=delete)
+            for i in np.sort(index)[::-1]:self.remove_data(i,delete=delete)
                 
             
     
@@ -87,20 +88,15 @@ class DataInfo():
             self.load_data(index=i)
         return self.data_objs[i]
     
-    def __next__(self):
-        self.__i+=1
-        if self.__i<len(self):
-            return self[self.__i]
-        else:
-            raise StopIteration
-            self.__i=-1
     
     def __len__(self):
         return len(self.data_objs)
     
     def __iter__(self):
-        self.__i=-1
-        return self
+        def gen():
+            for k in range(len(self)):
+                yield self[k]
+        return gen()
         
     @property
     def titles(self):
@@ -187,6 +183,35 @@ class Project():
         
     def save(self):
         self.data.save()
+    
+    @property
+    def detectors(self):
+        r=list()
+        for r0 in self.data.detect_list:
+            if r0 not in r:
+                r.append(r0)
+        return r
+        
+    def unify_detect(self):
+        r=self.data.detect_list
+        s=[r0.sens for r0 in r]
+        for k,s0 in enumerate(s):
+            if s0 in s[:k]:
+                i=s[:k].index(s0)
+                self.data[k].sens=s[i]
+                self.data[k].detect=r[i]
+                
+    def unique_detect(self,index=None):
+        if index is None:
+            for i in range(len(self.data)):self.unique_detect(i)
+        else:
+            d=self.data[index]
+            sens=d.detect.sens
+            d.detect=d.detect.copy()
+            d.detect.sens=sens
+            
+        
+        
             
         
 

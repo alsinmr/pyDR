@@ -471,7 +471,7 @@ def ct2data(ct_out,mol=None):
     if 'ct_prod' in ct_out:
         data=Data(R=ct_out['ct_prod'],sens=md,select=mol,Type='Frames')
         data.Rstd[:]=stdev #Copy stdev for every data point
-        data.source.frame_type='Direct'
+        data.source.frame_type='Product'
         data.source.filename=mol.traj.files
         data.tensors=dict()
         if 'A_0m_PASinF' in ct_out:
