@@ -67,6 +67,9 @@ class Data():
         if name=='src_data':
             self.source._src_data=value
             return
+        if name=='select':
+            self.source.select=value
+            return
         super().__setattr__(name, value)
 
     @property
