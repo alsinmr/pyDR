@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Feb  1 12:16:06 2022
+Created on Tue Feb 22 11:09:41 2022
 
 @author: albertsmith
 """
 
 import os
 import numpy as np
-from pyDR.Sens import Info
+from ..Defaults import Defaults
+from pyDR import clsDict
+
+# from ..IO.bin_write import write_file
+
+dtype=Defaults['dtype']
+
+#%% Input/Output functions
+
 from pyDR import Sens
-try:    #Not happy about this....sometimes loads as module, sometimes as Data class (!!!???)
-    from pyDR.Data.Data import Data
-except:
-    from pyDR.Data import Data    
-from pyDR import MolSys,MolSelect
 decode=bytes.decode
 
-print('Why are we here?')
-
+#%% Main Input/Output
 def write_file(filename,ob,overwrite=False):
     if os.path.exists(filename) and not(overwrite):
         print('Warning: File {} already exists. Set overwrite=True or choose a different name'.format(filename))
@@ -38,7 +40,7 @@ def write_file(filename,ob,overwrite=False):
             write_Sens(f,ob)
         elif object_class=="Data":
             write_Data(f,ob)
-
+            
 def read_file(filename):
     with open(filename,'rb') as f:
         l=decode(f.readline())[:-1]
@@ -55,7 +57,7 @@ def read_file(filename):
         if l=='OBJECT:MOLSELECT':
             return read_MolSelect(f)
 
-
+#%% Info Input/Output
 def write_Info(f,info):
     f.write(b'OBJECT:INFO\n')
     for k in info.keys:
@@ -88,8 +90,9 @@ def read_Info(f):
             f.seek(pos)
             values.append(np.load(f,allow_pickle=False))
     
-    return Info(**{k:v for k,v in zip(keys,values)})
-    
+    return clsDict['Info'](**{k:v for k,v in zip(keys,values)})
+
+#%% Sens and detector Input/Output    
 def write_Sens(f,sens):
     f.write(b'OBJECT:SENS\n')
     object_class=str(sens.__class__).split('.')[-1][:-2]
@@ -104,9 +107,8 @@ def read_Sens(f):
     info=read_Info(f)
     line=decode(f.readline())[:-1]
     if line!='END:OBJECT':print('Warning: Sens object did not terminate correctly')
-    return getattr(Sens,object_class)(info=info)
+    return clsDict[object_class](info=info)
     
-
 def write_Detector(f,detect,src_fname=None):
     f.write(b'OBJECT:DETECTOR\n')
     if str(detect.sens.__class__).split('.')[-1][:-2]=='Detector':
@@ -138,9 +140,9 @@ def write_Detector(f,detect,src_fname=None):
 def read_Detector(f):
     line=decode(f.readline())[:-1]
     if line=='OBJECT:SENS':
-        detect=Sens.Detector(read_Sens(f))  #Get input sensitivity, initialize detector
+        detect=clsDict['Detector'](read_Sens(f))  #Get input sensitivity, initialize detector
     elif line=='OBJECT:DETECTOR':
-        detect=Sens.Detector(read_Detector(f))  #Get input sensitivity, initialize detector
+        detect=clsDict['Detector'](read_Detector(f))  #Get input sensitivity, initialize detector
     else:
         print('Warning:Sensitivity should be first entry in detector file')
     line=decode(f.readline())[:-1]
@@ -172,6 +174,8 @@ def read_Detector(f):
     return detect
 
 
+
+#%% Data input and output   
 def write_Data(f,data):
     flds=['R','Rstd','S2','S2std','Rc']
     f.write(b'OBJECT:DATA\n')
@@ -179,10 +183,10 @@ def write_Data(f,data):
     write_Detector(f,data.detect)
     if data.src_data is not None:
         f.write(b'src_data\n')
-        if isinstance(data.src_data,str):
-            f.write(bytes(data.src_data+'\n','utf-8'))
+        if isinstance(data.source._src_data,str):
+            f.write(bytes(data.source._src_data+'\n','utf-8'))
         else:
-            write_Data(f,data.src_data)    
+            write_Data(f,data.source._src_data)    
     
     f.write(b'LABEL\n')
     np.save(f,data.label,allow_pickle=False)
@@ -193,14 +197,17 @@ def write_Data(f,data):
             f.write(bytes('{0}\n'.format(k),'utf-8'))
             np.save(f,getattr(data,k),allow_pickle=False)
     f.write(b'END:OBJECT\n')
-    
+
 def read_Data(f):
     flds=['R','Rstd','S2','S2std','Rc']
     line=decode(f.readline())[:-1]
     if line!='OBJECT:DETECTOR':print('Warning: First entry of data object should be the detector')
     detect=read_Detector(f)
-    
-    data=Data(sens=detect.sens)
+    # if hasattr(Data,'Data'):
+    #     data=Data.Data(sens=detect.sens)
+    # else:
+    #     data=Data(sens=detect.sens)
+    data=clsDict['Data'](sens=detect.sens)
     data.detect=detect
     
     pos=f.tell()
@@ -222,7 +229,14 @@ def read_Data(f):
             setattr(data,k,np.load(f,allow_pickle=False))
     return data
 
+def write_Source(f,select):
+    f.write(b'OBJECT:SOURCE\n')
+    flds=['Type','filename','saved_filename','_title','_status']
+    
+def read_Source(f):
+    pass
 
+#%% Selection object Input/Output
 def write_MolSelect(f,select):
     f.write(b'OBJECT:MOLSELECT\n')
     molsys=select.molsys
@@ -251,7 +265,7 @@ def write_MolSelect(f,select):
                 f.write(bytes('{0}\n'.format(fld),'utf-8'))
                 np.save(f,v.indices,allow_pickle=False)
     f.write(b'END:OBJECT\n')
-
+    
 def read_MolSelect(f):
     line=decode(f.readline())[:-1]
     if line!='TOPO':print('Warning: First entry of MolSelect object should be topo')
@@ -266,8 +280,8 @@ def read_MolSelect(f):
         while line!='END:TRAJ':
             tr_files.append(line)
             line=decode(f.readline())[:-1]
-    molsys=MolSys(topo,tr_files,t0=t0,tf=tf,step=step,dt=dt)
-    select=MolSelect(molsys)
+    molsys=clsDict['MolSys'](topo,tr_files,t0=t0,tf=tf,step=step,dt=dt)
+    select=clsDict['MolSelect'](molsys)
     line=decode(f.readline())[:-1]
     if line=='LABEL':
         select.label=np.load(f,allow_pickle=False)
@@ -284,15 +298,9 @@ def read_MolSelect(f):
             setattr(select,fld,molsys.uni.atoms[np.load(f,allow_pickle=False)])
         line=decode(f.readline())[:-1]
     return select
-    
-    
-def write_Source(f,select):
-    f.write(b'OBJECT:SOURCE\n')
-    flds=['Type','filename','saved_filename','_title','_status']
-        
-            
-    
 
+
+#%% Numpy object Input/Ouput    
 def write_np_object(f,ob):
     """
     Read and write of numpy objects have three options for each element:
@@ -315,7 +323,7 @@ def write_np_object(f,ob):
         else:
             np.save(f,o,allow_pickle=False)
     f.write(b'END:OBJECT\n')
-            
+    
 def read_np_object(f):
     shape=np.load(f,allow_pickle=False)
     out=list()
@@ -337,4 +345,24 @@ def read_np_object(f):
 
 
 
+
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
+    
+
+        
+            
+    
 

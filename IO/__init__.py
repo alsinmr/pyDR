@@ -6,5 +6,5 @@ Created on Wed Feb  2 09:29:19 2022
 @author: albertsmith
 """
 
-from pyDR.IO.bin_write import write_file
-# from pyDR.IO.bin_read import read_file
+
+from .bin_IO import read_file,write_file

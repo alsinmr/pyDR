@@ -4,16 +4,22 @@
 
 #%% Init file for all of pyDR
 
+clsDict=dict()
 from pyDR.Defaults import Defaults
+
 from pyDR import Selection
-from pyDR import FRET
-from pyDR.MolSys import MolSys,MolSelect
-from pyDR._Data import Data
-from pyDR.Fitting import Fitting
+from pyDR.Selection.MolSys import MolSys,MolSelect
+#from pyDR import FRET
+from pyDR.Data import Data
+from pyDR import Fitting
 from pyDR import Sens
 from pyDR.misc.tools import tools
 from pyDR import Frames
-from pyDR.Project import Project
-# from pyDR import IO
-class IO():
-    from pyDR._Data import read_file,write_file
+from pyDR import IO
+from pyDR import MDtools
+from pyDR import Project
+
+clsDict.update({'Data':Data,'Source':Project.Source,'Info':Sens.Info,
+         'Sens':Sens.Sens,'Detector':Sens.Detector,'NMR':Sens.NMR,'MD':Sens.MD,
+         'MolSys':MolSys,'MolSelect':MolSelect,'Project':Project.Project,
+         'DataMngr':Project.DataMngr,'FrameObj':Frames.FrameObj,'Ctcalc':MDtools.Ctcalc})

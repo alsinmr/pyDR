@@ -302,7 +302,7 @@ class MolSelect():
             auto:Toggles between a0 and exact depending if the topology files match
         """
         
-        assert hasattr(sel,'__class__') and self.__class__==sel.__class__,"Comparison only defined for other MolSelect objects"
+        assert hasattr(sel,'__class__') and str(self.__class__)==str(sel.__class__),"Comparison only defined for other MolSelect objects"
         assert self.sel1 is not None,"Selection not defined in self"
         assert sel.sel1 is not None,"Selection not defined in sel1"
         assert mode in ['exact','auto','a0','a1','a2','a3'],"mode must be 'auto','exact','a0','a1','a2', or 'a3'"

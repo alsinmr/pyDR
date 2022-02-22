@@ -178,6 +178,33 @@ class Sens():
     def R0(self):
         return self._rho_eff[1]
     
+    def overlap_index(self,sens,threshold=0.95,check_amp=True):
+        if self==sens:return [np.arange(self.rhoz.shape[0]) for _ in range(2)]
+        x1=self.rhoz.T/np.sqrt((self.rhoz**2).sum(1))
+        x2=sens.rhoz.T/np.sqrt((sens.rhoz**2).sum(1))
+        mat=(x1.T@x2)
+        mat[mat<threshold]=0
+        for k,m in enumerate(mat):
+            v,i=m.max(),np.argmax(m)
+            mat[k]=0
+            mat[k,i]=v
+        mat=mat.T
+        for k,m in enumerate(mat):
+            v,i=m.max(),np.argmax(m)
+            mat[k]=0
+            mat[k,i]=v
+        mat=mat.T
+        if check_amp:
+            for k,j in np.argwhere(mat):
+                rat=self.rhoz[k].max()/sens.rhoz[j].max()
+                if rat<threshold or rat>1/threshold:
+                    mat[k,j]=False
+                    
+        out=np.argwhere(mat).T
+        return out[0],out[1]
+        
+        
+    
 #%% Properties relating to iteration over bond-specific sensitivities        
     def __len__(self):
         """

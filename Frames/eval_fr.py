@@ -35,11 +35,10 @@ from copy import deepcopy
 from pyDR.MDtools import vft
 from pyDR.MDtools.Ctcalc import sparse_index,get_count,Ctcalc
 from pyDR.misc import ProgressBar
-from pyDR import Data
 from .vec_funs import new_fun,print_frame_info
 from . import FramesPostProc as FPP
 from pyDR import Defaults
-from pyDR.Sens import MD
+from pyDR import clsDict
 
 #Temporary inclusion of some parts of pyDIFRATE (old version)
 import sys
@@ -457,10 +456,10 @@ def ct2data(ct_out,mol=None):
     
     out=list()
     
-    md=MD(t=ct_out['t'])
+    md=clsDict['MD'](t=ct_out['t'])
     stdev=md.info['stdev']
     if 'ct' in ct_out:
-        data=Data(R=ct_out['ct'],sens=md,select=mol,Type='Frames')
+        data=clsDict['Data'](R=ct_out['ct'],sens=md,select=mol,Type='Frames')
         data.Rstd[:]=stdev #Copy stdev for every data point
         data.source.frame_type='Direct'
         data.source.filename=mol.traj.files
@@ -469,7 +468,7 @@ def ct2data(ct_out,mol=None):
         out.append(data)
     
     if 'ct_prod' in ct_out:
-        data=Data(R=ct_out['ct_prod'],sens=md,select=mol,Type='Frames')
+        data=clsDict['Data'](R=ct_out['ct_prod'],sens=md,select=mol,Type='Frames')
         data.Rstd[:]=stdev #Copy stdev for every data point
         data.source.frame_type='Product'
         data.source.filename=mol.traj.files
@@ -481,7 +480,7 @@ def ct2data(ct_out,mol=None):
     
     if 'ct_finF' in ct_out:
         for k,ct0 in enumerate(ct_out['ct_finF']):
-            data=Data(R=ct0,sens=md,select=mol,Type='Frames')
+            data=clsDict['Data'](R=ct0,sens=md,select=mol,Type='Frames')
             data.Rstd[:]=stdev #Copy stdev for every data point
             data.source.filename=mol.traj.files
             data.tensors=dict()

@@ -7,8 +7,8 @@ Created on Thu Dec  2 15:41:16 2021
 """
 
 import numpy as np
+from pyDR import clsDict
 from pyDR.FRET import FRETdipole
-from pyDR import MolSys
 from pyDR.Ct_funs import Ct_calc
 from numba import jit
 
@@ -71,7 +71,7 @@ class FRETefcy():
         
         self.__g={'gAA':None,'gDD':None,'gDA':None}
         
-        self.molsys=molsys if molsys else MolSys() #molsys object
+        self.molsys=molsys if molsys else clsDict['MolSys']() #molsys object
     
     def __setattr__(self,name,value):
         if name in ['R0iso','tauD','n','thetaD']:

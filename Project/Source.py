@@ -7,8 +7,7 @@ Created on Thu Feb 17 11:22:53 2022
 """
 
 import os
-# from pyDR.IO.bin_read import read_file
-from ._Data import read_file
+from pyDR.IO import read_file
 
 class Source():
     """

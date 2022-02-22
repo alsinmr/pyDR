@@ -7,14 +7,14 @@ Created on Mon Jan 31 14:56:22 2022
 """
 
 
-from pyDR.Defaults import Defaults
-from scipy.optimize import lsq_linear as lsq
+from pyDR import Defaults,clsDict
 import numpy as np
 import multiprocessing as mp
+from ._fitfun import fit0
 
 dtype=Defaults['dtype']
 
-def fit(data,bounds=True,parallel=True):
+def fit(data,bounds=True,parallel=False):
     """
     Performs a detector analysis on the provided data object. Options are to
     include bounds on the detectors and whether to utilize parallelization to
@@ -24,15 +24,16 @@ def fit(data,bounds=True,parallel=True):
     integer to specify the number of cores to use for parallel processing
     (otherwise, defaults to the number of cores available on the computer)
     """
-    
-    detect=data.detect
-    out=data.__class__(sens=data.detect.copy()) #Create output data with sensitivity as input detectors
+    detect=data.detect.copy()
+    out=clsDict['Data'](sens=detect,src_data=data) #Create output data with sensitivity as input detectors
+    out.label=data.label
     out.sens.lock() #Lock the detectors in sens since these shouldn't be edited after fitting
-    out.src_data=data
+    out.select=data.select
+    
     
     "Prep data for fitting"
     X=list()
-    for k,(R,Rstd) in enumerate(zip(data.R,data.Rstd)):
+    for k,(R,Rstd) in enumerate(zip(data.R.copy(),data.Rstd)):
         r0=detect[k] #Get the detector object for this bond
         UB=r0.rhoz.max(1)#Upper and lower bounds for fitting
         LB=r0.rhoz.min(1)
@@ -55,10 +56,10 @@ def fit(data,bounds=True,parallel=True):
     
     "Extract data into output"
     out.R=np.zeros([len(Y),detect.r.shape[1]],dtype=dtype)
-    out.R_std=np.zeros(out.R.shape,dtype=dtype)
+    out.Rstd=np.zeros(out.R.shape,dtype=dtype)
     out.Rc=np.zeros([out.R.shape[0],detect.r.shape[0]],dtype=dtype)
     for k,y in enumerate(Y):
-        out.R[k],out.R_std[k],Rc0=y
+        out.R[k],out.Rstd[k],Rc0=y
         out.R[k]+=detect[k].R0
         out.Rc[k]=Rc0*X[k][3]
         
@@ -67,18 +68,7 @@ def fit(data,bounds=True,parallel=True):
     if 'R2ex' in detect.opt_pars['options']:
         out.R2,out.R=out.R[:,-1],out.R[:,:-1]
         out.R2std,out.Rstd=out.Rstd[:,-1],out.Rstd[:,:-1]
-        
+    
+    if data.source.project is not None:data.source.project.append_data(out)
     return out
     
-    
-
-def fit0(X):
-    """
-    Used for parallel fitting of data. Single argument in the input should
-    include data, the r matrix, and the upper and lower bounds
-    """
-    Y=lsq(X[0],X[1],bounds=X[2])
-    rho=Y['x']
-    Rc=Y['fun']+X[1]
-    stdev=np.sqrt((np.linalg.pinv(X[0])**2).sum(1))
-    return rho,stdev,Rc
