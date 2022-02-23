@@ -13,7 +13,7 @@ from ..misc.disp_tools import set_plot_attr
 
 
 class DataPlots():
-    def __init__(self,data=None,style='plot',index=None,rho_index=None,title=None,fig=None,mode='auto',split=True,plot_sens=True,**kwargs):
+    def __init__(self,data=None,style='plot',errorbars=True,index=None,rho_index=None,title=None,fig=None,mode='auto',split=True,plot_sens=True,**kwargs):
         self.fig=fig if fig is not None else plt.figure(title)
         self.data=[]
         self.index=[]
@@ -32,7 +32,7 @@ class DataPlots():
         if len(self.data)==0:
             self.init_data(data,style='plot',index=None,rho_index=None,mode='auto',split=True,**kwargs)
             return
-    def init_data(self,data,style='plot',index=None,rho_index=None,mode='auto',split=True,**kwargs):
+    def init_data(self,data,style='plot',errorbars=True,index=None,rho_index=None,mode='auto',split=True,**kwargs):
         rho_index=np.arange(data.R.shape[1]) if rho_index is None else np.array(rho_index,dtype=int)
         self.rho_index.append(rho_index)
         index=np.arange(data.R.shape[0]) if index is None else np.array(index,dtype=int)
@@ -44,6 +44,17 @@ class DataPlots():
             self.ax_sens.set_position(bbox)
             hdl=data.sens.plot_rhoz(index=rho_index,ax=self.ax_sens)
             self.colors=[h.get_color() for h in hdl]
+        
+        self.ax=[self.fig.add_subplot(2*self.plot_sens+rho_index.size,1,k+3) for k in range(rho_index.size)]
+        for a in self.ax[1:]:a.sharex(self.ax[0])
+                
+        not_rho0=data.sens.rhoz[0,0]/data.sens.rhoz[0].max()<.98
+        for k,a,color in zip(rho_index,self.ax,self.colors):
+            hdl=plot_rho(data.label[index],data.R[index,k],data.Rstd[index,k]*errorbars if errorbars else None,\
+                     style=style,color=color,ax=a,split=split)
+            set_plot_attr(hdl,**kwargs)
+            if not(a.is_last_row()):plt.setp(a.get_xticklabels(), visible=False)
+            a.set_ylabel(r'$\rho_'+'{}'.format(k+not_rho0)+r'^{(\theta,S)}$')
         
         
         

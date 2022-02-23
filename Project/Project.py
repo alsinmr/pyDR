@@ -39,7 +39,7 @@ class DataMngr():
             index=self.saved_files.index(filename)
         self.data_objs[index]=read_file(os.path.join(self.directory,self.saved_files[index]))
         self._hashes[index]=self.data_objs[index]._hash
-        self.data_objs[index].project=self
+        self.data_objs[index].source.project=self.project
         
         
     def append_data(self,data):

@@ -43,6 +43,9 @@ class Info():
         for key,value in kwargs.items():
             assert not(isinstance(key,int)),"Parameters should not be of type 'int'"
             if key in self.keys:
+                if value is not None and self.N==0:
+                    self.N=len(value)
+                    self.__values=np.zeros([len(self.keys),self.N],dtype=object)
                 assert len(value)==self.N,"Length of the parameter should equal the number of experiments ({})".format(self.N) 
                 self.__values[self.keys.index(key)]=value
             else:

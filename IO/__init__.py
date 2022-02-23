@@ -8,3 +8,4 @@ Created on Wed Feb  2 09:29:19 2022
 
 
 from .bin_IO import read_file,write_file
+from .text_IO import writeNMR,readNMR
