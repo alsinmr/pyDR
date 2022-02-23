@@ -125,25 +125,25 @@ include[0][:3]=True    #Only methylCC,side_chain_chi frames without post process
 include[1][[4,6,8]]=True  #Only methylCC,side_chain_chi frames with post processing
 include[2][3:]=True #All frames with post processing
 
-t=np.arange(int(tf/2))*.005     #Only plot the first half of the correlation function, where noise is lower
+t=np.arange(tf>>1)*.005     #Only plot the first half of the correlation function, where noise is lower
 
 for inc,ax0 in zip(include,ax):
     out=fr_obj.frames2ct(include=inc,mode='full')
     
     for ct,a in zip(out['ct_finF'],ax0):
         a.cla()
-        a.plot(t,ct.mean(0)[:int(tf/2)])
+        a.plot(t,ct.mean(0)[:tf>>1])
         a.set_ylim([0,1.05])
-        S2=ct.mean(0)[int(tf/4):int(tf/2)].mean()
+        S2=ct.mean(0)[tf>>2:tf>>1].mean()
         b=np.argwhere(ct.mean(0)-S2<0)[0,0]
 #        tc0=np.max([.001,((ct.mean(0)[:b]-S2)/(1-S2)).sum()*.005])
         tc0=t[np.argmin(np.abs((ct.mean(0)[:b]-S2)/(1-S2)-np.exp(-1)))]
         fun=lambda x:(((x[0]+(1-x[0])*np.exp(-t[:b]/x[1]))-ct.mean(0)[:b])**2).sum()
         S2,tc=least_squares(fun,[S2,tc0]).x
         a.plot(t,S2+(1-S2)*np.exp(-t/tc),color='grey',linestyle=':')
-        a.set_xlim([0,np.min([10*tc,fr_obj.t[int(tf/2)]])])
-    ax0[-1].semilogx(out['t'][:int(tf/2)],out['ct'].mean(0)[:int(tf/2)])
-    ax0[-1].semilogx(out['t'][:int(tf/2)],out['ct_prod'].mean(0)[:int(tf/2)])
+        a.set_xlim([0,np.min([10*tc,fr_obj.t[tf>>1]])])
+    ax0[-1].semilogx(out['t'][:tf>>1],out['ct'].mean(0)[:tf>>1])
+    ax0[-1].semilogx(out['t'][:tf>>1],out['ct_prod'].mean(0)[:tf>>1])
     ax0[-1].set_ylim([0,.5])
     
 fig.set_size_inches([180/25.4,220/25.4])
@@ -154,14 +154,15 @@ data=fr_obj.frames2data(include=inc,mode='full')
 
 
 #%% Now use the project
+import pyDR
 from pyDR.Project import Project
 proj=Project('/Users/albertsmith/Documents/Dynamics/test_project.nosync',create=True)
-for d in data:proj.append_data(d)
 
+
+for d in data:proj.append_data(d)
 proj[0].detect.r_no_opt(10)
-for d in proj['raw']:d.fit(bounds=False)
-proj.unify_detect()
-proj['no-opt'][0].detect.r_auto(5)
-for d in proj['no-opt']:d.fit()
+proj.fit()
+proj['no_opt'][0].detect.r_auto(5)
+proj['no_opt'].fit()
 
 

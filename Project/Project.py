@@ -16,11 +16,13 @@ decode=bytes.decode
 class DataMngr():
     def __init__(self,project):
         self.project=project
-        if not(os.path.exists(self.directory)):os.mkdir(self.directory)
+        if not(os.path.exists(self.directory)):os.mkdir(self.directory)       
+        self._saved_files=list()
+        for fname in os.listdir(self.directory):
+            if fname[0]!='.':self._saved_files.append(fname)           
         self.data_objs=[None for _ in self.saved_files]
         self._hashes=[None for _ in self.saved_files]
-        self.__i=-1
-        
+
     
     @property
     def directory(self):
@@ -28,13 +30,7 @@ class DataMngr():
         
     @property
     def saved_files(self):
-        files=os.listdir(self.directory)
-        names=list()
-        for fname in files:
-            # with open(os.path.join(self.directory,fname),'rb') as f:
-            #     if decode(f.readline())[:-1]=='OBJECT:DATA':
-            if fname[0]!='.':names.append(fname)
-        return names
+        return self._saved_files
                 
     def load_data(self,filename=None,index=None):
         "Loads a saved file from the project directory"
@@ -61,7 +57,7 @@ class DataMngr():
             
         self.data_objs.append(data)
         self._hashes.append(None)   #We only add the hash value if data is saved
-        self.data_objs[-1].source.project=self
+        self.data_objs[-1].source.project=self.project
         if data.src_data is not None:
             if data.src_data in self:
                 data.src_data=self[self.data_objs.index(data.src_data)]
@@ -123,7 +119,7 @@ class DataMngr():
         """
         names=list()
         for d in self:
-            name=d.source.default_save_location
+            name=os.path.split(d.source.default_save_location)[1]
             if name in names:
                 name=name[:-5]+'1'+name[-5:]
                 k=2
@@ -172,15 +168,49 @@ class DataMngr():
                 self._hashes[i]=self[i]._hash #Update the hash so we know this state of the data is saved
           
 
+class DataSub(DataMngr):
+    """
+    Data storage object used for creating a sub-project of the given project.
+    Removes various functionality of the main class.
+    """
+    def __init__(self,project,*data):
+        assert not(project.subproject),'Sub-project data objects should reference the parent project'
+        self.project=project #This should be the parent project, not the subproject
+        self.data_objs=data
+        self._hashes=None
+    "De-activated functions/properties below"
+    @property
+    def saved_files(self):
+        pass
+    def load_data(self,*args,**kwargs):
+        pass
+    def append_data(self,*args,**kwargs):
+        pass
+    def remove_data(self,*args,**kwargs):
+        pass
+    @property
+    def saved(self):
+        pass
+    def save(self,*args,**kwargs):
+        pass
+    
+    
+    
 class Project():
-    def __init__(self,directory,create=False):
+    def __init__(self,directory,create=False,subproject=False):
         self._directory=os.path.abspath(directory)
         if not(os.path.exists(self.directory)) and create:
             os.mkdir(self.directory)
         assert os.path.exists(self.directory),'Project directory does not exist. Select an existing directory or set create=True'
                
         self.data=DataMngr(self)
-        
+        self.__subproject=subproject  #Subprojects cannot be edited/saved
+    
+
+    @property
+    def subproject(self):
+        return self.__subproject
+    
     @property
     def directory(self):
         return self._directory
@@ -189,6 +219,7 @@ class Project():
         self.data.append_data(data)
         
     def save(self):
+        assert not(self.__subproject),"Sub-projects cannot be saved"
         self.data.save()
     
     @property
@@ -247,21 +278,44 @@ class Project():
             return self.data[index]
         if isinstance(index,str):
             if index in self.Types:
-                out=list()
+                data=list()
                 for k,t in enumerate(self.Types):
-                    if index==t:out.append(self[k])
-                return out
+                    if index==t:data.append(self[k])
+                proj=Project(self.directory,create=False,subproject=True)
+                proj.data=DataSub(data[0].source.project,*data)
+                return proj
             elif index in self.statuses:
-                out=list()
+                data=list()
                 for k,s in enumerate(self.statuses):
-                    if index==s:out.append(self[k])
-                return out
+                    if index==s:data.append(self[k])
+                proj=Project(self.directory,create=False,subproject=True)
+                proj.data=DataSub(data[0].source.project,*data)
+                return proj
             elif index in self.titles:
                 return self[self.titles.index(index)]
             return
         if hasattr(index,'__len__'):
             return [self[i] for i in index]
-            
+    
+    def fit(self,bounds=True,parallel=False):
+        """
+        Fit all data in the project that has optimized detectors.
+        """
+        sens=list()
+        detect=list()
+        count=0
+        for d in self:
+            if 'n' in d.detect.opt_pars:
+                count+=1
+                fit=d.fit(bounds=bounds,parallel=parallel)
+                if fit.sens in sens:
+                    i=sens.index(fit.sens)
+                    fit.sens=sens[i]
+                    fit.detect=detect[i]
+                else:
+                    sens.append(fit.sens)
+                    detect.append(fit.detect)
+        print('Fitted {0} data objects'.format(count))
     
     @property
     def Types(self):
