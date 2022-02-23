@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>800</width>
+    <height>600</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>800</width>
+    <height>600</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QTabWidget" name="tabWidget">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>0</y>
+      <width>801</width>
+      <height>571</height>
+     </rect>
+    </property>
+    <property name="minimumSize">
+     <size>
+      <width>801</width>
+      <height>571</height>
+     </size>
+    </property>
+    <property name="maximumSize">
+     <size>
+      <width>801</width>
+      <height>571</height>
+     </size>
+    </property>
+    <property name="cursor">
+     <cursorShape>ArrowCursor</cursorShape>
+    </property>
+    <property name="currentIndex">
+     <number>0</number>
+    </property>
+    <widget class="QWidget" name="tab_data">
+     <attribute name="title">
+      <string>Data</string>
+     </attribute>
+    </widget>
+    <widget class="QWidget" name="tab_selection">
+     <attribute name="title">
+      <string>Selection</string>
+     </attribute>
+    </widget>
+    <widget class="QWidget" name="tab_sensitivity">
+     <attribute name="title">
+      <string>Sensitivity</string>
+     </attribute>
+    </widget>
+    <widget class="QWidget" name="tab_detectors">
+     <attribute name="title">
+      <string>Detector</string>
+     </attribute>
+    </widget>
+    <widget class="QWidget" name="tab_ired">
+     <attribute name="title">
+      <string>iRed</string>
+     </attribute>
+    </widget>
+    <widget class="QWidget" name="tab_frames">
+     <attribute name="title">
+      <string>Frames</string>
+     </attribute>
+    </widget>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>800</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menupyDR">
+    <property name="title">
+     <string>pyDR</string>
+    </property>
+    <widget class="QMenu" name="menuNew_Project">
+     <property name="title">
+      <string>New Project</string>
+     </property>
+     <addaction name="actionNMR"/>
+     <addaction name="actionMD"/>
+    </widget>
+    <addaction name="menuNew_Project"/>
+    <addaction name="actionSave_Project"/>
+    <addaction name="actionLoad_Project"/>
+    <addaction name="separator"/>
+    <addaction name="actionQuitProgram"/>
+   </widget>
+   <widget class="QMenu" name="menuOptionen">
+    <property name="title">
+     <string>Optionen</string>
+    </property>
+   </widget>
+   <addaction name="menupyDR"/>
+   <addaction name="menuOptionen"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionLoad_Project">
+   <property name="text">
+    <string>Load Project</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+L</string>
+   </property>
+  </action>
+  <action name="actionQuitProgram">
+   <property name="text">
+    <string>Quit program</string>
+   </property>
+   <property name="statusTip">
+    <string/>
+   </property>
+   <property name="shortcut">
+    <string extracomment="Close the program"/>
+   </property>
+  </action>
+  <action name="actionNMR">
+   <property name="text">
+    <string>NMR</string>
+   </property>
+  </action>
+  <action name="actionMD">
+   <property name="text">
+    <string>MD</string>
+   </property>
+  </action>
+  <action name="actionCreate_Something">
+   <property name="text">
+    <string>Create Something</string>
+   </property>
+  </action>
+  <action name="actionSave_Project">
+   <property name="text">
+    <string>Save Project</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="actionData">
+   <property name="text">
+    <string>Data</string>
+   </property>
+  </action>
+  <action name="actionSens">
+   <property name="text">
+    <string>Sens</string>
+   </property>
+  </action>
+  <action name="actionFrame">
+   <property name="text">
+    <string>Frame</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
