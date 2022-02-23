@@ -56,13 +56,14 @@ class Data():
         """
 
         if name=='sens' and hasattr(self,'detect'):
+            if hasattr(value,'opt_pars'):value.lock() #Lock detectors that are assigned as sensitivities
             if self.detect is None:
                 super().__setattr__('detect',clsDict['Detector'](value))
             elif self.detect.sens!=value:
                 print('Warning: Assigned sensitivity object did not equal detector sensitivities. Re-defining detector object')
                 super().__setattr__('detect',clsDict['Detector'](value))
                 
-        if name=='detect':
+        if name=='detect' and value is not None:
             assert self.sens==value.sens,"detect not assigned: Detector object's sensitivity does not match data object's sensitivity"
 
         if name=='src_data':

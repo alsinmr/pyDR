@@ -27,7 +27,8 @@ def fit(data,bounds=True,parallel=False):
     detect=data.detect.copy()
     out=clsDict['Data'](sens=detect,src_data=data) #Create output data with sensitivity as input detectors
     out.label=data.label
-    out.sens.lock() #Lock the detectors in sens since these shouldn't be edited after fitting
+    "I think the line below is now redundant..."
+#    out.sens.lock() #Lock the detectors in sens since these shouldn't be edited after fitting
     out.select=data.select
     
     

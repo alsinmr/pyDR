@@ -349,7 +349,7 @@ class FrameObj():
         frame_names=[vf.__str__().split(' ')[1].split('.')[0] for vf in self.vf]
                         
         for o,fr0,fr1 in zip(out[2:],['PAS',*frame_names],[*frame_names,'LF']):
-            o.source.frame_type='{0}>{1}'.format(fr0,fr1)
+            o.source.additional_info='{0}>{1}'.format(fr0,fr1)
             
                 
         return out
@@ -461,7 +461,7 @@ def ct2data(ct_out,mol=None):
     if 'ct' in ct_out:
         data=clsDict['Data'](R=ct_out['ct'],sens=md,select=mol,Type='Frames')
         data.Rstd[:]=stdev #Copy stdev for every data point
-        data.source.frame_type='Direct'
+        data.source.additional_info='Direct'
         data.source.filename=mol.traj.files
         if 'S2' in ct_out:
             data.S2=ct_out['S2']
@@ -470,7 +470,7 @@ def ct2data(ct_out,mol=None):
     if 'ct_prod' in ct_out:
         data=clsDict['Data'](R=ct_out['ct_prod'],sens=md,select=mol,Type='Frames')
         data.Rstd[:]=stdev #Copy stdev for every data point
-        data.source.frame_type='Product'
+        data.source.additional_info='Product'
         data.source.filename=mol.traj.files
         data.tensors=dict()
         if 'A_0m_PASinF' in ct_out:

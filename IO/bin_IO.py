@@ -40,6 +40,8 @@ def write_file(filename,ob,overwrite=False):
             write_Sens(f,ob)
         elif object_class=="Data":
             write_Data(f,ob)
+        elif object_class=='Source':
+            write_Source(f,ob)
             
 def read_file(filename):
     with open(filename,'rb') as f:
@@ -53,7 +55,9 @@ def read_file(filename):
         if l=='OBJECT:DETECTOR':
             return read_Detector(f)
         if l=='OBJECT:DATA':
-            return read_Data(f)
+            out=read_Data(f)
+            out.source.saved_filename=os.path.abspath(filename)
+            return out
         if l=='OBJECT:MOLSELECT':
             return read_MolSelect(f)
 
@@ -181,12 +185,7 @@ def write_Data(f,data):
     f.write(b'OBJECT:DATA\n')
     if data.detect is None:data.detect=Sens.Detector(data.sens)
     write_Detector(f,data.detect)
-    if data.src_data is not None:
-        f.write(b'src_data\n')
-        if isinstance(data.source._src_data,str):
-            f.write(bytes(data.source._src_data+'\n','utf-8'))
-        else:
-            write_Data(f,data.source._src_data)    
+    write_Source(f,data.source)    
     
     f.write(b'LABEL\n')
     np.save(f,data.label,allow_pickle=False)
@@ -210,15 +209,10 @@ def read_Data(f):
     data=clsDict['Data'](sens=detect.sens)
     data.detect=detect
     
-    pos=f.tell()
-    if decode(f.readline())[:-1]=='src_data':
-        line=f.readline()
-        if decode(line)[:-1]=='OBJECT:DATA':
-            data.source._src_data=read_Data(f)
-        else:
-            data.source._src_data=decode(line)[:-1]
-    else:
-        f.seek(pos)
+
+    assert decode(f.readline())[:-1]=='OBJECT:SOURCE','Source entry not initiated correctly'
+    data.source=read_Source(f)
+
     if decode(f.readline())[:-1]!='LABEL':print('Warning: Data label is missing')
     data.label=np.load(f,allow_pickle=False)
     if decode(f.readline())[:-1]!='END:LABEL':print('Warning: Data label terminated incorrectly')
@@ -229,12 +223,43 @@ def read_Data(f):
             setattr(data,k,np.load(f,allow_pickle=False))
     return data
 
-def write_Source(f,select):
+def write_Source(f,source):
     f.write(b'OBJECT:SOURCE\n')
-    flds=['Type','filename','saved_filename','_title','_status']
+    flds=['Type','filename','saved_filename','_title','status','n_det','additional_info']
+    for fld in flds:
+        f.write(bytes('{0}:{1}\n'.format(fld,getattr(source,fld)),'utf-8'))
+    if source._src_data is not None:    #Check _src_data, not src_data, because src_data will re-load the data object!!
+        f.write(b'src_data\n')
+        if isinstance(source._src_data,str):
+            f.write(bytes(source._src_data+'\n','utf-8'))
+        else:
+            write_Data(f,source._src_data)
+    f.write(b'END:OBJECT\n')
     
 def read_Source(f):
-    pass
+    source=clsDict['Source']()
+    flds=['Type','filename','saved_filename','_title','status','n_det','additional_info']
+    
+    for fld in flds:
+        line=decode(f.readline()).strip() 
+        assert line.split(':')[0]==fld,"Error: expected '{0}' but found '{1}'.".format(fld,line.split(':')[0])
+        v=line.split(':')[1]
+        if v=='None':continue
+        if fld=='filename' and v[0]=='[' and v[-1]==']':
+            v=v[2:-2].split(',')
+        setattr(source,fld,int(v) if fld=='n_det' else v)
+    line=decode(f.readline())[:-1]
+    if line=='src_data':
+        line=decode(f.readline())[:-1]
+        if line=='OBJECT:DATA':
+            source._src_data=read_Data(f)
+        else:
+            source._src_data=line
+        line=decode(f.readline())[:-1]
+    if line!='END:OBJECT':print('Warning: Source object not terminated correctly')
+    return source
+    
+        
 
 #%% Selection object Input/Output
 def write_MolSelect(f,select):
