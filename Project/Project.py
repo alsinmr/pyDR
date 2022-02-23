@@ -216,6 +216,7 @@ class Project():
         return self._directory
     
     def append_data(self,data):
+        assert not(self.__subproject),"Data cannot be appended to subprojects"
         self.data.append_data(data)
         
     def save(self):

@@ -9,6 +9,45 @@ Created on Wed Feb  2 10:38:52 2022
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.colors as colors
+from ..misc.disp_tools import set_plot_attr
+
+
+class DataPlots():
+    def __init__(self,data=None,style='plot',index=None,rho_index=None,title=None,fig=None,mode='auto',split=True,plot_sens=True,**kwargs):
+        self.fig=fig if fig is not None else plt.figure(title)
+        self.data=[]
+        self.index=[]
+        self.ax=[]
+        self.ax_sens=None
+        self.rho_index=[]
+        self.hdls=[]
+        self.colors=plt.rcParams['axes.prop_cycle'].by_key()['color']
+        self.mode=None
+        self.plot_sens=True        
+        if data is not None:
+            self.init_data(data,style=style,index=index,rho_index=rho_index,mode=mode,split=split,**kwargs)
+            
+        
+    def add_data(self,data,style='plot',index=None,rho_index=None,mode='auto',split=True,**kwargs):
+        if len(self.data)==0:
+            self.init_data(data,style='plot',index=None,rho_index=None,mode='auto',split=True,**kwargs)
+            return
+    def init_data(self,data,style='plot',index=None,rho_index=None,mode='auto',split=True,**kwargs):
+        rho_index=np.arange(data.R.shape[1]) if rho_index is None else np.array(rho_index,dtype=int)
+        self.rho_index.append(rho_index)
+        index=np.arange(data.R.shape[0]) if index is None else np.array(index,dtype=int)
+        self.index.append(index)
+        if self.plot_sens:
+            self.ax_sens=self.fig.add_subplot(2*self.plot_sens+rho_index.size,1,1)
+            bbox=self.ax_sens.get_position()
+            bbox.y0-=0.5*(bbox.y1-bbox.y0)
+            self.ax_sens.set_position(bbox)
+            hdl=data.sens.plot_rhoz(index=rho_index,ax=self.ax_sens)
+            self.colors=[h.get_color() for h in hdl]
+        
+        
+        
+        
 
 def plot_rho(lbl,R,R_std=None,style='plot',color=None,ax=None,split=True,**kwargs):
     """
