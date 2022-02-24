@@ -10,31 +10,30 @@ Created on Mon Nov 22 13:25:09 2021
 from multiprocessing.connection import Client
 from chimerax.core.commands import run
 from threading import Thread
-from time import sleep
+from time import sleep,time
 import CMXEvents
 import importlib
 import RemoteCMXside
 import os
 
 class ListenExec(Thread):
-    def __init__(self,cmx):
+    def __init__(self, cmx):
         super().__init__()
-        self.cmx=cmx
-        self.args=None
+        self.cmx = cmx
+        self.args = None
         
     def run(self):
         try:
-            self.args=self.cmx.client.recv()
+            self.args = self.cmx.client.recv()
             self.cmx.wait4command()     #If we successfully receive, start the process again   
         except:     #If the connection closes, we'll close this side as well
             self.cmx.client.close()
 
 class EventManager(Thread):
-    def __init__(self,cmx):
+    def __init__(self, cmx):
         super().__init__()
-        self.cmx=cmx
+        self.cmx = cmx
 
-    
     @property
     def is_session_alive(self):
         return self.cmx.isRunning   #Check if CMXReceiver has been terminated by other means
@@ -42,7 +41,7 @@ class EventManager(Thread):
     def run(self):
         print('Event manager started')
         while self.is_session_alive:
-            sleep(.5)
+            sleep(.1)
             if self.cmx.session.ui.main_window.isActiveWindow():
                 for name,f in self.cmx._events.copy().items():
                     try:
@@ -93,25 +92,25 @@ class CMXReceiver():
     
     def wait4command(self):
         if self.LE and self.LE.args:
-            fun,*args=self.LE.args
-            if hasattr(self,fun):
+            fun, *args = self.LE.args
+            if hasattr(self, fun):
                 try:
-                    getattr(self,fun)(*args)
+                    getattr(self, fun)(*args)
                 except:
-                    print('Execution of {} failed'.format(fun))    
+                    print('Execution of {} failed'.format(fun))
         if self.LE is None:
-            self.LE=ListenExec(self)
-            self.LE_1=self.LE
+            self.LE = ListenExec(self)
+            self.LE_1 = self.LE
         else:
-            self.LE=ListenExec(self)
+            self.LE = ListenExec(self)
 #        self.LE.isDaemon=True
         self.LE.start()
         print(self.LE_1.is_alive())
     
-    def command_line(self,string):
+    def command_line(self, string):
         '''running this from inside an event will cause a crash of chimerax'''
         print("run command")
-        run(self.session,string)
+        run(self.session, string)
         
         
     def phone_home(self):
@@ -122,17 +121,17 @@ class CMXReceiver():
             self.client.close()
         except:
             pass
-        run(self.session,'exit')
+        run(self.session, 'exit')
         
     def get_sel(self):
-        sel=list()
-        for k,mdl in enumerate(self.session.models):
+        sel = list()
+        for k, mdl in enumerate(self.session.models):
             if mdl.selected:
-                sel.append({"model":k})
+                sel.append({"model": k})
                 b0,b1=mdl.bonds[mdl.bonds.selected].atoms
-                sel[-1]['b0']=b0.coord_indices
-                sel[-1]['b1']=b1.coord_indices
-                sel[-1]['a']=mdl.atoms[mdl.atoms.selected].coord_indices
+                sel[-1]['b0'] = b0.coord_indices
+                sel[-1]['b1'] = b1.coord_indices
+                sel[-1]['a'] = mdl.atoms[mdl.atoms.selected].coord_indices
         self.client.send(sel)
 
 
@@ -144,7 +143,10 @@ class CMXReceiver():
         string=string.replace(' ','+')
         return os.system('curl http://127.0.0.1:{0}/run?command={1}'.format(self.rc_port0,string))
 
-    def add_event(self,name):
+    def add_event(self,name,*args):
+        # todo adding the a second event will cause the event manager to tell me add_event failed, but actually
+        # todo it is still working
+        print("args:",*args)
         if not(hasattr(CMXEvents,name)):
             print('Unknown event "{}", available events:\n'.format(name))
             print([fun for fun in dir(CMXEvents) if fun[0] is not "_"])
@@ -157,10 +159,8 @@ class CMXReceiver():
             print('Event "{}" must be callable'.format(name))
             return
 
-
         self.Stop() #Stop the event manager
         self._events[name]=event #Add the event
-        print('Event added')
         self.Start()
         
         

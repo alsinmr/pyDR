@@ -4,3 +4,17 @@ xtcs/**
 chimeraX/chimeraX_program_path.txt
 chimeraX/chimera_script*.py
 stashed/*
+GUI/__GUI.py
+GUI/__GUI_old.py
+dihedrals.npy
+long_traj_dihedrals.npy
+long_traj_vecs.npy
+vectors.npy
+det.txt
+det2.txt
+compare_md_nmr_double_assign.py
+correl.npy
+chi_separated_ct.py
+correlationplot.py
+ct_vecs_3pw_400000.npy
+HETs_15N.txt

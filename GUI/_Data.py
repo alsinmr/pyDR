@@ -29,9 +29,7 @@ class Ui_Data_final(Ui_Data):
        
        #toolbar = NavigationToolbar2QT(self.plot,self.plot)
        
-       self.plot, ax, toolbar = create_Figure_canvas()
+       self.plot, ax, toolbar = create_Figure_canvas(self.layout_plot)
        ax.plot(np.sin(np.arange(0,1,0.01)))
-       self.layout_plot.addWidget(self.plot)
-       self.layout_plot.addWidget(toolbar)
-       
+
        
