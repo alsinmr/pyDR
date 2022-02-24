@@ -105,14 +105,13 @@ class Detector(Sens.Sens):
         T matrix
         """
         
-        
         SVD=self.SVD
         T=self.T        
         
         self._Sens__rho=T@SVD.Vt
         self._Sens__rhoCSA=T@SVD.VtCSA
-        self.__r=((1/self.sens.norm)*(SVD.U@np.linalg.solve(T.T,np.diag(SVD.S))).T).T
-
+#        self.__r=((1/self.sens.norm)*(SVD.U@np.diag(SVD.S)@np.linalg.inv(T)).T).T      #Same as below, but in theory slower(?)
+        self.__r=((1/self.sens.norm)*(SVD.U@np.linalg.solve(T.T,np.diag(SVD.S)).T).T).T
         
         dz=self.z[1]-self.z[0]
         for k in self.info.keys.copy():self.info.del_parameter(k)

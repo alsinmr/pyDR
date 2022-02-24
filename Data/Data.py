@@ -48,10 +48,8 @@ class Data():
             else:
                 self.label=np.arange(self.R.shape[0],dtype=object)
         self.sens=sens
-        if self.Rstd.shape[0]>0:
+        if self.Rstd.shape[0]>0 and Rstd is not None:
             self.sens.info.new_parameter(stdev=np.median(self.Rstd,0))
-        if self.R.shape[0]>0:
-            self.sens.info.new_parameter(med_val=np.median(self.R,0))
         self.detect=clsDict['Detector'](sens) if sens is not None else None
         self.source=clsDict['Source'](src_data=src_data,select=select,Type=Type)
 #        self.select=select #Stores the molecule selection for this data object

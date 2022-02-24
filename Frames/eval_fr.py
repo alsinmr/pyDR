@@ -457,10 +457,10 @@ def ct2data(ct_out,mol=None):
     out=list()
     
     md=clsDict['MD'](t=ct_out['t'])
-    stdev=md.info['stdev']
+    stdev=np.repeat([md.info['stdev']],ct_out['ct'].shape[0],axis=0)
     if 'ct' in ct_out:
-        data=clsDict['Data'](R=ct_out['ct'],sens=md,select=mol,Type='Frames')
-        data.Rstd[:]=stdev #Copy stdev for every data point
+        data=clsDict['Data'](R=ct_out['ct'],Rstd=stdev,sens=md,select=mol,Type='Frames')
+#        data.Rstd[:]=stdev #Copy stdev for every data point
         data.source.additional_info='Direct'
         data.source.filename=mol.traj.files
         data.source.status='raw'
@@ -469,8 +469,8 @@ def ct2data(ct_out,mol=None):
         out.append(data)
     
     if 'ct_prod' in ct_out:
-        data=clsDict['Data'](R=ct_out['ct_prod'],sens=md,select=mol,Type='Frames')
-        data.Rstd[:]=stdev #Copy stdev for every data point
+        data=clsDict['Data'](R=ct_out['ct_prod'],Rstd=stdev,sens=md,select=mol,Type='Frames')
+#        data.Rstd[:]=stdev #Copy stdev for every data point
         data.source.additional_info='Product'
         data.source.filename=mol.traj.files
         data.source.status='raw'
@@ -482,8 +482,8 @@ def ct2data(ct_out,mol=None):
     
     if 'ct_finF' in ct_out:
         for k,ct0 in enumerate(ct_out['ct_finF']):
-            data=clsDict['Data'](R=ct0,sens=md,select=mol,Type='Frames')
-            data.Rstd[:]=stdev #Copy stdev for every data point
+            data=clsDict['Data'](R=ct0,Rstd=stdev,sens=md,select=mol,Type='Frames')
+#            data.Rstd[:]=stdev #Copy stdev for every data point
             data.source.filename=mol.traj.files
             data.source.status='raw'
             data.tensors=dict()
