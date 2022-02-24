@@ -14,10 +14,13 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_Selection(object):
     def setupUi(self, Selection):
         Selection.setObjectName("Selection")
-        Selection.resize(400, 300)
-        self.label = QtWidgets.QLabel(Selection)
-        self.label.setGeometry(QtCore.QRect(90, 80, 67, 17))
-        self.label.setObjectName("label")
+        Selection.resize(707, 420)
+        self.pushButton_loadpdb = QtWidgets.QPushButton(Selection)
+        self.pushButton_loadpdb.setGeometry(QtCore.QRect(0, 10, 89, 25))
+        self.pushButton_loadpdb.setObjectName("pushButton_loadpdb")
+        self.label_pdbpath = QtWidgets.QLabel(Selection)
+        self.label_pdbpath.setGeometry(QtCore.QRect(91, 10, 410, 25))
+        self.label_pdbpath.setObjectName("label_pdbpath")
 
         self.retranslateUi(Selection)
         QtCore.QMetaObject.connectSlotsByName(Selection)
@@ -25,4 +28,5 @@ class Ui_Selection(object):
     def retranslateUi(self, Selection):
         _translate = QtCore.QCoreApplication.translate
         Selection.setWindowTitle(_translate("Selection", "Form"))
-        self.label.setText(_translate("Selection", "Selection"))
+        self.pushButton_loadpdb.setText(_translate("Selection", "Load .pdb"))
+        self.label_pdbpath.setText(_translate("Selection", "..."))

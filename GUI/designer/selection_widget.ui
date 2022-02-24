@@ -6,24 +6,37 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>300</height>
+    <width>707</width>
+    <height>420</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <widget class="QLabel" name="label">
+  <widget class="QPushButton" name="pushButton_loadpdb">
    <property name="geometry">
     <rect>
-     <x>90</x>
-     <y>80</y>
-     <width>67</width>
-     <height>17</height>
+     <x>0</x>
+     <y>10</y>
+     <width>89</width>
+     <height>25</height>
     </rect>
    </property>
    <property name="text">
-    <string>Selection</string>
+    <string>Load .pdb</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_pdbpath">
+   <property name="geometry">
+    <rect>
+     <x>91</x>
+     <y>10</y>
+     <width>410</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>...</string>
    </property>
   </widget>
  </widget>

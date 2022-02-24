@@ -6,20 +6,20 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>1280</width>
+    <height>720</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
-    <width>800</width>
-    <height>600</height>
+    <width>1280</width>
+    <height>720</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
-    <width>800</width>
-    <height>600</height>
+    <width>1280</width>
+    <height>720</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -31,20 +31,20 @@
      <rect>
       <x>0</x>
       <y>0</y>
-      <width>801</width>
-      <height>571</height>
+      <width>1280</width>
+      <height>680</height>
      </rect>
     </property>
     <property name="minimumSize">
      <size>
-      <width>801</width>
-      <height>571</height>
+      <width>1280</width>
+      <height>680</height>
      </size>
     </property>
     <property name="maximumSize">
      <size>
-      <width>801</width>
-      <height>571</height>
+      <width>1280</width>
+      <height>780</height>
      </size>
     </property>
     <property name="cursor">
@@ -90,7 +90,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
+     <width>1280</width>
      <height>22</height>
     </rect>
    </property>

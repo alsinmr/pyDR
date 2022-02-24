@@ -36,6 +36,9 @@ conda install mdanalysis<br />
 (https://www.mdanalysis.org/pages/installation_quick_start/)
 
 
+run the GUI with 'python3 -m pyDR'
+
+
 All files are copyrighted under the GNU General Public License. A copy of the license has been provided in the file LICENSE
 
 

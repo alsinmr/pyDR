@@ -24,51 +24,6 @@
    </property>
    <layout class="QVBoxLayout" name="layout_plot"/>
   </widget>
-  <widget class="QCheckBox" name="checkBox_normalize">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>240</y>
-     <width>92</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="statusTip">
-    <string>Normalize sensitivities</string>
-   </property>
-   <property name="text">
-    <string>Normalize</string>
-   </property>
-  </widget>
-  <widget class="QComboBox" name="comboBox_sel_dataset">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>320</y>
-     <width>131</width>
-     <height>25</height>
-    </rect>
-   </property>
-   <property name="statusTip">
-    <string>Select sensitivity dataset</string>
-   </property>
-  </widget>
-  <widget class="QPlainTextEdit" name="plainTextEdit_index">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>275</y>
-     <width>111</width>
-     <height>28</height>
-    </rect>
-   </property>
-   <property name="toolTip">
-    <string/>
-   </property>
-   <property name="statusTip">
-    <string>select indices for sensitivity (e.g. &quot;4&quot;, &quot;3-8&quot; ...)</string>
-   </property>
-  </widget>
   <widget class="QComboBox" name="comboBox_exp_no">
    <property name="geometry">
     <rect>
@@ -184,6 +139,48 @@
    <property name="text">
     <string>Nuc. type</string>
    </property>
+  </widget>
+  <widget class="QWidget" name="">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>240</y>
+     <width>131</width>
+     <height>91</height>
+    </rect>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QCheckBox" name="checkBox_normalize">
+      <property name="statusTip">
+       <string>Normalize sensitivities</string>
+      </property>
+      <property name="text">
+       <string>Normalize</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPlainTextEdit" name="plainTextEdit_index">
+      <property name="toolTip">
+       <string/>
+      </property>
+      <property name="statusTip">
+       <string>select indices for sensitivity (e.g. &quot;4&quot;, &quot;3-8&quot; ...)</string>
+      </property>
+      <property name="placeholderText">
+       <string>Indices</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QComboBox" name="comboBox_sel_dataset">
+      <property name="statusTip">
+       <string>Select sensitivity dataset</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
   </widget>
  </widget>
  <resources/>

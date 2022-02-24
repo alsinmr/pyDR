@@ -4,14 +4,25 @@ import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QListWidgetItem, QWidget, QFileDialog
 
 
-def openFileNameDialog():
+def openFileNameDialog(**kwargs):
     W = QWidget()
     options = QFileDialog.Options()
     options |= QFileDialog.DontUseNativeDialog
     # TODO change the file things
-    fileName, _ = QFileDialog.getOpenFileName(W,"QFileDialog.getOpenFileName()", "","All Files (*);;Python Files (*.py)", options=options)
+
+    if kwargs.get("filetypes"):
+        filetypes = kwargs['filetypes']
+    else:
+        filetypes = "All Files (*)"
+        #"All Files (*);;Python Files (*.py)"
+    fileName, _ = QFileDialog.getOpenFileName(W,"QFileDialog.getOpenFileName()", "",filetypes, options=options)
     if fileName:
-        return fileName
+        if kwargs.get("target"):
+            target = kwargs["target"]
+            if hasattr(target, "setText"):
+                target.setText(fileName)
+        else:
+            return fileName
     return ""
     
     
