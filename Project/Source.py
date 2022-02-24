@@ -94,7 +94,7 @@ class Source():
         if self._title is not None:return self._title
         title=self.status[0]
         if self.n_det is not None:title+='{}'.format(self.n_det)
-        if self.Type is not None:title+=':'+self.Type.capitalize()
+        if self.Type is not None:title+=':'+self.Type.upper()
         if self.additional_info is not None:title+=':'+self.additional_info
         if self.short_file is not None:title+=':'+self.short_file
         return title

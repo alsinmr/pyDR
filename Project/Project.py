@@ -39,7 +39,7 @@ class DataMngr():
             index=self.saved_files.index(filename)
         self.data_objs[index]=read_file(os.path.join(self.directory,self.saved_files[index]))
         self._hashes[index]=self.data_objs[index]._hash
-        self.data_objs[index].project=self
+        self.data_objs[index].source.project=self.project
         
         
     def append_data(self,data):
@@ -216,6 +216,7 @@ class Project():
         return self._directory
     
     def append_data(self,data):
+        assert not(self.__subproject),"Data cannot be appended to subprojects"
         self.data.append_data(data)
         
     def save(self):

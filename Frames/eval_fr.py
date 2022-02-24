@@ -463,6 +463,7 @@ def ct2data(ct_out,mol=None):
         data.Rstd[:]=stdev #Copy stdev for every data point
         data.source.additional_info='Direct'
         data.source.filename=mol.traj.files
+        data.source.status='raw'
         if 'S2' in ct_out:
             data.S2=ct_out['S2']
         out.append(data)
@@ -472,6 +473,7 @@ def ct2data(ct_out,mol=None):
         data.Rstd[:]=stdev #Copy stdev for every data point
         data.source.additional_info='Product'
         data.source.filename=mol.traj.files
+        data.source.status='raw'
         data.tensors=dict()
         if 'A_0m_PASinF' in ct_out:
             data.tensors['A_0m_PASinF']=ct_out['A_0m_PASinF'][-1]
@@ -483,6 +485,7 @@ def ct2data(ct_out,mol=None):
             data=clsDict['Data'](R=ct0,sens=md,select=mol,Type='Frames')
             data.Rstd[:]=stdev #Copy stdev for every data point
             data.source.filename=mol.traj.files
+            data.source.status='raw'
             data.tensors=dict()
             if 'A_m0_finF' in ct_out:
                 data.tensors['A_m0_finF']=ct_out['A_m0_finF'][k]
