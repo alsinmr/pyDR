@@ -23,6 +23,7 @@ class MyWindow(Ui_MainWindow):
         # second step: run setup and pass the "tab"
         self.data_tab = Ui_Data_final()
         self.data_tab.setupUi(self.tab_data)
+
        
         self.sensitivity_tab = Ui_Sensitivity_final()
         self.sensitivity_tab.setupUi(self.tab_sensitivity)

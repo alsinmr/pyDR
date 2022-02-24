@@ -5,46 +5,62 @@ Created on Wed Nov 24 11:49:56 2021
 
 @author: albertsmith
 """
+from PyQt5.QtWidgets import QMouseEventTransition, QApplication
+from PyQt5.QtCore import Qt
+from PyQt5 import QtGui
 
 class Hover():
-  def __init__(self,cmx):
-     self.cmx = cmx
-     self.session=cmx.session
-     self.cursor = self.session.ui.mouse_modes.graphics_window.cursor()
-     for win in self.session.ui.allWindows():  #todo set session.ui.main_window
-       if win.objectName() == "MainWindowClassWindow":
-         self.win1 = win
-         break
-     self.win2 = self.session.ui.allWindows()[-1]
-     self.win_size=self.session.view.window_size
-     self.cont=True
+    def __init__(self, cmx):
+        self.cmx = cmx
+        self.session= cmx.session
+        self.cursor = self.session.ui.mouse_modes.graphics_window.cursor()
+        for win in self.session.ui.allWindows():  #todo set session.ui.main_window
+            if win.objectName() == "MainWindowClassWindow":
+                self.win1 = win
+                break
+        self.win2 = self.session.ui.allWindows()[-1]
+        self.win_size=self.session.view.window_size
+        self.cont = True
 
-  def get_mouse_pos(self):
-      return self.cursor.pos().x() - self.win1.position().x() - self.win2.position().x(),\
-             self.cursor.pos().y() - self.win1.position().y() - self.win2.position().y()
+    def get_mouse_pos(self):
+        return self.cursor.pos().x() - self.win1.position().x() - self.win2.position().x(),\
+               self.cursor.pos().y() - self.win1.position().y() - self.win2.position().y()
 
-  def __call__(self):
-      mx, my = self.get_mouse_pos()
-      ob = self.session.main_view.picked_object(mx, my)
-      if not hasattr(self,"hover"):
-        if hasattr(ob,"atom"):
-          self.hover = ob
-          ob.atom.radius+=1
-      elif hasattr(ob,"atom"):
-        if self.hover.atom.name != ob.atom.name:
-          print(ob.atom.name)
-          if self.hover:
+    def __call__(self):
+        mx, my = self.get_mouse_pos()
+        ob = self.session.main_view.picked_object(mx, my)
+        if not hasattr(self,"hover"):
+            if hasattr(ob,"atom"):
+                self.hover = ob
+                ob.atom.radius += 1
+        elif hasattr(ob,"atom"):
+            if self.hover.atom.name != ob.atom.name:
+                print(ob.atom.name)
+                if self.hover:
+                    self.hover.atom.radius -= 1
+                ob.atom.radius += 1
+                self.hover = ob
+
+    def cleanup(self):
+        if hasattr(self,"hover"):
             self.hover.atom.radius -= 1
-          ob.atom.radius += 1
-          self.hover = ob
-          
-  def cleanup(self):
-      if hasattr(self,"hover"):
-          self.hover.atom.radius -= 1
 
 class Click(Hover):
+    def __init__(self,cmx):
+        super().__init__(cmx)
+        self.mod =QApplication.mouseButtons
+
     def __call__(self, *args, **kwargs):
-        pass
+        mod = self.mod()
+        mx, my = self.get_mouse_pos()
+        ob = self.session.main_view.picked_object(mx, my)
+        if hasattr(ob,"atom"):
+            if mod == Qt.MouseButton.LeftButton:
+                ob.atom.radius += 1
+            elif mod== Qt.MouseButton.RightButton:
+                if ob.atom.radius >2:
+                    ob.atom.radius -= 2
+
         '''
         : Qt.MouseButton
         Out[42]: PyQt5.QtCore.Qt.MouseButton
@@ -86,7 +102,8 @@ class Detectors(Hover):
         res_nums = []
         atom_names = []
         det_responses = []
-        with open("det.txt") as f:
+        print("open detector file")
+        with open("det2.txt") as f:
             for line in f:
                 l = line.strip()
                 l = l[:-1]
@@ -126,4 +143,4 @@ class Detectors(Hover):
             self.commands.append(lambda atoms = self.model.residues[res_nums-1].atoms[atom_nums],
                                         R = det_responses.T[i],
                                         color=cmap(i)
-                                         :set_radius(atoms,R,color))
+                                         :set_radius(atoms, R, color))
