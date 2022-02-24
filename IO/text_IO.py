@@ -25,27 +25,24 @@ def writeNMR(filename,ob,overwrite=False):
             
 def readNMR(filename):
     with open(filename,'r') as f:
+        info,data=None,None
         for line in f:
             line=line.strip()
             if line=='INFO':
-                out=read_INFO(f)
-                while not(eof(f)):
-                    if f.readline().strip()=='DATA':
-                        info=out
-                        out=read_Data(f)
-                        out.sens=clsDict['NMR'](info)
-                        out.source.filename=os.path.abspath(filename)
-                        out.source.status='raw'
-                        out.source.Type='NMR'
+                info=read_INFO(f)
             elif line=='DATA':
-                out=read_Data(f)
-                out.sens=clsDict['NMR']()
-                out.source.filename=os.path.abspath(filename)
-                out.source.status='raw'
-                out.source.Type='NMR'
-            elif eof(f):
-                print('Unrecognized text file type')
-    return out
+                keys=read_Data(f)
+        if info is None and data is None:
+            print('Unrecognized text file format')
+        elif keys is None:
+            return info
+        else:
+            sens=clsDict['NMR'](info=info)
+            data=clsDict['Data'](sens=sens,**keys)
+            data.source.filename=os.path.abspath(filename)
+            data.source.status='raw'
+            data.source.Type='NMR'
+            return data
         
 #%% Info read and write (intended only for NMR sensitivities)
 def write_Info(f,info):
@@ -71,7 +68,6 @@ def write_Info(f,info):
                 
 def read_INFO(f):
     pars=dict()
-    line=f.readline().strip()
     for line in f:
         if line.strip()=='END':break
         key,*values=line.strip().split('\t')
@@ -105,17 +101,20 @@ def write_Data(f,data):
     f.write('END')
     
 def read_Data(f):
-    data=clsDict['Data']()
-    keys=['R','Rstd','S2','S2std','label']
+    keys={k:None for k in ['R','Rstd','S2','S2std','label']}
+    print('updated')
     key=None
-    isstr=False
     values=list()
+    isstr=False
     for line in f:
-        if line.strip() in keys:
+        if line.strip()=='END':
+            break
+        elif line.strip() in keys:
             if key is not None:
-                setattr(data,key,np.array(values,dtype=None if isstr else dtype))
+                keys[key]=np.array(values,dtype=None if isstr else dtype)
             key=line.strip()
             values=list()
+            isstr=False
         elif len(line.strip())!=0:
             if '\t' in line.strip():
                 values.append(list())
@@ -125,7 +124,10 @@ def read_Data(f):
             else:
                 values.append(assign_type(line.strip()))
                 isstr=isinstance(values[-1],str)
-    return data
+    if key is not None:
+        keys[key]=np.array(values,dtype=None if isstr else dtype)
+        
+    return keys
                 
             
     
@@ -137,14 +139,13 @@ def read_Data(f):
 
 def assign_type(x):
     "Takes a string and assigns it to float, integer, or simply string"
-    
-    if np.char.isnumeric(x.split('.')[0]):
-        a,b=[int(x0) if np.char.isnumeric(x0) else None for x0 in x.split('.')]
-        if b is None or b==0:
-            return a
-        else:
-            return a+b/(10**int(np.log10(b)+1))
-    return x
+    try:
+        return int(x)
+    except:
+        try:
+            return float(x)
+        except:
+            return x
                     
         
 def eof(f):

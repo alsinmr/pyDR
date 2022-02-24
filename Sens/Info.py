@@ -171,7 +171,13 @@ class Info():
         if index in self.keys:
             self.new_parameter(**{index:value})
             return
-         
+        
+        if isinstance(value,dict) and isinstance(index,int):
+            "Index/dictionary pair: assign values for experiment {index}"
+            assert all([k in self.keys for k in value.keys()]),"Unknown parameters found in dictionary"
+            for k,v in value.items():self[k,index]=v
+            return
+        
         assert isinstance(index,tuple),"Both the parameter name and index must be provided"
         assert index[0] in self.keys,"Unknown parameter {0}".format(index[0])
 

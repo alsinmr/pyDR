@@ -83,11 +83,12 @@ class Source():
     
     @property
     def status(self):
-        if self._status[0].lower()=='r':return 'raw'
-        if self._status[0].lower()=='n':return 'no_opt'
-        if self._status[0].lower()=='p':return 'proc'
-        if self._status[0].lower()=='e':return 'empty'
-        assert 0,"source._status should be 'raw','proc', 'no_opt', or 'empty'"
+        keys={'r':'raw','n':'no_opt','p':'proc','o':'opt_fit','e':'empty'}
+        if self._status in keys.values():return self._status
+        if self._status[0].lower() in keys:return keys[self._status]
+        self._status
+        assert 0,"source.status should be '"+"','".join(keys.keys())+"', setting to ''"
+
 
     @property
     def title(self):
@@ -96,7 +97,7 @@ class Source():
         if self.n_det is not None:title+='{}'.format(self.n_det)
         if self.Type is not None:title+=':'+self.Type.upper()
         if self.additional_info is not None:title+=':'+self.additional_info
-        if self.short_file is not None:title+=':'+self.short_file
+        if self.short_file is not None:title+=':'+self.short_file.rsplit('.',maxsplit=1)[0]
         return title
         
     @property

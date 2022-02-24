@@ -8,10 +8,11 @@ Created on Wed Feb 16 14:50:19 2022
 
 import os
 import numpy as np
-from pyDR.IO import read_file
+from pyDR.IO import read_file,readNMR,isbinary
 from pyDR import Defaults
 ME=Defaults['max_elements']
 decode=bytes.decode
+
 
 class DataMngr():
     def __init__(self,project):
@@ -37,7 +38,8 @@ class DataMngr():
         if filename is not None:
             assert filename in self.saved_files,"{} not found in project. Use 'append_data' for new data".format(filename)
             index=self.saved_files.index(filename)
-        self.data_objs[index]=read_file(os.path.join(self.directory,self.saved_files[index]))
+        fullpath=os.path.join(self.directory,self.saved_files[index])
+        self.data_objs[index]=read_file(fullpath)
         self._hashes[index]=self.data_objs[index]._hash
         self.data_objs[index].source.project=self.project
         
@@ -48,8 +50,14 @@ class DataMngr():
             filename,data=data,None
         "Adds data to the project (either from file, set 'filename' or loaded data, set 'data')"
         if filename is not None:
+            if not(os.path.exists(filename)):
+                if os.path.exists(os.path.join(os.path.dirname(self.directory),filename)):  #Check in the project directory
+                    filename=os.path.join(os.path.dirname(self.directory),filename) 
+                    """Note that adding data from within the project/data directory is discouraged,
+                    so we do not check that directory here.
+                    """
             assert os.path.exists(filename),"{} does not exist".format(filename)
-            data=read_file(filename)
+            data=read_file(filename) if isbinary(filename) else readNMR(filename)
 
         if data in self:
             print("Data already in project (index={})".format(self.data_objs.index(data)))
@@ -218,6 +226,9 @@ class Project():
     def append_data(self,data):
         assert not(self.__subproject),"Data cannot be appended to subprojects"
         self.data.append_data(data)
+    def remove_data(self,index,delete=False):
+        assert not(self.__subproject),"Data cannot be removed from subprojects"
+        self.data.remove_data(index=index,delete=delete)
         
     def save(self):
         assert not(self.__subproject),"Sub-projects cannot be saved"

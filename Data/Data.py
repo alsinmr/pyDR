@@ -19,7 +19,7 @@ dtype=Defaults['dtype']
 #%% Data object
 
 class Data():
-    def __init__(self,R=None,Rstd=None,label=None,sens=None,select=None,src_data=None,Type=None):
+    def __init__(self,R=None,Rstd=None,label=None,sens=None,select=None,src_data=None,Type=None,S2=None,S2std=None,Rc=None):
         """
         Initialize a data object. Optional inputs are R, the data, R_std, the 
         standard deviation of the data, sens, the sensitivity object which
@@ -33,17 +33,25 @@ class Data():
         "We start with some checks on the data sizes, etc"
         if R is not None and Rstd is not None:
             assert R.shape==Rstd.shape,"Shapes of R and R_std must match when initializing a data object"
-        if R is not None and sens is not None:
+        if R is not None and sens is not None and len(sens.info):
             assert R.shape[1]==sens.rhoz.shape[0],"Shape of sensitivity object is not consistent with shape of R"
         
         self.R=np.array(R) if R is not None else np.zeros([0,sens.rhoz.shape[0] if sens else 0],dtype=dtype)
         self.Rstd=np.array(Rstd) if Rstd is not None else np.zeros(self.R.shape,dtype=dtype)
-        if label is None:
+        self.S2=np.array(S2) if S2 is not None else None
+        self.S2std=np.array(S2std) if S2std is not None else None
+        self.Rc=np.array(Rc) if Rc is not None else None
+        self.label=label
+        if self.label is None:
             if select is not None and select.label is not None and len(select.label)==self.R.shape[0]:
                 self.label=select.label
             else:
                 self.label=np.arange(self.R.shape[0],dtype=object)
         self.sens=sens
+        if self.Rstd.shape[0]>0:
+            self.sens.info.new_parameter(stdev=np.median(self.Rstd,0))
+        if self.R.shape[0]>0:
+            self.sens.info.new_parameter(med_val=np.median(self.R,0))
         self.detect=clsDict['Detector'](sens) if sens is not None else None
         self.source=clsDict['Source'](src_data=src_data,select=select,Type=Type)
 #        self.select=select #Stores the molecule selection for this data object

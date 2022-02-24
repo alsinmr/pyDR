@@ -35,12 +35,12 @@ def fit(data,bounds=True,parallel=False):
     "Prep data for fitting"
     X=list()
     for k,(R,Rstd) in enumerate(zip(data.R.copy(),data.Rstd)):
-        r0=detect[k] #Get the detector object for this bond
+        r0=detect[k] #Get the detector object for this bond (detectors support indexing but not iteration)
         UB=r0.rhoz.max(1)#Upper and lower bounds for fitting
         LB=r0.rhoz.min(1)
         R-=data.sens[k].R0 #Offsets if applying an effective sensitivity
         if 'inclS2' in r0.opt_pars['options']: #Append S2 if used for detectors
-            R=np.concatenate((R,[data.S2[k]]))
+            R=np.concatenate((R,[1-data.S2[k]]))
             Rstd=np.concatenate((Rstd,[data.S2std[k]]))
         R/=Rstd     #Normalize data by its standard deviation
         r=(r0.r.T/Rstd).T   #Also normalize R matrix

@@ -20,6 +20,13 @@ dtype=Defaults['dtype']
 from pyDR import Sens
 decode=bytes.decode
 
+
+def isbinary(filename):
+    textchars = bytearray({7,8,9,10,12,13,27} | set(range(0x20, 0x100)) - {0x7f})
+    is_binary_string = lambda bytes: bool(bytes.translate(None, textchars))
+    with open(filename, 'rb') as f:
+        return is_binary_string(f.read(1024))
+
 #%% Main Input/Output
 def write_file(filename,ob,overwrite=False):
     if os.path.exists(filename) and not(overwrite):
@@ -202,25 +209,23 @@ def read_Data(f):
     line=decode(f.readline())[:-1]
     if line!='OBJECT:DETECTOR':print('Warning: First entry of data object should be the detector')
     detect=read_Detector(f)
-    # if hasattr(Data,'Data'):
-    #     data=Data.Data(sens=detect.sens)
-    # else:
-    #     data=Data(sens=detect.sens)
-    data=clsDict['Data'](sens=detect.sens)
-    data.detect=detect
-    
-
     assert decode(f.readline())[:-1]=='OBJECT:SOURCE','Source entry not initiated correctly'
-    data.source=read_Source(f)
+    source=read_Source(f)
 
     if decode(f.readline())[:-1]!='LABEL':print('Warning: Data label is missing')
-    data.label=np.load(f,allow_pickle=False)
+    kwargs={}
+    kwargs['label']=np.load(f,allow_pickle=False)
     if decode(f.readline())[:-1]!='END:LABEL':print('Warning: Data label terminated incorrectly')
     for l in f:
         k=decode(l)[:-1]
         if k=='END:OBJECT':break
         if k in flds:
-            setattr(data,k,np.load(f,allow_pickle=False))
+            kwargs[k]=np.load(f,allow_pickle=False)
+    
+    kwargs['sens']=detect.sens
+    data=clsDict['Data'](**kwargs)
+    data.source=source
+    data.detect=detect
     return data
 
 def write_Source(f,source):
