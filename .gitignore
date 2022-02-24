@@ -13,3 +13,8 @@ vectors.npy
 det.txt
 det2.txt
 compare_md_nmr_double_assign.py
+correl.npy
+chi_separated_ct.py
+correlationplot.py
+ct_vecs_3pw_400000.npy
+HETs_15N.txt
