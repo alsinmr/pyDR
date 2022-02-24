@@ -65,6 +65,7 @@ class DataMngr():
             
         self.data_objs.append(data)
         self._hashes.append(None)   #We only add the hash value if data is saved
+        self._saved_files.append(None)
         self.data_objs[-1].source.project=self.project
         if data.src_data is not None:
             if data.src_data in self:
@@ -83,8 +84,9 @@ class DataMngr():
         if isinstance(index,int):
             self.data_objs.pop(index)
             self._hashes.pop(index)
-            if delete and self.filenames[index] is not None:
-                os.remove(os.path.abspath(self.directory,self.filenames[index]))
+            if delete and self.saved_files[index] is not None:
+                os.remove(os.path.join(self.directory,self.saved_files[index]))
+            self._saved_files.pop(index)
         else:
             for i in np.sort(index)[::-1]:self.remove_data(i,delete=delete)
                 
@@ -174,6 +176,7 @@ class DataMngr():
                 self[i].save(self.save_name[i],overwrite=True,save_src=False,src_fname=src_fname)
                 self[i].source.saved_filename=self.save_name[i]
                 self._hashes[i]=self[i]._hash #Update the hash so we know this state of the data is saved
+                self._saved_files[i]=self.save_name[i]
           
 
 class DataSub(DataMngr):
