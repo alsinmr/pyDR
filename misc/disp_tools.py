@@ -14,9 +14,11 @@ def set_plot_attr(hdl,**kwargs):
     Get properties for a list of handles. If values in kwargs are found in props,
     then that attribute is set (ignores unmatched values)
     """
+    print(kwargs)
     if not(hasattr(hdl,'__len__')): #Make sure hdl is a list
         hdl=[hdl]
     
+    if not(hasattr(hdl[0],'properties')):return
     props=[m.properties().keys() for m in hdl]    #Lists of properties
     
     for k,v in kwargs.items():

@@ -9,6 +9,7 @@ Created on Wed Feb  2 10:38:52 2022
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.colors as colors
+import matplotlib as mpl
 from ..misc.disp_tools import set_plot_attr
 
 
@@ -21,17 +22,33 @@ class DataPlots():
         self.ax_sens=None
         self.rho_index=[]
         self.hdls=[]
+        self.sens_hdls=[]
         self.colors=plt.rcParams['axes.prop_cycle'].by_key()['color']
         self.mode=None
         self.plot_sens=True        
         if data is not None:
-            self.init_data(data,style=style,index=index,rho_index=rho_index,mode=mode,split=split,**kwargs)
+            self.add_data(data,style=style,index=index,rho_index=rho_index,mode=mode,split=split,**kwargs)
             
         
-    def add_data(self,data,style='plot',index=None,rho_index=None,mode='auto',split=True,**kwargs):
-        if len(self.data)==0:
-            self.init_data(data,style='plot',index=None,rho_index=None,mode='auto',split=True,**kwargs)
+    def add_data(self,data,style='plot',errorbars=True,index=None,rho_index=None,mode='auto',split=True,**kwargs):
+        self.data.append(data)
+        self.hdls.append(list())
+        if len(self.data)==1:
+            self.init_data(data,style=style,index=index,rho_index=rho_index,mode=mode,split=split,**kwargs)
             return
+        
+        rho_index=np.arange(data.R.shape[1]) if rho_index is None else np.array(rho_index,dtype=int)
+        index=np.arange(data.R.shape[0]) if index is None else np.array(index,dtype=int)
+        if self.ax_sens is not None:
+            hdl=data.sens.plot_rhoz(index=rho_index,ax=self.ax_sens,color=(.3,.3,.3),linestyle=':')
+            self.sens_hdls.append(hdl)
+        
+        for k,a,color in zip(rho_index,self.ax,self.colors):
+            hdl=plot_rho(data.label[index],data.R[index,k],data.Rstd[index,k]*errorbars if errorbars else None,\
+                     style=style,color=color,ax=a,split=split)[1]
+            self.hdls[-1].append(hdl)
+            
+        
     def init_data(self,data,style='plot',errorbars=True,index=None,rho_index=None,mode='auto',split=True,**kwargs):
         rho_index=np.arange(data.R.shape[1]) if rho_index is None else np.array(rho_index,dtype=int)
         self.rho_index.append(rho_index)
@@ -43,6 +60,7 @@ class DataPlots():
             bbox.y0-=0.5*(bbox.y1-bbox.y0)
             self.ax_sens.set_position(bbox)
             hdl=data.sens.plot_rhoz(index=rho_index,ax=self.ax_sens)
+            self.sens_hdls.append(hdl)
             self.colors=[h.get_color() for h in hdl]
         
         self.ax=[self.fig.add_subplot(2*self.plot_sens+rho_index.size,1,k+3) for k in range(rho_index.size)]
@@ -51,10 +69,21 @@ class DataPlots():
         not_rho0=data.sens.rhoz[0,0]/data.sens.rhoz[0].max()<.98
         for k,a,color in zip(rho_index,self.ax,self.colors):
             hdl=plot_rho(data.label[index],data.R[index,k],data.Rstd[index,k]*errorbars if errorbars else None,\
-                     style=style,color=color,ax=a,split=split)
+                     style=style,color=color,ax=a,split=split)[1]
+            self.hdls[-1].append(hdl)
             set_plot_attr(hdl,**kwargs)
             if not(a.is_last_row()):plt.setp(a.get_xticklabels(), visible=False)
             a.set_ylabel(r'$\rho_'+'{}'.format(k+not_rho0)+r'^{(\theta,S)}$')
+    
+    
+        
+    def adjust_bar_width(self):
+        nbars=0
+        for h in self.hdls:
+            if any([h0.__class__ is mpl.container.BarContainer for h0 in h[0]]):nbars+=1
+            
+            
+            
         
         
         
@@ -115,15 +144,16 @@ def plot_rho(lbl,R,R_std=None,style='plot',color=None,ax=None,split=True,**kwarg
     else:
         ebar_clr=color
     
+    hdls=list()
     for lbl,R,R_u,R_l in zip(lbl1,R1,R_u1,R_l1):
         if R_l is None:
-            ax.plot(lbl,R,color=color,**kwargs)
+            hdls.append(ax.plot(lbl,R,color=color,**kwargs))
         else:
-            ax.errorbar(lbl,R,[R_l,R_u],color=ebar_clr,capsize=3,**kwargs)
+            hdls.append(ax.errorbar(lbl,R,[R_l,R_u],color=ebar_clr,capsize=3,**kwargs))
         if style.lower()[0]=='b':
             kw=kwargs.copy()
             if 'linestyle' in kw: kw.pop('linestyle')
-            ax.bar(lbl,R,color=color,**kw)
+            hdls.append(ax.bar(lbl,R,color=color,**kw))
         if color is None:
             color=ax.get_children()[0].get_color()
     
@@ -131,7 +161,7 @@ def plot_rho(lbl,R,R_std=None,style='plot',color=None,ax=None,split=True,**kwarg
         ax.set_xticks(lbl)
         ax.set_xticklabels(lbl0,rotation=90)
                 
-    return ax
+    return ax,hdls
 
 
 def plot_fit(lbl,Rin,Rc,Rin_std=None,info=None,index=None,exp_index=None,fig=None):

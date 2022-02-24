@@ -161,7 +161,7 @@ proj=Project('/Users/albertsmith/Documents/Dynamics/test_project.nosync',create=
 
 for d in data:proj.append_data(d)
 proj[0].detect.r_no_opt(10)
-proj.fit()
+proj.fit(bounds=False)
 proj['no_opt'][0].detect.r_auto(5)
 proj['no_opt'].fit()
 

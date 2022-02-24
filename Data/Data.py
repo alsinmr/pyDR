@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from .. import Defaults,clsDict
 from ..IO import write_file
-from .data_plots import plot_rho,plot_fit
+from .data_plots import plot_rho,plot_fit,DataPlots
 from ..misc.disp_tools import set_plot_attr
 from ..Fitting import fit
 
@@ -130,6 +130,53 @@ class Data():
         write_file(filename=filename,ob=self,overwrite=overwrite)
         if not(save_src):self.src_data=src
         
+#    def plot(self,errorbars=False,style='plot',fig=None,index=None,rho_index=None,plot_sens=True,split=True,**kwargs):
+#        """
+#        Plots the detector responses for a given data object. Options are:
+#        
+#        errorbars:  Show the errorbars of the plot (False/True or int)
+#                    (default 1 standard deviation, or insert a constant to multiply the stdev.)
+#        style:      Plot style ('plot','scatter','bar')
+#        fig:        Provide the desired figure object (matplotlib.pyplot.figure)
+#        index:      Index to specify which residues to plot (None or logical/integer indx)
+#        rho_index:  Index to specify which detectors to plot (None or logical/integer index)
+#        plot_sens:  Plot the sensitivity as the first plot (True/False)
+#        split:      Break the plots where discontinuities in data.label exist (True/False)  
+#        """
+#        if rho_index is None:rho_index=np.arange(self.R.shape[1])
+#        if index is None:index=np.arange(self.R.shape[0])
+#        index,rho_index=np.array(index),rho_index
+#        if rho_index.dtype=='bool':rho_index=np.argwhere(rho_index)[:,0]
+#        assert rho_index.__len__()<=50,"Too many data points to plot (>50)"
+#        
+#        if fig is None:fig=plt.figure()
+#        ax=[fig.add_subplot(2*plot_sens+rho_index.size,1,k+2*plot_sens+1) for k in range(rho_index.size)]
+#        if plot_sens:
+#            ax.append(fig.add_subplot(2*plot_sens+rho_index.size,1,1))
+#            bbox=ax[-1].get_position()
+#            bbox.y0-=0.5*(bbox.y1-bbox.y0)
+#            ax[-1].set_position(bbox)
+#        # ax=[fig.add_subplot(rho_index.size+plot_sens,1,k+1) for k in range(rho_index.size+plot_sens)]
+#        
+#        if plot_sens:
+#            # ax=[*ax[1:],ax[0]] #Put the sensitivities last in the plotting
+#            hdl=self.sens.plot_rhoz(index=rho_index,ax=ax[-1])
+#            colors=[h.get_color() for h in hdl]
+#            for a in ax[1:-1]:a.sharex(ax[0])
+#        else:
+#            for a in ax[1:]:a.sharex(ax[0])
+#            colors=plt.rcParams['axes.prop_cycle'].by_key()['color']
+#        
+#        not_rho0=self.sens.rhoz[0,0]/self.sens.rhoz[0].max()<.98
+#        for k,a,color in zip(rho_index,ax,colors):
+#            hdl=plot_rho(self.label[index],self.R[index,k],self.Rstd[index,k]*errorbars if errorbars else None,\
+#                     style=style,color=color,ax=a,split=split)
+#            set_plot_attr(hdl,**kwargs)
+#            if not(a.is_last_row()):plt.setp(a.get_xticklabels(), visible=False)
+#            a.set_ylabel(r'$\rho_'+'{}'.format(k+not_rho0)+r'^{(\theta,S)}$')
+#        # fig.tight_layout()    
+#        return ax
+    
     def plot(self,errorbars=False,style='plot',fig=None,index=None,rho_index=None,plot_sens=True,split=True,**kwargs):
         """
         Plots the detector responses for a given data object. Options are:
@@ -143,39 +190,8 @@ class Data():
         plot_sens:  Plot the sensitivity as the first plot (True/False)
         split:      Break the plots where discontinuities in data.label exist (True/False)  
         """
-        if rho_index is None:rho_index=np.arange(self.R.shape[1])
-        if index is None:index=np.arange(self.R.shape[0])
-        index,rho_index=np.array(index),rho_index
-        if rho_index.dtype=='bool':rho_index=np.argwhere(rho_index)[:,0]
-        assert rho_index.__len__()<=50,"Too many data points to plot (>50)"
-        
-        if fig is None:fig=plt.figure()
-        ax=[fig.add_subplot(2*plot_sens+rho_index.size,1,k+2*plot_sens+1) for k in range(rho_index.size)]
-        if plot_sens:
-            ax.append(fig.add_subplot(2*plot_sens+rho_index.size,1,1))
-            bbox=ax[-1].get_position()
-            bbox.y0-=0.5*(bbox.y1-bbox.y0)
-            ax[-1].set_position(bbox)
-        # ax=[fig.add_subplot(rho_index.size+plot_sens,1,k+1) for k in range(rho_index.size+plot_sens)]
-        
-        if plot_sens:
-            # ax=[*ax[1:],ax[0]] #Put the sensitivities last in the plotting
-            hdl=self.sens.plot_rhoz(index=rho_index,ax=ax[-1])
-            colors=[h.get_color() for h in hdl]
-            for a in ax[1:-1]:a.sharex(ax[0])
-        else:
-            for a in ax[1:]:a.sharex(ax[0])
-            colors=plt.rcParams['axes.prop_cycle'].by_key()['color']
-        
-        not_rho0=self.sens.rhoz[0,0]/self.sens.rhoz[0].max()<.98
-        for k,a,color in zip(rho_index,ax,colors):
-            hdl=plot_rho(self.label[index],self.R[index,k],self.Rstd[index,k]*errorbars if errorbars else None,\
-                     style=style,color=color,ax=a,split=split)
-            set_plot_attr(hdl,**kwargs)
-            if not(a.is_last_row()):plt.setp(a.get_xticklabels(), visible=False)
-            a.set_ylabel(r'$\rho_'+'{}'.format(k+not_rho0)+r'^{(\theta,S)}$')
-        # fig.tight_layout()    
-        return ax
+        return DataPlots(data=self,style=style,errorbars=errorbars,index=index,
+                         rho_index=rho_index,plot_sens=plot_sens,split=split,fig=fig,**kwargs)
     
     def plot_fit(self,index=None,exp_index=None,fig=None):
         assert self.src_data is not None and hasattr(self,'Rc') and self.Rc is not None,"Plotting a fit requires the source data(src_data) and Rc"
