@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>708</width>
-    <height>510</height>
+    <width>1156</width>
+    <height>647</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,8 +16,8 @@
   <widget class="QPushButton" name="loadfileButton">
    <property name="geometry">
     <rect>
-     <x>0</x>
-     <y>5</y>
+     <x>515</x>
+     <y>4</y>
      <width>120</width>
      <height>30</height>
     </rect>
@@ -29,8 +29,8 @@
   <widget class="QLabel" name="label_filename">
    <property name="geometry">
     <rect>
-     <x>125</x>
-     <y>11</y>
+     <x>640</x>
+     <y>10</y>
      <width>580</width>
      <height>17</height>
     </rect>
@@ -43,12 +43,25 @@
    <property name="geometry">
     <rect>
      <x>1</x>
-     <y>38</y>
-     <width>401</width>
-     <height>461</height>
+     <y>8</y>
+     <width>501</width>
+     <height>631</height>
     </rect>
    </property>
    <layout class="QVBoxLayout" name="layout_plot"/>
+  </widget>
+  <widget class="QPushButton" name="pushButton_plotdata">
+   <property name="geometry">
+    <rect>
+     <x>600</x>
+     <y>60</y>
+     <width>89</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>plot</string>
+   </property>
   </widget>
  </widget>
  <resources/>
