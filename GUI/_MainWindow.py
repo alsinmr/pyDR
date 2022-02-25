@@ -43,7 +43,7 @@ class MyWindow(Ui_MainWindow):
         self.actionQuitProgram.triggered.connect(MainWindow.close)   # this connects the 'action' to QAction!
 
         self.actionLoad_Project.triggered.connect(lambda: openFileNameDialog())
-        
+        #todo add function for save project
 
 if __name__ =="__main__":
     app = QApplication(sys.argv)
