@@ -14,12 +14,10 @@ def set_plot_attr(hdl,**kwargs):
     Get properties for a list of handles. If values in kwargs are found in props,
     then that attribute is set (ignores unmatched values)
     """
-    print(kwargs)
     if not(hasattr(hdl,'__len__')): #Make sure hdl is a list
         hdl=[hdl]
     
-    if not(hasattr(hdl[0],'properties')):return
-    props=[m.properties().keys() for m in hdl]    #Lists of properties
+    props=[m.properties().keys() if hasattr(m,'properties') else None for m in hdl]    #Lists of properties
     
     for k,v in kwargs.items():
         if isinstance(v,list):
@@ -27,7 +25,8 @@ def set_plot_attr(hdl,**kwargs):
                 if k in p and hasattr(m,'set_{}'.format(k)):getattr(m,'set_{}'.format(k))(v0)
         else:
             for m,p in zip(hdl,props):
-                if k in p and hasattr(m,'set_{}'.format(k)):getattr(m,'set_{}'.format(k))(v)
+                if p is not None and (k in p and hasattr(m,'set_{}'.format(k))):
+                    if v is not None:getattr(m,'set_{}'.format(k))(v)
                 
 #%% Some classes for making nice labels with units and unit prefixes   
 class NiceStr():
