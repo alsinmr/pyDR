@@ -306,9 +306,18 @@ class Project():
                 proj=Project(self.directory,create=False,subproject=True)
                 proj.data=DataSub(data[0].source.project,*data)
                 return proj
+            elif index in self.add_info:
+                data=list()
+                for k,s in enumerate(self.add_info):
+                    if index==s:data.append(self[k])
+                proj=Project(self.directory,create=False,subproject=True)
+                proj.data=DataSub(data[0].source.project,*data)
+                return proj
             elif index in self.titles:
                 return self[self.titles.index(index)]
-            return
+            else:
+                print('Unknown project index (use an index or the name of a Type, status, additional_info, or title')
+                return
         if hasattr(index,'__len__'):
             return [self[i] for i in index]
     
@@ -343,6 +352,10 @@ class Project():
     @property
     def titles(self):
         return [d.title for d in self]
+    
+    @property
+    def add_info(self):
+        return [d.source.additional_info for d in self]
     
     def comparable(self,i,threshold=0.9,mode='auto',min_match=2):
         """

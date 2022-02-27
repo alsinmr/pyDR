@@ -60,7 +60,7 @@ class Trajectory():
             value=int(value)
         if name=='tf':
             assert value<=self.__tf,"tf must be less than or equal to the original trajectory length ({} frames)".format(self.__tf)
-            value%=self.__tf #Take care of negative indices
+            value=(value-1)%self.__tf+1 #Take care of negative indices
         super().__setattr__(name,value)
         
     def __getitem__(self,index):
