@@ -10,6 +10,8 @@ import os
 import numpy as np
 from pyDR.IO import read_file,readNMR,isbinary
 from pyDR import Defaults
+from pyDR import clsDict
+import re
 ME=Defaults['max_elements']
 decode=bytes.decode
 
@@ -216,7 +218,87 @@ class Project():
                
         self.data=DataMngr(self)
         self.__subproject=subproject  #Subprojects cannot be edited/saved
+        self.plots=[None]
+        self._current_plot=[1]
     
+    def plot(self,data_index=None,data=None,fig=None,style='plot',
+                  errorbars=False,index=None,rho_index=None,split=True,plot_sens=True,**kwargs):
+        """
+        
+
+        Parameters
+        ----------
+        data : pyDR.Data, optional
+            data object to be plotted. The default is None.
+        data_index : int, optional
+            index to determine which data object in the project to plot. The default is None.
+        fig : int, optional
+            index to determine which plot to use. The default is None (goes to current plot).
+        style : str, optional
+            'p', 's', or 'b' specifies a line plot, scatter plot, or bar plot. The default is 'plot'.
+        errorbars : bool, optional
+            Show error bars (True/False). The default is True.
+        index : int/bool array, optional
+            Index to determine which residues to plot. The default is None (all residues).
+        rho_index : int/bool array, optional
+            index to determine which detectors to plot. The default is None (all detectors).
+        split : bool, optional
+            Split line plots with discontinuous x-data. The default is True.
+        plot_sens : bool, optional
+            Show the sensitivity of the detectors in the top plot (True/False). The default is True.
+        **kwargs : TYPE
+            Various arguments that are passed to matplotlib.pyplot for plotting (color, linestyle, etc.).
+
+        Returns
+        -------
+        None.
+
+        """
+        if data is None and data_index is None: #Plot everything in project
+            for i in range(self.size):
+                self.plot(data_index=i,style=style,errorbars=errorbars,index=index,
+                         rho_index=rho_index,plot_sens=plot_sens,split=split,fig=fig,**kwargs)
+            return
+        
+        fig=self.current_plot-1 if fig is None else fig-1
+        self._current_plot[0]=fig+1
+        if fig is not None:
+            while len(self.plots)<=fig:
+                self.plots.append(None)
+        if data is None:data=self[data_index]
+        if self.plots[fig] is None:
+            self.plots[fig]=clsDict['DataPlots'](data=data,style=style,errorbars=errorbars,index=index,
+                         rho_index=rho_index,plot_sens=plot_sens,split=split,**kwargs)
+        else:
+            self.plots[fig].append_data(data=data,style=style,errorbars=errorbars,index=index,
+                         rho_index=rho_index,plot_sens=plot_sens,split=split,**kwargs)
+    @property
+    def current_plot(self):
+        return self._current_plot[0]
+    
+    def close_fig(self,fig):
+        """
+        Closes a figure of the project
+
+        Parameters
+        ----------
+        plt_num : int
+            Clears and closes a figure in the project. Provide the index 
+            (ignores indices corresponding to non-existant figures)
+
+        Returns
+        -------
+        None.
+
+        """
+        if isinstance(fig,str) and fig.lower()=='all':
+            for i in range(len(self.plots)):self.close_fig(i)
+            return
+        fig-=1
+        if len(self.plots)>fig and self.plots[fig] is not None:
+            self.plots[fig].close()
+            self.plots[fig]=None
+            
 
     @property
     def subproject(self):
@@ -282,44 +364,73 @@ class Project():
     
     def __len__(self):
         return self.data.__len__()
+    @property
+    def size(self):
+        return self.__len__()
     
     def __getitem__(self,index):
         """
         Extract a data object or objects by index or title (returns one item) or
         by Type or status (returns a list).
         """
-        if isinstance(index,int):
+        if isinstance(index,int): #Just return the data object
             assert index<self.__len__(),"index too large for project of length {}".format(self.__len__())
             return self.data[index]
+        
+        #Otherwise, return a subproject
+        proj=Project(self.directory,create=False,subproject=True)
+        proj.plots=self.plots
+        proj._current_plot=self._current_plot
+        
         if isinstance(index,str):
             if index in self.Types:
                 data=list()
                 for k,t in enumerate(self.Types):
                     if index==t:data.append(self[k])
-                proj=Project(self.directory,create=False,subproject=True)
-                proj.data=DataSub(data[0].source.project,*data)
-                return proj
             elif index in self.statuses:
                 data=list()
                 for k,s in enumerate(self.statuses):
                     if index==s:data.append(self[k])
-                proj=Project(self.directory,create=False,subproject=True)
-                proj.data=DataSub(data[0].source.project,*data)
-                return proj
             elif index in self.add_info:
                 data=list()
                 for k,s in enumerate(self.add_info):
                     if index==s:data.append(self[k])
-                proj=Project(self.directory,create=False,subproject=True)
-                proj.data=DataSub(data[0].source.project,*data)
-                return proj
             elif index in self.titles:
                 return self[self.titles.index(index)]
             else:
-                print('Unknown project index (use an index or the name of a Type, status, additional_info, or title')
-                return
-        if hasattr(index,'__len__'):
-            return [self[i] for i in index]
+                r = re.compile(index)
+                data=list()
+                for k,t in enumerate(self.titles):
+                    if r.match(t):data.append(self[k])
+                if not(len(data)):
+                    print('Unknown project index')
+                    return
+        elif hasattr(index,'__len__'):
+            data=list()
+            for k,s in enumerate(self.add_info):
+                if index==s:data.append(self[k])
+            data=[self[i] for i in index]
+        elif isinstance(index,slice):
+            start=0 if index.start is None else index.start
+            step=1 if index.step is None else index.step
+            stop=self.size if index.stop is None else min(index.stop,self.size)
+            start%=self.size
+            stop=(stop-1)%self.size+1
+            data=[self[i] for i in range(start,stop,step)]
+        else:
+            print('index was not understood')
+            return
+    
+        proj.data=DataSub(data[0].source.project,*data)
+        return proj
+    
+    def _ipython_key_completions_(self):
+        out=list()
+        for k in ['Types','statuses','add_info','titles']:
+            for v in getattr(self,k):
+                if v not in out:out.append(v)
+        return out
+        
     
     def fit(self,bounds=True,parallel=False):
         """

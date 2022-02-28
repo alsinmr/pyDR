@@ -10,10 +10,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.colors as colors
 import matplotlib as mpl
-from copy import copy,deepcopy
+from copy import copy
 import re
 from ..misc.disp_tools import set_plot_attr
-from pyDR import clsDict
 
 
 class DataPlots():
@@ -43,6 +42,16 @@ class DataPlots():
             return 'union'
         return self._mode
         
+    
+    def clear(self):
+        self.__init__(fig=self.fig)
+    
+    def close(self):
+        self.__init__(fig=self.fig)
+        plt.close(self.fig)
+    
+    def show(self):
+        self.fig.show()
     
     def append_data(self,data,style='plot',errorbars=True,index=None,rho_index=None,split=True,plot_sens=True,**kwargs):
         if len(self.data)==0:
@@ -92,7 +101,8 @@ class DataPlots():
         not_rho0=self.data[0].sens.rhoz[0,0]/self.data[0].sens.rhoz[0].max()<.98
         for k,a,color in zip(rho_index,self.ax,self.colors):
             if not(a.is_last_row()):plt.setp(a.get_xticklabels(), visible=False)
-            a.set_ylabel(r'$\rho_'+'{}'.format(k+not_rho0)+r'^{(\theta,S)}$')   
+            a.set_ylabel(r'$\rho_'+'{}'.format(k+not_rho0)+r'^{(\theta,S)}$')
+            a.yaxis.label.set_color(color)
     
     def calc_rho_index(self,i=-1,threshold=0.8):
         if len(self.data)==1:return np.arange(self.data[0].R.shape[1])
@@ -125,7 +135,7 @@ class DataPlots():
         for k,(a,ri) in enumerate(zip(self.ax,self.rho_index[i])):
             if ri is not None:
                 plt_style=self.plt_style(k,i,split,**kwargs)
-                Rstd=self.data[i].R[self.index[i],ri] if errorbars else None
+                Rstd=self.data[i].Rstd[self.index[i],ri] if errorbars else None
                 self.hdls[k][i]=plot_rho(x,self.data[i].R[self.index[i],ri],
                               Rstd,ax=a,**plt_style)[1]
         self.xlabel(i)        
@@ -209,7 +219,6 @@ class DataPlots():
         xpos0,xposi=self.xpos(0),self.xpos(i)
         xpos=np.union1d(xpos0,xposi)
         for a in self.ax:a.set_xticks(xpos)
-        xlabels=list()
         
         lbl0,lbli=self.data[0].label,self.data[i].label
         xlabel=[lbl0[np.argwhere(xp==xpos0)[0,0]] if xp in xpos0 else lbli[np.argwhere(xp==xposi)[0,0]] \
@@ -236,6 +245,7 @@ class DataPlots():
             out['linestyle']=''
             out['marker']=['o','^','x','*','D','p','d','h'][len([_ for _ in re.finditer('s',self.style[:i])])%4]
             out['s']=5
+            out['color']=(0,0,0) if 'b' in self.style else self.colors[ax_index]
         out.update(kwargs)
         return out  
     
@@ -245,29 +255,43 @@ class DataPlots():
             lower=min([0,np.min()])
     
     def adjust_bar_width(self):
-        
-        for k,a in enumerate(self.ax): #Loop over the plot axes
-            nbars=sum([any([h0.__class__ is mpl.container.BarContainer for h0 in ha]) for ha in self.hdls[k]])
-                
-        
+        BCclass=mpl.container.BarContainer
         for hd in self.hdls:    #Loop over the plot axes
-            nbars=0
+            
             
             #How many bars do we need to fit into plot?
+            nbars=0
             for ha in hd:            #Loop over the data in each axis
-                if any([h0.__class__ is mpl.container.BarContainer for h0 in ha]):nbars+=1
+                if ha is not None:
+                    if any([h0.__class__ is BCclass for h0 in ha]):nbars+=1
             
-            count=0
-            for k,ha in enumerate(hd):           #Loop over data in each axis
-                x=self.xpos(k)
-                for h0 in ha:       #Loop over each plot for the data set
-                    if h0.__class__ is mpl.container.BarContainer:  #Check if bar container
-                        for h00,x0 in zip(h0,x):      #Loop over each bar
-                            h00.set_width(0.9/nbars)  
-                            h00.set_x(-0.45+count*0.9/nbars+x0)
-                        count+=1
+            if nbars>1:
+                count=0
+                for k,ha in enumerate(hd):           #Loop over data in each axis
+                    if ha is not None:
+                        x=np.array(self.xpos(k),dtype=float)
+                        dx=np.diff(x).min()
+                        x+=-0.45+dx*count*0.9/nbars
+                        
+                        ebc,bc=((None,ha[0]) if ha[0].__class__ is BCclass else (ha[0],ha[1])) if \
+                            (ha[0].__class__ is BCclass or (len(ha)>1 and ha[1].__class__ is BCclass)) else (None,None)
+                        
+                        if bc:
+                            for h00,x0 in zip(bc,x):      #Loop over each bar'
+                                h00.set_width(0.9/nbars)  
+                                h00.set_x(x0)
+                        if ebc:
+                            "Errorbar collections are REALLY annoying"
+                            ebc.lines[0].set_xdata(x+dx*0.45/nbars)   #line position
+                            ebc.lines[1][0].set_xdata(x+dx*0.45/nbars)  #Cap 1 position
+                            ebc.lines[1][1].set_xdata(x+dx*0.45/nbars) #Cap 2 position
+                            segs=ebc.lines[2][0].get_segments()
+                            for x0,s in zip(x+dx*0.45/nbars,segs):
+                                s[:,0]=x0
+                            ebc.lines[2][0].set_segments(segs)
+                        if bc:count+=1
+                                    
             
-#        width=
             
             
             
@@ -399,7 +423,6 @@ def plot_fit(lbl,Rin,Rc,Rin_std=None,info=None,index=None,exp_index=None,fig=Non
     """
     lbl=np.array(lbl)   #Make sure this is a np array
     if not(np.issubdtype(lbl.dtype,np.number)):
-        split=False
         lbl0=lbl.copy()
         lbl=np.arange(len(lbl0))
 

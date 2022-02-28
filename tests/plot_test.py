@@ -122,24 +122,31 @@ proj=Project('/Users/albertsmith/Documents/Dynamics/test_project.nosync',create=
 proj.append_data('HETs_13C.txt')
 proj[0].select=pyDR.MolSelect(molsys)
 resids=np.array([int(lbl[:3]) for lbl in proj[0].label])
-proj[0].select.select_bond(Nuc='ivlal1',resids=resids,segids='B')
+proj[0].select.select_bond(Nuc='ivlal1',resids=resids,segids='B') #This is used for comparison plots
 proj[0].detect.r_auto(5)
 proj[0].detect.inclS2()
 proj['NMR'].fit()
 
-for d in data[:2]:proj.append_data(d)
+for d in data:proj.append_data(d)
 proj['Frames'][0].detect.r_no_opt(10)
 proj['Frames'].fit(bounds=False)
 proj['Frames']['no_opt'][0].detect.r_target(proj[0].detect.rhoz,n=10)
 proj['Frames']['no_opt'].fit()
 
-dp=proj['NMR']['proc'][0].plot(style='bar',errorbars=True)
-dp.append_data(proj['Frames']['proc'][0])
-
 proj['Frames']['no_opt'][0].detect.r_auto(5)
 proj['Frames']['no_opt'].fit()
 
+#%% Ways we can plot
+proj.close_fig('all') #Close all the figures first (in case we made some before)
 
-dp=proj['Direct'][3].plot(errorbars=False,style='bar',index=np.arange(0,69,3),mode='b_in_a')
-for k in range(1,2):
-    dp.append_data(proj['Product'][3],style='bar',errorbars=True)
+"one data set"
+proj['NMR']['proc'].plot(style='bar',errorbars=True,fig=1)  #One plot
+
+"Append multiple data sets to plot"
+proj['NMR']['proc'].plot(style='bar',errorbars=True,fig=2)
+proj['Frames']['Direct']['proc'][0].plot(style='plot',errorbars=False) #Sequentially (we don't need to re-specify figure- automatically goes to latest used)
+
+"Plot multiple data sets simultaneously"
+proj['Frames']['proc'][2:].plot(style='bar',fig=3,rho_index=range(5),index=range(0,69,3))
+
+proj['p5.'].plot(style='bar',fig=4,index=range(0,69,3))  #Just for fun– index the project via regex applied to the titles

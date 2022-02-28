@@ -10,7 +10,7 @@ from pyDR.Defaults import Defaults
 from pyDR import Selection
 from pyDR.Selection.MolSys import MolSys,MolSelect
 #from pyDR import FRET
-from pyDR.Data import Data
+from pyDR.Data import Data,Plotting
 from pyDR import Fitting
 from pyDR import Sens
 from pyDR.misc.tools import tools
@@ -22,4 +22,5 @@ from pyDR import Project
 clsDict.update({'Data':Data,'Source':Project.Source,'Info':Sens.Info,
          'Sens':Sens.Sens,'Detector':Sens.Detector,'NMR':Sens.NMR,'MD':Sens.MD,
          'MolSys':MolSys,'MolSelect':MolSelect,'Project':Project.Project,
-         'DataMngr':Project.DataMngr,'FrameObj':Frames.FrameObj,'Ctcalc':MDtools.Ctcalc})
+         'DataMngr':Project.DataMngr,'FrameObj':Frames.FrameObj,
+         'Ctcalc':MDtools.Ctcalc,'DataPlots':Plotting.DataPlots})

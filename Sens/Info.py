@@ -163,7 +163,10 @@ class Info():
                 return self.__values[self.keys.index(x)]                    
             else:
                 assert 0,"Unknown parameter"
-                
+    
+    def _ipython_key_completions_(self):
+        return self.keys
+    
     def __setitem__(self,index,value):
         """
         Sets an item in the Info object. Provide a parameter name, key, and value
