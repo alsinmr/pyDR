@@ -6,6 +6,8 @@ import numpy as np
 from pyDR.GUI.other.elements import openFileNameDialog, create_Figure_canvas
 
 
+from pyDR.IO import read_file,readNMR,isbinary
+
         
 
 
@@ -37,7 +39,8 @@ class Ui_Data_final(Ui_Data):
         if filename is "filename":
             return
         print(filename)
-        data = pyDR.IO.read_file(filename)
+#        data = pyDR.IO.read_file(filename)
+        data=read_file(filename) if isbinary(filename) else readNMR(filename)
         for ax in self.plot.figure.get_axes():
             self.plot.figure.delaxes(ax)
 
