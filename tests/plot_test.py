@@ -147,6 +147,6 @@ proj['NMR']['proc'].plot(style='bar',errorbars=True,fig=2)
 proj['Frames']['Direct']['proc'][0].plot(style='plot',errorbars=False) #Sequentially (we don't need to re-specify figure- automatically goes to latest used)
 
 "Plot multiple data sets simultaneously"
-proj['Frames']['proc'][2:].plot(style='bar',fig=3,rho_index=range(5),index=range(0,69,3))
+proj['Frames']['proc']['p5.'].plot(style='bar',fig=3,rho_index=range(5),index=range(0,69,3))
 
 proj['p5.'].plot(style='bar',fig=4,index=range(0,69,3))  #Just for fun– index the project via regex applied to the titles

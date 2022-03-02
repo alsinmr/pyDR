@@ -10,7 +10,7 @@ Created on Mon Jan 31 14:56:22 2022
 from pyDR import Defaults,clsDict
 import numpy as np
 import multiprocessing as mp
-from ._fitfun import fit0
+from ._fitfun import fit0,dist_opt
 
 dtype=Defaults['dtype']
 
@@ -27,7 +27,6 @@ def fit(data,bounds=True,parallel=False):
     detect=data.detect.copy()
     out=clsDict['Data'](sens=detect,src_data=data) #Create output data with sensitivity as input detectors
     out.label=data.label
-    "I think the line below is now redundant..."
 #    out.sens.lock() #Lock the detectors in sens since these shouldn't be edited after fitting
     out.select=data.select
     
@@ -72,4 +71,85 @@ def fit(data,bounds=True,parallel=False):
     
     if data.source.project is not None:data.source.project.append_data(out)
     return out
+
+def opt2dist(data,rhoz_cleanup=False,parallel=False):
+    """
+    Forces a set of detector responses to be consistent with some given distribution
+    of motion. Achieved by performing a linear-least squares fit of the set
+    of detector responses to a distribution of motion, and then back-calculating
+    the detectors from that fit. Set rhoz_cleanup to True to obtain monotonic
+    detector sensitivities: this option eliminates unusual detector due to 
+    oscilation and negative values in the detector sensitivities. However, the
+    detectors are no longer considered "DIstortion Free".
+                            
+
+    Parameters
+    ----------
+    data : TYPE
+        DESCRIPTION.
+    rhoz_cleanup : TYPE, optional
+        DESCRIPTION. The default is False.
+
+    Returns
+    -------
+    data object
+
+    """
+    out=clsDict['Data'](sens=data.sens,src_data=data.src_data) #Create output data with sensitivity as input detectors
+    out.label=data.label
+#    out.sens.lock() #Lock the detectors in sens since these shouldn't be edited after fitting
+    out.select=data.select
+    out.source.status='opt_fit'
+    
+    
+    nb=data.R.shape[0]
+    
+    if data.S2 is None:
+        S2=np.zeros(nb)
+    else:
+        S2=data.S2
+        
+    sens=data.sens
+    detect=data.src_data.detect
+
+    "data required for optimization"
+    X=[(R,R_std,sens._rho(bond=k),S2r) for k,(R,R_std,S2r) in enumerate(zip(data.R,data.R_std,S2))]        
+    
+    if parallel:
+        nc=parallel if isinstance(parallel,int) else mp.cpu_count()
+            
+        with mp.Pool(processes=nc) as pool:
+            Y=pool.map(dist_opt,X)
+    else:
+        Y=[dist_opt(X0) for X0 in X]
+    
+    
+    dist=list()
+    for k,y in enumerate(Y):
+        out.R[k]=y[0]
+        dist.append(y[1])
+
+    "If these are detector responses, we'll recalculate the data fit if detector object provided"  
+    if detect is not None:
+        Rc=list()
+        if detect.detect_par['inclS2']:
+            for k in range(out.R.shape[0]):
+                R0in=np.concatenate((detect.R0in(k),[0]))
+                Rc0=np.dot(detect.r(bond=k),out.R[k,:])+R0in
+                Rc.append(Rc0[:-1])
+        else:
+            for k in range(out.R.shape[0]):
+                Rc.append(np.dot(detect.r(bond=k),out.R[k,:])+detect.R0in(k))
+        out.Rc=np.array(Rc)
+    
+    
+    # "Output"
+    # if in_place and return_dist:
+    #     return dist
+    # elif in_place:
+    #     return
+    # elif return_dist:
+    #     return (out,dist)
+    # else:
+    #     return out
     
