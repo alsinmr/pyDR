@@ -18,14 +18,24 @@ dtype=Defaults['dtype']
 #%% Data object
 
 class Data():
-    def __init__(self,R=None,Rstd=None,label=None,sens=None,select=None,src_data=None,Type=None,S2=None,S2std=None,Rc=None):
+    def __init__(self, R=None, Rstd=None, label=None, sens=None, select=None, src_data=None, Type=None,
+                 S2=None, S2std=None, Rc=None):
         """
         Initialize a data object. Optional inputs are R, the data, R_std, the 
         standard deviation of the data, sens, the sensitivity object which
         describes the data, and src_data, which provides the source of this
         data object.
         """
-        
+
+        # todo I was wondering, if it might be useful to replace every argument with **kwargs, since all of them are
+        #  optional and just be like R = kwargs.get("R")
+        #  could be even more useful like
+        #   for val in ["R","R_std",...]:
+        #       if kwargs.get(val):
+        #           attr = np.array(val)
+        #       setattr(self,val, attr)
+        #  smth like this?
+
         if R is not None:R=np.array(R,dtype=dtype)
         if Rstd is not None:Rstd=np.array(Rstd,dtype=dtype)
         
@@ -60,22 +70,21 @@ class Data():
         """Special controls for setting particular attributes.
         """
 
-        if name=='sens' and hasattr(self,'detect'):
-            if hasattr(value,'opt_pars'):value.lock() #Lock detectors that are assigned as sensitivities
+        if name == 'sens' and hasattr(self,'detect'):
+            if hasattr(value,'opt_pars'):
+                value.lock() #Lock detectors that are assigned as sensitivities
             if self.detect is None:
                 super().__setattr__('detect',clsDict['Detector'](value))
-            elif self.detect.sens!=value:
+            elif self.detect.sens != value:
                 print('Warning: Assigned sensitivity object did not equal detector sensitivities. Re-defining detector object')
                 super().__setattr__('detect',clsDict['Detector'](value))
-                
-        if name=='detect' and value is not None:
-            assert self.sens==value.sens,"detect not assigned: Detector object's sensitivity does not match data object's sensitivity"
-
-        if name=='src_data':
-            self.source._src_data=value
+        elif name == 'detect' and value is not None:
+            assert self.sens == value.sens,"detect not assigned: Detector object's sensitivity does not match data object's sensitivity"
+        elif name == 'src_data':
+            self.source._src_data = value
             return
-        if name in ['select','project']:
-            setattr(self.source,name,value)
+        elif name in ['select', 'project']:
+            setattr(self.source, name, value)
             return
         super().__setattr__(name, value)
 
@@ -104,32 +113,35 @@ class Data():
         return self.sens.info if self.sens is not None else None
     
     @property
-    def _hash(self):
-        flds=['R','Rstd','S2','S2std','sens']
-        out=0
+    def _hash(self) -> int:
+        flds = ['R', 'Rstd', 'S2', 'S2std', 'sens']
+        out = 0
         for f in flds:
-            if hasattr(self,f) and getattr(self,f) is not None:
-                x=getattr(self,f)
-                out+=x._hash if hasattr(x,'_hash') else hash(x.data.tobytes())
+            if hasattr(self, f) and getattr(self, f) is not None:
+                x = getattr(self, f)
+                out += x._hash if hasattr(x, '_hash') else hash(x.data.tobytes())
         return out
     
     
-    def __eq__(self,data):
+    def __eq__(self, data) -> bool:
         "Using string means this doesn't break when we do updates. Maybe delete when finalized"
-        assert str(self.__class__)==str(data.__class__),"Object is not the same type. == not defined"
-        return self._hash==data._hash
+        assert str(self.__class__) == str(data.__class__), "Object is not the same type. == not defined"
+        return self._hash == data._hash
     
-    def fit(self,bounds=True,parallel=False):
-        return fit(self,bounds=bounds,parallel=parallel)
+    def fit(self, bounds: bool = True, parallel: bool = False):
+        # todo I was a little confused by that, might be useful to rename the return function? -K
+        return fit(self, bounds=bounds, parallel=parallel)
     
-    def save(self,filename,overwrite=False,save_src=True,src_fname=None):
+    def save(self, filename, overwrite: bool = False, save_src: bool = True, src_fname=None):
+        # todo might be useful to check for src_fname? -K
         if not(save_src):
             src=self.src_data
             self.src_data=src_fname  #For this to work, we need to update bin_io to save and load by filename
         write_file(filename=filename,ob=self,overwrite=overwrite)
         if not(save_src):self.src_data=src
     
-    def plot(self,errorbars=False,style='plot',fig=None,index=None,rho_index=None,plot_sens=True,split=True,**kwargs):
+    def plot(self, errorbars=False, style='plot', fig=None, index=None, rho_index=None, plot_sens=True, split=True,**kwargs):
+        # todo maybe worth to remove the args and put them all into kwargs? -K
         """
         Plots the detector responses for a given data object. Options are:
         
@@ -149,20 +161,22 @@ class Data():
         """
         if self.source.project is None or fig.__class__ is Figure:
             "Don't append the plot to the project"
-            return DataPlots(data=self,style=style,errorbars=errorbars,index=index,
-                             rho_index=rho_index,plot_sens=plot_sens,split=split,fig=fig,**kwargs)
+            return DataPlots(data=self, style=style, errorbars=errorbars, index=index,
+                             rho_index=rho_index, plot_sens=plot_sens, split=split,fig=fig,**kwargs)
         else:
             self.source.project.plot(data=self,style=style,errorbars=errorbars,index=index,
-                             rho_index=rho_index,plot_sens=plot_sens,split=split,
-                             fig=fig,**kwargs)
+                             rho_index=rho_index, plot_sens=plot_sens, split=split,
+                             fig=fig, **kwargs)
             return self.source.project.plots[self.source.project.current_plot-1]
             
             
     
-    def plot_fit(self,index=None,exp_index=None,fig=None):
-        assert self.src_data is not None and hasattr(self,'Rc') and self.Rc is not None,"Plotting a fit requires the source data(src_data) and Rc"
-        info=self.src_data.info.copy()
-        lbl,Rin,Rin_std=[getattr(self.src_data,k) for k in ['label','R','Rstd']]
+    def plot_fit(self,index=None, exp_index=None, fig=None):
+        # todo maybe worth to remove the args and put them all into kwargs? -K
+        assert self.src_data is not None and hasattr(self, 'Rc') and self.Rc is not None,\
+            "Plotting a fit requires the source data(src_data) and Rc"
+        info = self.src_data.info.copy()
+        lbl, Rin, Rin_std=[getattr(self.src_data,k) for k in ['label','R','Rstd']]
         Rc=self.Rc
         if 'inclS2' in self.sens.opt_pars['options']:
             info.new_exper(Type='S2')

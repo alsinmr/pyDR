@@ -6,63 +6,90 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1156</width>
-    <height>647</height>
+    <width>475</width>
+    <height>512</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <widget class="QPushButton" name="loadfileButton">
-   <property name="geometry">
-    <rect>
-     <x>515</x>
-     <y>4</y>
-     <width>120</width>
-     <height>30</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Load whatever</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_filename">
-   <property name="geometry">
-    <rect>
-     <x>640</x>
-     <y>10</y>
-     <width>580</width>
-     <height>17</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>filename</string>
-   </property>
-  </widget>
-  <widget class="QWidget" name="verticalLayoutWidget">
-   <property name="geometry">
-    <rect>
-     <x>1</x>
-     <y>8</y>
-     <width>501</width>
-     <height>631</height>
-    </rect>
-   </property>
-   <layout class="QVBoxLayout" name="layout_plot"/>
-  </widget>
-  <widget class="QPushButton" name="pushButton_plotdata">
-   <property name="geometry">
-    <rect>
-     <x>600</x>
-     <y>60</y>
-     <width>89</width>
-     <height>25</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>plot</string>
-   </property>
-  </widget>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="2">
+    <widget class="QPushButton" name="loadfileButton">
+     <property name="maximumSize">
+      <size>
+       <width>110</width>
+       <height>16777215</height>
+      </size>
+     </property>
+     <property name="text">
+      <string>Load whatever</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="2">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="0" column="0" rowspan="5">
+    <layout class="QVBoxLayout" name="layout_plot">
+     <property name="sizeConstraint">
+      <enum>QLayout::SetNoConstraint</enum>
+     </property>
+    </layout>
+   </item>
+   <item row="4" column="3">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeType">
+      <enum>QSizePolicy::Fixed</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>100</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="2" column="2">
+    <widget class="QPushButton" name="pushButton_plotdata">
+     <property name="maximumSize">
+      <size>
+       <width>45</width>
+       <height>16777215</height>
+      </size>
+     </property>
+     <property name="text">
+      <string>plot</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="2" colspan="2">
+    <widget class="QLabel" name="label_filename">
+     <property name="text">
+      <string>filename</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
  </widget>
  <resources/>
  <connections/>

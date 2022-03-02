@@ -356,9 +356,10 @@ def side_chain_chi(molecule,n_bonds=1,Nuc=None,resids=None,segids=None,filter_st
     
     if Nuc is None:
         Nuc='ch3'
+    print(Nuc, molecule, resids, segids, filter_str)
     selC,_=selt.protein_defaults(Nuc,molecule,resids,segids,filter_str)  
     selC=selC[::3]    #Above line returns 3 copies of each carbon. Just take 1 copy
-    
+    print(selC)
     
     frame_index=list()
     sel1,sel2,sel3=None,None,None
@@ -377,7 +378,7 @@ def side_chain_chi(molecule,n_bonds=1,Nuc=None,resids=None,segids=None,filter_st
         else:
             frame_index.extend([np.nan,np.nan,np.nan])
     frame_index=np.array(frame_index)
-    
+    print(sel1, sel2)
     def sub():
         box=molecule.box
         vZ=sel1.positions-sel2.positions

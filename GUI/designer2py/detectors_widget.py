@@ -14,17 +14,19 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_Detectors(object):
     def setupUi(self, Detectors):
         Detectors.setObjectName("Detectors")
-        Detectors.resize(400, 300)
+        Detectors.resize(366, 269)
+        self.gridLayout = QtWidgets.QGridLayout(Detectors)
+        self.gridLayout.setObjectName("gridLayout")
         self.label = QtWidgets.QLabel(Detectors)
-        self.label.setGeometry(QtCore.QRect(0, 0, 67, 17))
         self.label.setObjectName("label")
+        self.gridLayout.addWidget(self.label, 0, 0, 1, 2)
         self.label_n_det = QtWidgets.QLabel(Detectors)
-        self.label_n_det.setGeometry(QtCore.QRect(10, 40, 51, 17))
         self.label_n_det.setObjectName("label_n_det")
+        self.gridLayout.addWidget(self.label_n_det, 1, 0, 1, 1)
         self.textEdit = QtWidgets.QTextEdit(Detectors)
-        self.textEdit.setGeometry(QtCore.QRect(60, 40, 104, 31))
         self.textEdit.setInputMethodHints(QtCore.Qt.ImhDigitsOnly)
         self.textEdit.setObjectName("textEdit")
+        self.gridLayout.addWidget(self.textEdit, 1, 1, 1, 1)
 
         self.retranslateUi(Detectors)
         QtCore.QMetaObject.connectSlotsByName(Detectors)

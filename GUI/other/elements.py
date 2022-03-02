@@ -44,4 +44,4 @@ def create_Figure_canvas(layout: PyQt5.QtWidgets.QVBoxLayout):
     layout.addWidget(canvas)
     layout.addWidget(toolbar)
 
-    return canvas, ax, toolbar
+    return canvas

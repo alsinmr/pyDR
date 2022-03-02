@@ -15,9 +15,11 @@ class Ui_iRed(object):
     def setupUi(self, iRed):
         iRed.setObjectName("iRed")
         iRed.resize(400, 300)
+        self.gridLayout = QtWidgets.QGridLayout(iRed)
+        self.gridLayout.setObjectName("gridLayout")
         self.label = QtWidgets.QLabel(iRed)
-        self.label.setGeometry(QtCore.QRect(0, 0, 67, 17))
         self.label.setObjectName("label")
+        self.gridLayout.addWidget(self.label, 0, 0, 1, 1)
 
         self.retranslateUi(iRed)
         QtCore.QMetaObject.connectSlotsByName(iRed)

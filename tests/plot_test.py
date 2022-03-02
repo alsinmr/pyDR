@@ -48,8 +48,10 @@ tf=5000
 # molsys=DR.MolSys('/Users/albertsmith/Documents/GitHub.nosync/Frames_Theory_archive/HETs_ILE254.pdb',
 #               '/Users/albertsmith/Documents/GitHub.nosync/Frames_Theory_archive/HETs_ILE254.xtc',
 #               tf=tf)
-molsys=DR.MolSys('/Users/albertsmith/MDSimulations/HETs/HETs_5chain_B1.pdb',
-                 '/Users/albertsmith/MDSimulations/HETs/HETs_5chain_MET_4pw_cb10_2micros.xtc',tf=tf)
+#molsys=DR.MolSys('/Users/albertsmith/MDSimulations/HETs/HETs_5chain_B1.pdb',
+#                 '/Users/albertsmith/MDSimulations/HETs/HETs_5chain_MET_4pw_cb10_2micros.xtc',tf=tf)
+molsys=DR.MolSys('../pdbs/processed.pdb',
+                 '../xtcs/3pw.xtc',tf=tf)
 select=DR.MolSelect(molsys)
 
 #%% Define the frames
@@ -92,7 +94,10 @@ fr_obj=DR.Frames.FrameObj(select)  #This creates a frame object based on the abo
 fr_obj.tensor_frame(sel1=1,sel2=2) #Here we specify to use the same bonds that were selected above in mol.select_atoms
 #1,2 means we use for the first atom selection 1 in mol and for the second atom the second selection in mol
 
-for f in frames:fr_obj.new_frame(**f) #This defines all frames in the frame object 
+for f in frames:
+    print(f)
+    fr_obj.new_frame(**f) #This defines all frames in the frame object
+
 #(arguments were previously stored in the frames list)
 fr_obj.load_frames(n=-1)  #This sweeps through the trajectory and collects the directions of all frames at each time point
 fr_obj.post_process()   #This applies post processing to the frames where it is defined (i.e. sigma!=0)
@@ -117,7 +122,7 @@ data=fr_obj.frames2data(include=include[-1],mode='full')
 #%% Now use the project
 import pyDR
 from pyDR.Project import Project
-proj=Project('/Users/albertsmith/Documents/Dynamics/test_project.nosync',create=True)
+proj=Project('test_project.nosync',create=True)
 
 proj.append_data('HETs_13C.txt')
 proj[0].select=pyDR.MolSelect(molsys)

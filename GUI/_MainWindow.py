@@ -1,6 +1,6 @@
 import sys
 from os import system
-
+system("python3 _convert_design.py")
 from PyQt5.QtWidgets import QApplication, QDialog, QMainWindow, QListWidgetItem, QFileDialog, QWidget
 
 from pyDR.GUI.designer2py.mymainwindow import Ui_MainWindow

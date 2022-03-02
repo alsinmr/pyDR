@@ -15,9 +15,11 @@ class Ui_Frames(object):
     def setupUi(self, Frames):
         Frames.setObjectName("Frames")
         Frames.resize(400, 300)
+        self.gridLayout = QtWidgets.QGridLayout(Frames)
+        self.gridLayout.setObjectName("gridLayout")
         self.label = QtWidgets.QLabel(Frames)
-        self.label.setGeometry(QtCore.QRect(0, 0, 67, 17))
         self.label.setObjectName("label")
+        self.gridLayout.addWidget(self.label, 0, 0, 1, 1)
 
         self.retranslateUi(Frames)
         QtCore.QMetaObject.connectSlotsByName(Frames)

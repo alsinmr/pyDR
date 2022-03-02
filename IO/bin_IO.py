@@ -7,7 +7,11 @@ Created on Tue Feb 22 11:09:41 2022
 """
 
 import os
+import typing
+
 import numpy as np
+import pyDR.Sens
+
 from ..Defaults import Defaults
 from pyDR import clsDict
 
@@ -68,8 +72,9 @@ def read_file(filename):
         if l=='OBJECT:MOLSELECT':
             return read_MolSelect(f)
 
+
 #%% Info Input/Output
-def write_Info(f,info):
+def write_Info(f: typing.BinaryIO, info: dict):
     f.write(b'OBJECT:INFO\n')
     for k in info.keys:
         f.write(bytes(k+'\n','utf-8'))
@@ -87,7 +92,7 @@ def write_Info(f,info):
             np.save(f,value,allow_pickle=False)
     f.write(b'END:OBJECT\n')
     
-def read_Info(f):
+def read_Info(f: typing.TextIO):
     keys=list()
     values=list()
     for l in f:
@@ -103,15 +108,17 @@ def read_Info(f):
     
     return clsDict['Info'](**{k:v for k,v in zip(keys,values)})
 
+
 #%% Sens and detector Input/Output    
-def write_Sens(f,sens):
+def write_Sens(f: typing.BinaryIO, sens:pyDR.Sens.Sens):
     f.write(b'OBJECT:SENS\n')
     object_class=str(sens.__class__).split('.')[-1][:-2]
     f.write(bytes(object_class+'\n','utf-8'))
     write_Info(f,sens.info)
     f.write(b'END:OBJECT\n')
-    
-def read_Sens(f):
+
+
+def read_Sens(f: typing.TextIO):
     object_class=decode(f.readline())[:-1]
     line=decode(f.readline())[:-1]
     if line!='OBJECT:INFO':print('Warning: Info object should be only data stored in sensitivity after object type')
@@ -119,8 +126,9 @@ def read_Sens(f):
     line=decode(f.readline())[:-1]
     if line!='END:OBJECT':print('Warning: Sens object did not terminate correctly')
     return clsDict[object_class](info=info)
-    
-def write_Detector(f,detect,src_fname=None):
+
+
+def write_Detector(f: typing.BinaryIO, detect: pyDR.Sens.Detector, src_fname=None):
     f.write(b'OBJECT:DETECTOR\n')
     if str(detect.sens.__class__).split('.')[-1][:-2]=='Detector':
         write_Detector(f,detect.sens)
@@ -147,6 +155,7 @@ def write_Detector(f,detect,src_fname=None):
         assert 0,'opt_pars of detector object has the wrong number of entries'
             
     f.write(b'END:OBJECT\n')
+
 
 def read_Detector(f):
     line=decode(f.readline())[:-1]

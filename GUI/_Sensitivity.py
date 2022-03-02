@@ -3,7 +3,7 @@ from pyDR.GUI.other.elements import openFileNameDialog, create_Figure_canvas
 from os import listdir
 from os.path import join, abspath
 
-def get_defaults():
+def get_defaults() -> list:
     path = abspath(__file__).rsplit("/", 1)[0]
 
     default_entries = []
@@ -23,9 +23,10 @@ def get_defaults():
 
 
 class Ui_Sensitivity_final(Ui_Sensitivity):
-    def retranslateUi(self, Sensitivity):
+    def retranslateUi(self, Sensitivity) -> None:
         super().retranslateUi(Sensitivity)
-        self.plot, ax, toolbar  = create_Figure_canvas(self.layout_plot)
+        self.plot  = create_Figure_canvas(self.layout_plot)
+        self.layout_plot.layout().setContentsMargins(0,0,0,0)
 
         for entry in get_defaults():
             self.comboBox_nuctype.addItem(entry[0].split(" ")[0])
