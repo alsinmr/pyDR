@@ -45,9 +45,11 @@ class DataPlots():
     
     def clear(self):
         self.__init__(fig=self.fig)
+        self.fig.clear()
     
     def close(self):
         self.__init__(fig=self.fig)
+        self.fig.clear()
         plt.close(self.fig)
     
     def show(self):
@@ -70,6 +72,11 @@ class DataPlots():
         self.data.append(data)        
         self.rho_index.append(self.calc_rho_index() if rho_index is None else np.array(rho_index,dtype=int))
         self.index.append(self.xindex() if index is None else np.array(index,dtype=int))
+        if np.all(np.array(self.rho_index[-1])==None) or len(self.index[-1])==0:
+            self.data.pop(-1)
+            self.rho_index.pop(-1)
+            self.index.pop(-1)
+            return
         
         
         self.style+=style[0].lower() if style[0].lower() in ['p','s','b'] else 'p'
