@@ -50,7 +50,7 @@ class Data():
         self.S2=np.array(S2) if S2 is not None else None
         self.S2std=np.array(S2std) if S2std is not None else None
         self.Rc=np.array(Rc) if Rc is not None else None
-        self.label=label
+        self.label=np.array(label) if label is not None else None
         if self.label is None:
             if select is not None and select.label is not None and len(select.label)==self.R.shape[0]:
                 self.label=select.label
