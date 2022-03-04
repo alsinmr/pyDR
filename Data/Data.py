@@ -123,6 +123,8 @@ class Data():
                 out += x._hash if hasattr(x, '_hash') else hash(x.data.tobytes())
         return out
     
+    def __len__(self):
+        return self.R.shape[0]
     
     def __eq__(self, data) -> bool:
         "Using string means this doesn't break when we do updates. Maybe delete when finalized"
@@ -143,6 +145,18 @@ class Data():
             self.src_data=src_fname  #For this to work, we need to update bin_io to save and load by filename
         write_file(filename=filename,ob=self,overwrite=overwrite)
         if not(save_src):self.src_data=src
+    
+    def del_data_pt(self,index:int) -> None:
+        if hasattr(index,'__len__'):
+            index=[i%len(self) for i in index]
+            for i in np.sort(index)[::-1]:
+                self.del_data_pt(i)
+        else:
+            index%=len(self)
+            flds = ['R', 'Rstd', 'S2', 'S2std', 'label','Rc']
+            for f in flds:
+                if hasattr(self,f) and getattr(self,f) is not None:
+                    setattr(self,f,np.delete(getattr(self,f),index,axis=0))
     
     def plot(self, errorbars=False, style='plot', fig=None, index=None, rho_index=None, plot_sens=True, split=True,**kwargs):
         # todo maybe worth to remove the args and put them all into kwargs? -K

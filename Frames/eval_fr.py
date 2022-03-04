@@ -103,7 +103,7 @@ class ReturnIndex():
     @property
     def calc_ct_m0_finF(self):
         "Determines if we should calculate ct_m0_finF"
-        if self.ct_finF or self.ct_m0_finF or self.ct_0mPASinF or self.ct_prod:return True
+        if self.ct_finF or self.ct_m0_finF or self.ct_0m_PASinF or self.ct_prod:return True
         return False
     @property
     def calc_A_m0_finF(self):
@@ -652,10 +652,17 @@ def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=
     
     index=v['index']
     
-    vZ,vXZ,nuZ,nuXZ,_=apply_fr_index(v)
+    if len(v['v']):
+        vZ,vXZ,nuZ,nuXZ,_=apply_fr_index(v)
+        nf=len(nuZ)
+    else:
+        nf=0
+        vZ=v['vT'][0] if v['vT'].shape[0]==2 else v['vT']
+        for k in ri.flags.keys():
+            if k not in ['ct','S2']:ri.flags[k]=False
     
 
-    nf=len(nuZ)
+    
     nr,nt=vZ.shape[1:]
 
     "Initial calculations/settings required if using symmetry for calculations"

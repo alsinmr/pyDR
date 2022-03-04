@@ -221,8 +221,14 @@ class Project():
         self.data=DataMngr(self)
         self.__subproject = subproject  #Subprojects cannot be edited/saved
         self.plots = [None]
-        self._current_plot = [1]
+        self._current_plot = [0]
     
+    
+    @property
+    def fig(self):
+        if self.current_plot:
+            return self.plots[self.current_plot-1].fig
+        
     def plot(self, data_index=None, data=None, fig=None, style='plot',
                   errorbars=False, index=None, rho_index=None, split=True, plot_sens=True, **kwargs):
         """
@@ -261,6 +267,8 @@ class Project():
                 self.plot(data_index=i,style=style,errorbars=errorbars,index=index,
                          rho_index=rho_index,plot_sens=plot_sens,split=split,fig=fig,**kwargs)
             return
+        
+        if fig is None and self.current_plot==0:self.current_plot=1
         
         fig = self.current_plot-1 if fig is None else fig-1
         self._current_plot[0] = fig+1
@@ -378,6 +386,9 @@ class Project():
     def __setattr__(self,name,value):
         if name=='current_plot':
             self._current_plot[0]=value
+            while len(self.plots)<value:
+                self.plots.append(None)
+            self.plots[value-1]=clsDict['DataPlots']()
             return
         super().__setattr__(name,value)
 

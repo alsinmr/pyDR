@@ -112,7 +112,7 @@ class MolSelect():
         self.sel1=None
         self.sel2=None
         self._repr_sel=None
-        self.label=None
+        self._label=None
     
 
     def __setattr__(self,name,value):
@@ -121,6 +121,10 @@ class MolSelect():
         """
         if name in ['MolSys']:
             print('Warning: Changing {} is not allowed'.format(name))
+            return
+        
+        if name=='label':
+            super().__setattr__('_label',value)
             return
         
         if name=='repr_sel':
@@ -140,7 +144,7 @@ class MolSelect():
         
         super().__setattr__(name,value)
         
-            
+        
     def select_bond(self,Nuc=None,resids=None,segids=None,filter_str=None,label=None):
         """
         Select a bond according to 'Nuc' keywords
@@ -176,6 +180,10 @@ class MolSelect():
         if self.sel1 is None:
             print('Warning: No selection currently set')
             return 
+        
+        if self._repr_sel is not None and len(self.sel1)!=len(self._repr_sel):
+            self._repr_sel=None
+        
         if self._repr_sel is None:
             if self.sel2 is not None:
                 self._repr_sel=[s0+s1 for s0,s1 in zip(self.sel1,self.sel2)]
@@ -228,6 +236,12 @@ class MolSelect():
         if self.sel1 is None:return 0
         return len(self.sel1)
     
+    @property
+    def label(self):
+        if self._label is None or len(self._label)!=len(self):
+            self.set_label()
+        return self._label
+    
     def set_label(self,label=None):
         "We attempt to generate a unique label for this selection, while having labels of minimum length"
         if label is None:
@@ -252,11 +266,11 @@ class MolSelect():
                     else:               #If more than residue, then
                         break
                 else:
+                    
                     label=np.array(label)
                     if np.unique(label).size==label.size:
                         self.label=np.array(label)
                         return
-                
                 self.label=np.arange(self.sel1.__len__())
                 
             else:
@@ -276,7 +290,7 @@ class MolSelect():
                     if np.unique(label).size==label.size or count==4:
                         cont=False
                     
-        self.label=label
+                self.label=label
         
     def copy(self):
         return copy.copy(self)
@@ -301,6 +315,7 @@ class MolSelect():
             a3: Requires that resids, and atom names match for sel1             
             auto:Toggles between a0 and exact depending if the topology files match
         """
+        if self is sel:return np.arange(len(self)),np.arange(len(self)) #Same selection
         
         assert hasattr(sel,'__class__') and str(self.__class__)==str(sel.__class__),"Comparison only defined for other MolSelect objects"
         assert self.sel1 is not None,"Selection not defined in self"
@@ -350,12 +365,14 @@ class MolSelect():
                         id0.append((s1.segid,s1.resid,s1.name))
             if mode=='a3':
                 id1,id2=[[x[1:] for x in id0] for id0 in [id1,id2]]
-                
-                
-        in12=np.argwhere([i in id2 for i in id1])[:,0]
-        in21=np.array([np.argwhere([id1[k]==i2 for i2 in id2])[0,0] for k in in12])
         
-                
+
+        in12=list()
+        for i in id1:
+            in12.append(np.any([np.array_equal(i,i1) for i1 in id2]))
+        in12=np.argwhere(in12)[:,0]
+        in21=np.array([np.argwhere([id1[k]==i2 for i2 in id2])[0,0] for k in in12])
+                      
         return in12,in21
     
     def __eq__(self,sel):

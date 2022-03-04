@@ -30,7 +30,7 @@ def fit(data,bounds=True,parallel=False):
     out.label=data.label
 #    out.sens.lock() #Lock the detectors in sens since these shouldn't be edited after fitting
     out.select=data.select
-    if data.source.project is not None:data.source.project.append_data(out)
+    
     
     "Prep data for fitting"
     X=list()
@@ -70,6 +70,7 @@ def fit(data,bounds=True,parallel=False):
         out.R2,out.R=out.R[:,-1],out.R[:,:-1]
         out.R2std,out.Rstd=out.Rstd[:,-1],out.Rstd[:,:-1]
     
+    if data.source.project is not None:data.source.project.append_data(out)
     
     return out
 
