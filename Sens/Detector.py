@@ -150,8 +150,23 @@ class Detector(Sens.Sens):
         self.SVD(n)
         assert z is not None or index is not None,"z or index must be provided"
         if min_target is None:min_target=np.zeros(self.z.shape)
+        
         if index is None:index=np.argmin(np.abs(self.z-z))
         Vt=self.SVD.Vt
+
+        #TODO I got some errors using r_auto from the linprog. It is solved using the cvxpy. However, couldnt see any
+        # differences in the results?
+        # I would like to add an argument which asks for a mode, where you can put in cvxpy if necessary
+        if False:
+            ntc = np.shape(Vt)[1]
+            bounds = np.zeros(ntc)
+            import cvxpy
+            x = cvxpy.Variable(Vt[:, index].shape)
+            prob = cvxpy.Problem(cvxpy.Minimize(np.sum(Vt, axis=1) @ x), [-Vt.T @ x <= -bounds, Vt[:, index] @ x == 1])
+            prob.solve(verbose=False)
+            x = x.value
+            return x
+
         return linprog(Vt.sum(1),A_ub=-Vt.T,b_ub=-min_target,A_eq=[Vt[:,index]],b_eq=1,bounds=(-500,500),\
                   method='interior-point',options={'disp':False})['x']
     
@@ -222,7 +237,7 @@ class Detector(Sens.Sens):
         self.update_det()    #Re-calculate detectors based on the new T matrix
         if Normalization:self.ApplyNorm(Normalization)
     
-    def r_auto(self,n,Normalization='MP',NegAllow=False):
+    def r_auto(self,n,Normalization='MP',NegAllow=False, mode=None):
         """
         Generate n detectors that are automatically selected based on the results
         of SVD
@@ -231,6 +246,28 @@ class Detector(Sens.Sens):
         
         self.SVD(n)
         Vt=self.SVD.Vt
+
+        """
+        def linprog_cvxpy(Y):
+            import cvxpy
+            
+            Vt = Y[0]
+            k = Y[1]
+            ntc = np.shape(Vt)[1]
+            if np.size(Y) == 3:
+                bounds = Y[2]
+            else:
+                bounds = np.zeros(ntc)
+            try:
+                x = cvxpy.Variable(Vt[:, k].shape)
+                prob = cvxpy.Problem(cvxpy.Minimize(np.sum(Vt, axis=1) @ x), [-Vt.T @ x <= -bounds, Vt[:, k] @ x == 1])
+                prob.solve(verbose=False)
+                x = x.value
+            except Exception as e:
+                print("linprog failed:",e)
+                x = np.ones(n)
+            return x
+        """
         
         def true_range(k,untried):
             "Find the range around k in untried where all values are True"

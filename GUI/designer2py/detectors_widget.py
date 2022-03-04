@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_Detectors(object):
     def setupUi(self, Detectors):
         Detectors.setObjectName("Detectors")
-        Detectors.resize(366, 269)
+        Detectors.resize(314, 276)
         self.gridLayout = QtWidgets.QGridLayout(Detectors)
         self.gridLayout.setObjectName("gridLayout")
         self.label = QtWidgets.QLabel(Detectors)

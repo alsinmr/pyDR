@@ -14,14 +14,14 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_Sensitivity(object):
     def setupUi(self, Sensitivity):
         Sensitivity.setObjectName("Sensitivity")
-        Sensitivity.resize(730, 646)
+        Sensitivity.resize(506, 265)
         self.gridLayout_3 = QtWidgets.QGridLayout(Sensitivity)
         self.gridLayout_3.setObjectName("gridLayout_3")
         self.gridLayout_2 = QtWidgets.QGridLayout()
         self.gridLayout_2.setObjectName("gridLayout_2")
         self.layout_plot = QtWidgets.QVBoxLayout()
         self.layout_plot.setSizeConstraint(QtWidgets.QLayout.SetMaximumSize)
-        self.layout_plot.setContentsMargins(500, 0, -1, -1)
+        self.layout_plot.setContentsMargins(100, 0, -1, -1)
         self.layout_plot.setObjectName("layout_plot")
         self.gridLayout_2.addLayout(self.layout_plot, 0, 0, 4, 1)
         self.label = QtWidgets.QLabel(Sensitivity)

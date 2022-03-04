@@ -12,29 +12,29 @@ class Ui_Selection_final(Ui_Selection):
             self.label_pdbpath.setText(pdbpath)
             Uni = MDA.Universe(pdbpath)
             for res in Uni.residues:
-                self.listWidget_pdbresidues.addItem(f"{res.resname}-{res.resid} ({res.segid})")
+                self.listWidget_pdbresidues.addItem(f"{res.resname}-{res.resid} in Segment({res.segid})")
 
         super().retranslateUi(Selection)
         self.pushButton_loadpdb.clicked.connect(lambda: load_pdb())
         #
         def change_label(label):
-            item = self.listWidget_pdbresidues.selectedItems()[0]
-
-            label.setText(item.text())
+            label.setText(self.listWidget_pdbresidues.selectedItems()[0].text())
 
         self.nmrlabels = []
         self.pdbassign = []
-        for signal in [f"Res{x}" for x in range(10)]:  #  todo exchange this list by a function that reads out NMRfile
+        for signal in [f"Res{x}" for x in range(30)]:  #  todo exchange this list by a function that reads out NMRfile
 
-            self.nmrlabels.append(QLabel(parent=self.widget, text=signal))
+            self.nmrlabels.append(QLabel(parent=Selection, text=signal))
             self.verticalLayout.addWidget(self.nmrlabels[-1])
             self.nmrlabels[-1].setFixedHeight(30)
 
-            self.pdbassign.append(QLabel(parent=self.widget, text=signal))
+            self.pdbassign.append(QLabel(parent=Selection, text=signal))
             self.verticalLayout_2.addWidget(self.pdbassign[-1])
             self.pdbassign[-1].setFixedHeight(30)
 
-            button = QPushButton(self.widget, text ="<" )
+
+            # create a button for every set of Labels which will assign the selected value of the selected item in the box
+            button = QPushButton(parent=Selection, text ="<")
             button.setFixedWidth(20)
             button.setFixedHeight(self.nmrlabels[-1].size().height()) #todo get the value from the height of the labels
 

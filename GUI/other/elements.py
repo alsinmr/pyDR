@@ -1,8 +1,23 @@
 import PyQt5.QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT
 import matplotlib.pyplot as plt
-from PyQt5.QtWidgets import QListWidgetItem, QWidget, QFileDialog
+from PyQt5.QtWidgets import QListWidgetItem, QWidget, QFileDialog, QMainWindow
 
+
+def get_mainwindow(widget):
+    while hasattr(widget,"parent"):
+        widget = widget.parent()
+        if isinstance(widget, QMainWindow):
+            return widget
+    assert 0, "Widget is not connected to Main Window!"
+    
+def get_workingproject(widget):
+    while not hasattr(widget, "get_project"):
+        if hasattr(widget, "parent"):
+            widget = widget.parent()
+        else:
+            assert 0, "No Project!"
+    return widget.get_project()
 
 def openFileNameDialog(**kwargs):
     W = QWidget()

@@ -8,7 +8,7 @@ def get_defaults() -> list:
 
     default_entries = []
 
-    with open(join(path,"..","Sens","NMR_defaults.txt")) as f:
+    with open(join(path, "..", "Sens", "NMR_defaults.txt")) as f:
         for line in f:
             if "BEGIN DEFAULT" in line:
                 entry = []
