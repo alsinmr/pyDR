@@ -186,9 +186,9 @@ class MolSelect():
         
         if self._repr_sel is None:
             if self.sel2 is not None:
-                self._repr_sel=[s0+s1 for s0,s1 in zip(self.sel1,self.sel2)]
+                self.repr_sel=[s0+s1 for s0,s1 in zip(self.sel1,self.sel2)]
             else:
-                self._repr_sel=[s0 for s0 in self.sel1]
+                self.repr_sel=[s0 for s0 in self.sel1]
         return self._repr_sel
     
     def set_selection(i,sel=None,resids=None,segids=None,fitler_str=None):
@@ -371,7 +371,11 @@ class MolSelect():
         for i in id1:
             in12.append(np.any([np.array_equal(i,i1) for i1 in id2]))
         in12=np.argwhere(in12)[:,0]
-        in21=np.array([np.argwhere([id1[k]==i2 for i2 in id2])[0,0] for k in in12])
+        
+        in21=[(np.argwhere([np.array_equal(id1[k],i2) for i2 in id2])[0,0]) for k in in12]
+            
+            
+        # in21=np.array([np.argwhere([id1[k]==i2 for i2 in id2])[0,0] for k in in12])
                       
         return in12,in21
     

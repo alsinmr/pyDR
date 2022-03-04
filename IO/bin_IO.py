@@ -248,6 +248,8 @@ def write_Source(f,source):
             f.write(bytes(source._src_data+'\n','utf-8'))
         else:
             write_Data(f,source._src_data)
+    if source.select is not None:
+        write_MolSelect(f,source.select)
     f.write(b'END:OBJECT\n')
     
 def read_Source(f):
@@ -269,6 +271,9 @@ def read_Source(f):
             source._src_data=read_Data(f)
         else:
             source._src_data=line
+        line=decode(f.readline())[:-1]
+    if line=='OBJECT:MOLSELECT':
+        source.select=read_MolSelect(f)
         line=decode(f.readline())[:-1]
     if line!='END:OBJECT':print('Warning: Source object not terminated correctly')
     return source
@@ -301,6 +306,7 @@ def write_MolSelect(f,select):
                 for v0 in v:
                     np.save(f,v0.indices,allow_pickle=False)
             else:
+                print(v)
                 f.write(bytes('{0}\n'.format(fld),'utf-8'))
                 np.save(f,v.indices,allow_pickle=False)
     f.write(b'END:OBJECT\n')

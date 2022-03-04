@@ -97,13 +97,14 @@ class DataMngr():
             
     
     def __getitem__(self,i):
-        if isinstance(i,int):
+        if hasattr(i,'__len__'):
+            return [self[i0] for i0 in i]
+        else:
             assert i<len(self.data_objs),"Index exceeds number of data objects in this project"
             if self.data_objs[i] is None:
                 self.load_data(index=i)
             return self.data_objs[i]
-        elif hasattr(i,'__len__'):
-            return [self[i0] for i0 in i]
+            
     
     
     def __len__(self):
@@ -175,7 +176,11 @@ class DataMngr():
                 src_fname=None
                 if self[i].src_data is not None:
                     k=np.argwhere([self[i].src_data==d for d in self])[0,0]
-                    self.save(i=k)
+                    for m in range(len(self)):print(self[m].title)
+                    if self[k].R.size<=ME:
+                        self.save(k)
+                    else:
+                        print('Skipping source data of object {0} (project index {1}). Size of source data exceeds default max elements ({2})'.format(i,k,ME))
                     src_fname=self.save_name[k]
                 self[i].save(self.save_name[i],overwrite=True,save_src=False,src_fname=src_fname)
                 self[i].source.saved_filename=self.save_name[i]
@@ -392,8 +397,8 @@ class Project():
             return
         super().__setattr__(name,value)
 
-    def __repr__(self):
-        return "pyDIFRATE project with {0} data sets\n{1}".format(self.size,super().__repr__())
+    def _ipython_display_(self):
+        print("pyDIFRATE project with {0} data sets\n{1}".format(self.size,super().__repr__()))
     @property
     def size(self) -> int:
         return self.__len__()

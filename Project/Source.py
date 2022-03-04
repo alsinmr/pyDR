@@ -31,7 +31,7 @@ class Source():
             flds=['Type','select','filename']
             for f in flds:  #Pass the Type, selection, and original filename
                 if getattr(self,f) is None:setattr(self,f,getattr(src_data.source,f))
-            self.n_det=src_data.detect.rhoz.shape[0]
+            self.n_det=src_data.detect.rhoz.shape[0] if 'n' in src_data.detect.opt_pars else 0
             self._status='n' if src_data.detect.opt_pars['Type']=='no_opt' else 'p'
             self.additional_info=src_data.source.additional_info
 
@@ -65,8 +65,8 @@ class Source():
     def src_data(self):
         if isinstance(self._src_data,str):
             if self.project is not None:
-                if self._src_data in self.project.filenames:    #Is the source data part of the project?
-                    i=self.project.filenames.index(self._src_data)
+                if self._src_data in self.project.data.filenames:    #Is the source data part of the project?
+                    i=self.project.data.filenames.index(self._src_data)
                     self._src_data=self.project[i]      #Copy into self._src_data
                 else:   #Data not in project
                     if os.path.exists(self._src_data):

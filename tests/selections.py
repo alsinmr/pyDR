@@ -7,14 +7,21 @@ Created on Fri Mar  4 16:11:13 2022
 """
 
 import sys
-sys.path.append('/Users/albertsmith/Documents/GitHub/')
+import os
+if os.path.exists('/Users/albertsmith/Documents/GitHub/'):
+    sys.path.append('/Users/albertsmith/Documents/GitHub/')
+else:
+    sys.path.append('/Users/albertsmith/Documents/GitHub.nosync/')
 import pyDR
 
-proj=pyDR.Project.Project('/Users/albertsmith/Documents/Dynamics/HETs_Methyl_Loquet/pyDR_proc/project',create=True)
+proj=pyDR.Project.Project('/Users/albertsmith/Documents/Dynamics/HETs_Methyl_Loquet/pyDR_proc/project.nosync',create=True)
 proj.append_data('HETs_13C.txt')
 proj[0].del_data_pt(range(-5,0))
 
-molsys=pyDR.MolSys('HETs_3chain.pdb','/Volumes/My Book/HETs/MDSimulation/HETs_MET_4pw.xtc',tf=100000,step=10)
+if os.path.exists('/Volumes/My Book/HETs/MDSimulation/HETs_MET_4pw.xtc'):
+    molsys=pyDR.MolSys('HETs_5chain.pdb','/Volumes/My Book/HETs/MDSimulation/HETs_MET_4pw.xtc',tf=100000,step=10)
+else:
+    molsys=pyDR.MolSys('HETs_5chain.pdb','/Users/albertsmith/MDSimulations/HETs/HETs_5c_MET_4pw.xtc',step=50)
 select=pyDR.MolSelect(molsys)
 
 resids=list()
@@ -60,4 +67,9 @@ proj[0].detect.inclS2()
 proj[1].detect.r_target(proj[0].detect.rhoz,n=10)
 proj.fit()
 
-proj[2:].plot(style='bar')
+from pyDR.misc.Averaging import avg2sel
+avg2sel(proj[3],proj[0].select)
+proj[-1].opt2dist(rhoz_cleanup=False)
+proj['Frames']['proc'].opt2dist()
+proj[[2,-2]].plot(style='bar',errorbars=True)
+proj[-1].plot(style='plot')

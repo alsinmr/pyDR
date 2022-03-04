@@ -104,6 +104,7 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
     out.label=data.label
 #    out.sens.lock() #Lock the detectors in sens since these shouldn't be edited after fitting
     out.select=data.select
+    out.source=copy(data.source)
     out.source.status='opt_fit'
     out.Rstd=data.Rstd
     out.R=np.zeros(data.R.shape)
@@ -111,7 +112,7 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
     
     nb=data.R.shape[0]
     
-    if data.src_data.S2 is None:
+    if not(hasattr(data.src_data,'S2')) or data.src_data.S2 is None:
         S2=np.zeros(nb)
     else:
         S2=data.src_data.S2
@@ -187,7 +188,7 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
         for k in range(out.R.shape[0]):
             Rc.append(np.dot(sens[k].r,out.R[k,:])+sens.sens[k].R0)
     out.Rc=np.array(Rc)
-    if data.src_data.S2 is not None:
+    if not(hasattr(data.src_data,'S2')) or data.src_data.S2 is not None:
         out.S2c=np.array([d.sum() for d in dist])
         
         
