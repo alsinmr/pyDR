@@ -272,6 +272,7 @@ class Project():
         if self.plots[fig] is None:
             self.plots[fig] = clsDict['DataPlots'](data=data, style=style, errorbars=errorbars, index=index,
                          rho_index=rho_index, plot_sens=plot_sens, split=split, **kwargs)
+            self.plots[fig].project=self
         else:
             self.plots[fig].append_data(data=data,style=style,errorbars=errorbars,index=index,
                          rho_index=rho_index,plot_sens=plot_sens,split=split,**kwargs)
@@ -373,7 +374,15 @@ class Project():
     
     def __len__(self) -> int:
         return self.data.__len__()
+    
+    def __setattr__(self,name,value):
+        if name=='current_plot':
+            self._current_plot[0]=value
+            return
+        super().__setattr__(name,value)
 
+    def __repr__(self):
+        return "pyDIFRATE project with {0} data sets\n{1}".format(self.size,super().__repr__())
     @property
     def size(self) -> int:
         return self.__len__()
@@ -442,6 +451,27 @@ class Project():
                     out.append(v)
         return out
 
+    def opt2dist(self, rhoz_cleanup=False, parallel=False) -> None:
+        """
+        Optimize fits to match a distribution for all detectors in the project.
+        """
+        sens = list()
+        detect = list()
+        count = 0
+        for d in self:
+            if hasattr(d.sens,'opt_pars') and 'n' in d.sens.opt_pars:
+                fit = d.opt2dist(rhoz_cleanup, parallel=parallel)
+                if fit is not None:
+                    count += 1
+                    if fit.sens in sens:
+                        i = sens.index(fit.sens)
+                        fit.sens = sens[i]
+                        fit.detect = detect[i]
+                    else:
+                        sens.append(fit.sens)
+                        detect.append(clsDict['Detector'](fit.sens))
+        print('Optimized {0} data objects'.format(count))
+    
     def fit(self, bounds: bool = True, parallel: bool = False) -> None:
         """
         Fit all data in the project that has optimized detectors.
@@ -454,7 +484,7 @@ class Project():
                 count += 1
                 fit = d.fit(bounds=bounds, parallel=parallel)
                 if fit.sens in sens:
-                    i = sens.index(fit.sens)
+                    i = sens.index(fit.sens)    #We're making sure not to have copies of identical sensitivities and detectors
                     fit.sens = sens[i]
                     fit.detect = detect[i]
                 else:
@@ -471,14 +501,14 @@ class Project():
         return [d.source.status for d in self]
     
     @property
-    def titles(self):
+    def titles(self): 
         return [d.title for d in self]
     
     @property
     def add_info(self):
         return [d.source.additional_info for d in self]
     
-    def comparable(self, i: int, threshold: float = 0.9, mode: str = 'auto', min_match: int = 2):
+    def comparable(self, i: int, threshold: float = 0.9, mode: str = 'auto', min_match: int = 2) -> tuple:
         """
         Find objects that are recommended for comparison to a given object. 
         Provide either an index (i) referencing the data object's position in 

@@ -19,6 +19,8 @@ class DataPlots():
     def __init__(self,data=None,style='plot',errorbars=True,index=None,rho_index=None,title=None,fig=None,mode='auto',split=True,plot_sens=True,**kwargs):
         self.fig=fig if fig is not None else plt.figure(title)
         self.fig.clear()
+        self.fig.canvas.mpl_connect('close_event', self.close)
+        self.project=None
         self.data=[]
         self.index=[]
         self.ax=[]
@@ -45,11 +47,14 @@ class DataPlots():
     
     def clear(self):
         self.__init__(fig=self.fig)
-        self.fig.clear()
     
-    def close(self):
+    def close(self,event=None):
+        "Clear out the object on close and remove from project"
+        "Some issues arise for updating figures after they have been closed, so we just discard the whole object"
+        if self.project is not None and self in self.project.plots:
+            i=self.project.plots.index(self)
+            self.project.plots[i]=None
         self.__init__(fig=self.fig)
-        self.fig.clear()
         plt.close(self.fig)
     
     def show(self):
@@ -88,6 +93,7 @@ class DataPlots():
            
         if plot_sens:self.plot_sens()
         self.plot_data(errorbars=errorbars,split=split,**kwargs)
+        self.show()
     
     
     def setup_plots(self,plot_sens=True):

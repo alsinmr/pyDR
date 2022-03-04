@@ -9,7 +9,7 @@ import numpy as np
 from .. import Defaults,clsDict
 from ..IO import write_file
 from .Plotting import plot_fit,DataPlots
-from ..Fitting import fit
+from ..Fitting import fit,opt2dist
 from matplotlib.figure import Figure
 
 dtype=Defaults['dtype']
@@ -87,6 +87,7 @@ class Data():
             setattr(self.source, name, value)
             return
         super().__setattr__(name, value)
+        
 
     @property
     def title(self):
@@ -131,6 +132,9 @@ class Data():
     def fit(self, bounds: bool = True, parallel: bool = False):
         # todo I was a little confused by that, might be useful to rename the return function? -K
         return fit(self, bounds=bounds, parallel=parallel)
+    
+    def opt2dist(self,rhoz_cleanup=False,parallel=False):
+        return opt2dist(self,rhoz_cleanup=rhoz_cleanup,parallel=parallel)
     
     def save(self, filename, overwrite: bool = False, save_src: bool = True, src_fname=None):
         # todo might be useful to check for src_fname? -K

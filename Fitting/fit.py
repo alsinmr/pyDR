@@ -11,6 +11,7 @@ from pyDR import Defaults,clsDict
 import numpy as np
 import multiprocessing as mp
 from ._fitfun import fit0,dist_opt
+from copy import copy
 
 dtype=Defaults['dtype']
 
@@ -29,7 +30,7 @@ def fit(data,bounds=True,parallel=False):
     out.label=data.label
 #    out.sens.lock() #Lock the detectors in sens since these shouldn't be edited after fitting
     out.select=data.select
-    
+    if data.source.project is not None:data.source.project.append_data(out)
     
     "Prep data for fitting"
     X=list()
@@ -64,12 +65,12 @@ def fit(data,bounds=True,parallel=False):
         out.Rc[k]=Rc0*X[k][3]
         
     if 'inclS2' in detect.opt_pars['options']:
-        out.S2c,out.Rc=out.Rc[:,-1],out.Rc[:,:-1]
+        out.S2c,out.Rc=1-out.Rc[:,-1],out.Rc[:,:-1]
     if 'R2ex' in detect.opt_pars['options']:
         out.R2,out.R=out.R[:,-1],out.R[:,:-1]
         out.R2std,out.Rstd=out.Rstd[:,-1],out.Rstd[:,:-1]
     
-    if data.source.project is not None:data.source.project.append_data(out)
+    
     return out
 
 def opt2dist(data,rhoz_cleanup=False,parallel=False):
@@ -88,32 +89,36 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
     data : TYPE
         DESCRIPTION.
     rhoz_cleanup : TYPE, optional
-        DESCRIPTION. The default is False.
+        DESCRIPTION. The default is False. If true, we use a threshold for cleanup
+        of 0.1, although rhoz_cleanup can be set to a value between 0 and 1 to
+        assign the threshold manually
 
     Returns
     -------
     data object
 
     """
+    
     out=clsDict['Data'](sens=data.sens,src_data=data.src_data) #Create output data with sensitivity as input detectors
     out.label=data.label
 #    out.sens.lock() #Lock the detectors in sens since these shouldn't be edited after fitting
     out.select=data.select
     out.source.status='opt_fit'
+    out.Rstd=data.Rstd
+    out.R=np.zeros(data.R.shape)
     
     
     nb=data.R.shape[0]
     
-    if data.S2 is None:
+    if data.src_data.S2 is None:
         S2=np.zeros(nb)
     else:
-        S2=data.S2
+        S2=data.src_data.S2
         
     sens=data.sens
-    detect=data.src_data.detect
 
     "data required for optimization"
-    X=[(R,R_std,sens._rho(bond=k),S2r) for k,(R,R_std,S2r) in enumerate(zip(data.R,data.R_std,S2))]        
+    X=[(R,R_std,sens[k].rhoz,S2r) for k,(R,R_std,S2r) in enumerate(zip(data.R,data.Rstd,S2))]        
     
     if parallel:
         nc=parallel if isinstance(parallel,int) else mp.cpu_count()
@@ -128,28 +133,63 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
     for k,y in enumerate(Y):
         out.R[k]=y[0]
         dist.append(y[1])
+    
+    if rhoz_cleanup:
+        threshold=rhoz_cleanup if not(isinstance(rhoz_cleanup,bool)) else 0.1
+        if not(str(data.sens.__class__)==str(clsDict['Detector'])):
+            print('rhoz_cleanup only permitted on detector responses (no raw data)')
+            return
+        if data.sens.opt_pars['Type']=='no_opt':
+            print('rhoz_cleanup not permitted on un-optimized detectors')
+            return
+        
+        rhoz_clean=list()
+        for rhoz in data.sens.rhoz.copy():  
+            below_thresh=rhoz<threshold*rhoz.max()
+            ind0=np.argwhere(np.diff(below_thresh))[:,0]        
+            if len(ind0)==1 and below_thresh[-1]: #One maximum at beginning
+                ind=np.diff(np.diff(rhoz[ind0[-1]:])<0)>0
+                if np.any(ind):
+                    ind=np.argwhere(ind)[0,0]+ind0[0]+1
+                    rhoz[ind:]=0
+            elif len(ind0)==1 and below_thresh[0]:  #One maximum at the end
+                ind=np.diff(np.diff(rhoz[:ind0[0]])<0)>0
+                if np.any(ind):
+                    ind=np.argwhere(ind)[-1,0]+1
+                    rhoz[:ind]=0
+            elif len(ind0)==2: #One maximum in the middle
+                ind1=np.diff(np.diff(rhoz[ind0[-1]:])<0)>0
+                ind2=np.diff(np.diff(rhoz[:ind0[0]])<0)>0
+                if np.any(ind1):
+                    ind=np.argwhere(ind1)[0,0]+ind0[-1]+1
+                    rhoz[ind:]=0
+                if np.any(ind2):
+                    ind=np.argwhere(ind2)[-1,0]+1
+                    rhoz[:ind]=0         
+            rhoz[rhoz<0]=0 #Eliminate negative values
+            rhoz_clean.append(rhoz)
+            
+        out.sens=copy(out.sens)
+        rhoz_clean=np.array(rhoz_clean)
+        out.sens._Sens__rho=rhoz_clean
+        out.R=np.array(dist)@rhoz_clean.T
+            
+        in0,in1=np.argwhere(rhoz<threshold*rhoz.max())[[0,-1],0]
 
-    "If these are detector responses, we'll recalculate the data fit if detector object provided"  
-    if detect is not None:
-        Rc=list()
-        if detect.detect_par['inclS2']:
-            for k in range(out.R.shape[0]):
-                R0in=np.concatenate((detect.R0in(k),[0]))
-                Rc0=np.dot(detect.r(bond=k),out.R[k,:])+R0in
-                Rc.append(Rc0[:-1])
-        else:
-            for k in range(out.R.shape[0]):
-                Rc.append(np.dot(detect.r(bond=k),out.R[k,:])+detect.R0in(k))
-        out.Rc=np.array(Rc)
+    Rc=list()
+    if 'inclS2' in sens.opt_pars['options']:
+        for k in range(out.R.shape[0]):
+            R0in=np.concatenate((sens.sens[k].R0,[0]))
+            Rc0=np.dot(sens[k].r,out.R[k,:])+R0in
+            Rc.append(Rc0[:-1])
+    else:
+        for k in range(out.R.shape[0]):
+            Rc.append(np.dot(sens[k].r,out.R[k,:])+sens.sens[k].R0)
+    out.Rc=np.array(Rc)
+    if data.src_data.S2 is not None:
+        out.S2c=np.array([d.sum() for d in dist])
+        
+        
     
-    
-    # "Output"
-    # if in_place and return_dist:
-    #     return dist
-    # elif in_place:
-    #     return
-    # elif return_dist:
-    #     return (out,dist)
-    # else:
-    #     return out
-    
+    if data.source.project is not None:data.source.project.append_data(out)
+    return out
