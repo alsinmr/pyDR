@@ -36,15 +36,18 @@ def avg2sel(data,sel):
 
     """
     
-    detect=data.detect.copy()
-    out=clsDict['Data'](sens=detect,src_data=data) #Create output data with sensitivity as input detectors
-    out.label=data.label
+    out=clsDict['Data'](sens=data.sens,src_data=None) #Create output data with sensitivity as input detectors
 
 
     sel1=list()
     sel2=list()
     
-    flds=['R','Rstd','S2','S2std']
+    flds=['R','Rstd','S2','S2std','label']
+    for f in flds:
+        if hasattr(data,f) and getattr(data,f) is not None:
+            setattr(out,f,np.zeros([len(sel),*getattr(data,f).shape[1:]],dtype=getattr(data,f).dtype))
+    
     
     for s1,s2 in zip(sel.sel1,sel.sel2):
+        pass
         
