@@ -443,15 +443,29 @@ class Ctcalc():
         self[1]
 
 #%% Functions for sparse sampling
-def sparse_index(nt,n=10,nr=10):
+def sparse_index(nt:int,n:int=-1,nr:int=10) ->np.ndarray:
     """
-    Calculates a log-spaced sampling schedule for an MD time axis. Parameters are
-    nt, the number of time points, n, which is the number of time points to 
-    load in before the first time point is skipped, and finally nr is how many
-    times to repeat that schedule in the trajectory (so for nr=10, 1/10 of the
-    way from the beginning of the trajectory, the schedule will start to repeat, 
-    and this will be repeated 10 times)
-    
+        Calculates a log-spaced sampling schedule for an MD time axis. Parameters are
+nt, the number of time points, n, which is the number of time points to 
+load in before the first time point is skipped, and finally nr is how many
+times to repeat that schedule in the trajectory (so for nr=10, 1/10 of the
+way from the beginning of the trajectory, the schedule will start to repeat, 
+and this will be repeated 10 times)
+
+    Parameters
+    ----------
+    nt : int
+        Number of time points in the trajectory.
+    n : int, optional
+        Number of time points before the schedule skips a time point. Setting to
+        -1 will return uniform sampling. The default is -1.
+    nr : int, optional
+        Number of repeats of the sampling schedule. The default is 10.
+
+    Returns
+    -------
+    index : np.ndarray
+        Array of integers indicating where the MD trajectory is sampled.
     """
     
     n=np.array(n).astype('int')

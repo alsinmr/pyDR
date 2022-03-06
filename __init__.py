@@ -12,11 +12,12 @@ from pyDR.Selection.MolSys import MolSys,MolSelect
 #from pyDR import FRET
 from pyDR.Data import Data,Plotting
 from pyDR import Fitting
+from pyDR import MDtools
 from pyDR import Sens
 from pyDR.misc.tools import tools
 from pyDR import Frames
 from pyDR import IO
-from pyDR import MDtools
+
 from pyDR import Project
 
 clsDict.update({'Data':Data,'Source':Project.Source,'Info':Sens.Info,
