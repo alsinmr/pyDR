@@ -110,5 +110,6 @@ of the time axis for an MD simulation
     N=get_count(index)
     t=np.argwhere(N)[:,0]*.005
     md=MD(t=t)
+    md.sampling_info={'tf':tf,'dt':dt,'n':n,'nr':nr}
     #TODO add in parameters and return
     return md

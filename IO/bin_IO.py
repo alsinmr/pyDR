@@ -14,6 +14,7 @@ import pyDR.Sens
 
 from ..Defaults import Defaults
 from pyDR import clsDict
+from pyDR.Sens.MD import MDsens_from_pars
 
 # from ..IO.bin_write import write_file
 
@@ -114,13 +115,23 @@ def write_Sens(f: typing.BinaryIO, sens:pyDR.Sens.Sens):
     f.write(b'OBJECT:SENS\n')
     object_class=str(sens.__class__).split('.')[-1][:-2]
     f.write(bytes(object_class+'\n','utf-8'))
-    write_Info(f,sens.info)
+    if hasattr(sens,'sampling_info'):
+        f.write(bytes('SAMPLINGINFO\ntf:{tf},dt:{dt},n:{n},nr:{nr}\n'.format(**sens.sampling_info),'utf-8'))
+    else:
+        write_Info(f,sens.info)
     f.write(b'END:OBJECT\n')
 
 
 def read_Sens(f: typing.TextIO):
     object_class=decode(f.readline())[:-1]
-    line=decode(f.readline())[:-1]
+    line=decode(f.readline()).strip()
+    if 'SAMPLINGINFO' in line:
+        line=decode(f.readline()).strip()
+        tf=int(line.split('tf:')[1].split(',')[0])
+        dt=float(line.split('dt:')[1].split(',')[0])
+        n=int(line.split('n:')[1].split(',')[0])
+        nr=int(line.split('nr:')[1])
+        return MDsens_from_pars(tf=tf,dt=dt,n=n,nr=nr)
     if line!='OBJECT:INFO':print('Warning: Info object should be only data stored in sensitivity after object type')
     info=read_Info(f)
     line=decode(f.readline())[:-1]

@@ -352,7 +352,8 @@ class FrameObj():
                         
         for o,fr0,fr1 in zip(out[2:],['PAS',*frame_names],[*frame_names,'LF']):
             o.source.additional_info='{0}>{1}'.format(fr0,fr1)
-            
+        
+        out[0].sens.sampling_info=self.sampling_info
                 
         return out
 
