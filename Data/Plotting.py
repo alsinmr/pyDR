@@ -201,7 +201,8 @@ class DataPlots():
         if i==0:
             lbl=self.data[0].label
             if lbl.dtype.kind in ['i','f']:
-                return lbl[self.xindex(i)]
+                # return lbl[self.xindex(i)]
+                return lbl
             else:
                 return np.arange(self.data[0].R.shape[0])[self.xindex(0)]
         
@@ -324,6 +325,8 @@ def plot_rho(lbl,R,R_std=None,style='plot',color=None,ax=None,split=True,**kwarg
     """
     Plots a set of rates or detector responses. 
     """
+    i=np.argsort(lbl)
+    lbl,R,R_std=[x[i] if x is not None else None for x in [lbl,R,R_std]]
     if ax is None:
         ax=plt.figure().add_subplot(111)
     
