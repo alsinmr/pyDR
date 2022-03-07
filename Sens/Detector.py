@@ -15,6 +15,7 @@ from scipy.sparse.linalg import eigs
 from scipy.optimize import lsq_linear as lsqlin
 from scipy.optimize import linprog
 from pyDR.misc.tools import linear_ex
+from copy import copy
 
 class Detector(Sens.Sens):
     def __init__(self,sens):
@@ -97,7 +98,22 @@ class Detector(Sens.Sens):
 
         return self.__r.copy()
     
-        
+    def reload(self):
+        """
+        If detector loaded from file, we may need to re-calculate some parameters
+        """
+        if self.__r is None and self._Sens__rho is not None:
+            opt_pars=copy(self.opt_pars)
+            inclS2='inclS2' in opt_pars
+            R2ex='R2ex' in opt_pars
+            target=self._Sens__rho[inclS2:-1] if R2ex else self._Sens__rho[inclS2:]
+            
+            self.r_target(target)
+            if np.max(np.abs(target-self.rhoz))>1e-6:
+                print('Warning: Detector reoptimization failed')
+            for o in opt_pars['options']:
+                getattr(self,o)()
+            
     
     def update_det(self):
         """
@@ -417,7 +433,7 @@ class Detector(Sens.Sens):
         if 'inclS2' in self.opt_pars['options']:return #Function already run
         self.opt_pars['options'].append('inclS2')
         
-        norm=Normalization if Normalization else self.opt_pars['Normalization']
+        norm=Normalization if Normalization is not None else self.opt_pars['Normalization']
         if norm.lower()!=self.opt_pars['Normalization'].lower():
             self.ApplyNorm(norm)
             self.opt_pars['Normalization']=norm.upper()
@@ -441,6 +457,10 @@ class Detector(Sens.Sens):
             self._Sens__rhoCDA=np.concatenate(([1-self._Sens__rhoCSA.sum(0)],self._Sens__rhoCSA),axis=0)
         else:
             assert 0,"Unknown normalization (use 'M','MP', or 'I')"
+            
+        pars={'z0':np.nan,'zmax':self.z[np.argmax(self.rhoz[0])],'Del_z':np.nan,
+                    'stdev':((np.linalg.pinv(self.__r)[0,:-1]**2)@self.sens.info['stdev']**2)**0.5}
+        self.info.new_exper(**pars)
     
     def removeS2(self):
         if self._islocked:return

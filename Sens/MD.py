@@ -79,3 +79,36 @@ class MD(Sens):
         
         return hdl
     
+from pyDR.MDtools.Ctcalc import sparse_index,get_count          
+            
+def MDsens_from_pars(tf:int,dt:float,n:int=-1,nr:int=10) -> MD:
+    """
+    Generates an instance of info based on a few parameters describing the sampling
+of the time axis for an MD simulation    
+
+    Parameters
+    ----------
+    tf : int
+        Total length of the MD simulation.
+    dt : float
+        Time step of the MD simulation in nanoseconds.
+    n : int, optional
+        Sparse sampling parameter. n specifies the number of time points sampled
+        before we make the first skip of a time point. Set to -1 for no sparse
+        sampling
+    nr : int, optional
+        Number of repetitions of the sparse sampling pattern. The default is 10.
+
+    Returns
+    -------
+    MD
+        Instance of the MD sensitivity object with length tf, step size
+        of dt, and with sparse sampling parameters n and nr.
+
+    """
+    index=sparse_index(tf,n=n,nr=nr)
+    t=np.arange(tf)*dt if n==-1 else np.argwhere(get_count(index))[:,0]*dt
+    md=MD(t=t)
+    md.sampling_info={'tf':tf,'dt':dt,'n':n,'nr':nr}
+    #TODO add in parameters and return
+    return md

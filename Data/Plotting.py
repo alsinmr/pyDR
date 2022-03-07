@@ -19,6 +19,8 @@ class DataPlots():
     def __init__(self,data=None,style='plot',errorbars=True,index=None,rho_index=None,title=None,fig=None,mode='auto',split=True,plot_sens=True,**kwargs):
         self.fig=fig if fig is not None else plt.figure(title)
         self.fig.clear()
+        self.fig.canvas.mpl_connect('close_event', self.close)
+        self.project=None
         self.data=[]
         self.index=[]
         self.ax=[]
@@ -28,6 +30,7 @@ class DataPlots():
         self.hdls_sens=[]
         self.style=''
         self.colors=plt.rcParams['axes.prop_cycle'].by_key()['color']
+        self.threshold=0.7  #Overlap threshold
         assert mode in ['auto','union','b_in_a'],"mode must be 'auto','union', or 'b_in_a'"
         self._mode=mode  
         if data is not None:
@@ -45,11 +48,14 @@ class DataPlots():
     
     def clear(self):
         self.__init__(fig=self.fig)
-        self.fig.clear()
     
-    def close(self):
+    def close(self,event=None):
+        "Clear out the object on close and remove from project"
+        "Some issues arise for updating figures after they have been closed, so we just discard the whole object"
+        if self.project is not None and self in self.project.plots:
+            i=self.project.plots.index(self)
+            self.project.plots[i]=None
         self.__init__(fig=self.fig)
-        self.fig.clear()
         plt.close(self.fig)
     
     def show(self):
@@ -88,6 +94,7 @@ class DataPlots():
            
         if plot_sens:self.plot_sens()
         self.plot_data(errorbars=errorbars,split=split,**kwargs)
+        self.show()
     
     
     def setup_plots(self,plot_sens=True):
@@ -111,10 +118,10 @@ class DataPlots():
             a.set_ylabel(r'$\rho_'+'{}'.format(k+not_rho0)+r'^{(\theta,S)}$')
             a.yaxis.label.set_color(color)
     
-    def calc_rho_index(self,i=-1,threshold=0.8):
+    def calc_rho_index(self,i=-1):
         if len(self.data)==1:return np.arange(self.data[0].R.shape[1])
         rho_index=list()
-        in0,in1=self.data[0].sens.overlap_index(self.data[i].sens,threshold=threshold)
+        in0,in1=self.data[0].sens.overlap_index(self.data[i].sens,threshold=self.threshold)
         return [in1[ri==in0][0] if np.isin(ri,in0) else None for ri in self.rho_index[0]]
 
     
@@ -207,7 +214,7 @@ class DataPlots():
             xpos[in1]=self.xpos(i=0)[in0]
             index=np.ones(di.R.shape[0],dtype=bool)
             index[in1]=False
-            if di.label.kind in ['i','f']:
+            if di.label.dtype.kind in ['i','f']:
                 xpos[index]=di.label[index]
             else:
                 start=(self.xpos(i=0)[in0]).max()+1

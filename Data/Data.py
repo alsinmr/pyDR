@@ -9,7 +9,7 @@ import numpy as np
 from .. import Defaults,clsDict
 from ..IO import write_file
 from .Plotting import plot_fit,DataPlots
-from ..Fitting import fit
+from ..Fitting import fit,opt2dist
 from matplotlib.figure import Figure
 
 dtype=Defaults['dtype']
@@ -49,7 +49,8 @@ class Data():
         self.Rstd=np.array(Rstd) if Rstd is not None else np.zeros(self.R.shape,dtype=dtype)
         self.S2=np.array(S2) if S2 is not None else None
         self.S2std=np.array(S2std) if S2std is not None else None
-        self.Rc=np.array(Rc) if Rc is not None else None
+        self._Rc=np.array(Rc) if Rc is not None else None
+        self._S2c=None
         self.label=np.array(label) if label is not None else None
         if self.label is None:
             if select is not None and select.label is not None and len(select.label)==self.R.shape[0]:
@@ -57,14 +58,32 @@ class Data():
             else:
                 self.label=np.arange(self.R.shape[0],dtype=object)
         self.sens=sens
-        if self.Rstd.shape[0]>0 and Rstd is not None:
-            self.sens.info.new_parameter(stdev=np.median(self.Rstd,0))
         self.detect=clsDict['Detector'](sens) if sens is not None else None
         self.source=clsDict['Source'](src_data=src_data,select=select,Type=Type)
 #        self.select=select #Stores the molecule selection for this data object
         self.vars=dict() #Storage for miscellaneous variable
         
-        
+    @property
+    def Rc(self):
+        if self._Rc is None and hasattr(self.sens,'opt_pars') and 'n' in self.sens.opt_pars:
+            print("Don't forget to check that this returns the right results")
+            #TODO check that this calculation is correct
+            Rc=(self.sens.r@self.R.T).T
+            if 'inclS2' in self.sens.opt_pars['options']:
+                self._S2c,self._Rc=1-Rc[:,-1],Rc[:,:-1]
+            else:
+                self._Rc=Rc
+        return self._Rc
+    
+    @property
+    def S2c(self):
+        if self._S2c is None and hasattr(self.sens,'opt_pars') and\
+            'n' in self.sens.opt_pars and 'inclS2' in self.sens.opt_pars['options']:
+                self.Rc
+        return self._S2c
+    
+    def _ipython_display_(self):
+        print(self.title+' with {0} data points'.format(self.__len__()) +'\n'+self.__repr__())
     
     def __setattr__(self, name, value):
         """Special controls for setting particular attributes.
@@ -86,7 +105,11 @@ class Data():
         elif name in ['select', 'project']:
             setattr(self.source, name, value)
             return
+        elif name in ['Rc','S2c']:
+            setattr(self,'_'+name,value)
+            return
         super().__setattr__(name, value)
+        
 
     @property
     def title(self):
@@ -122,6 +145,8 @@ class Data():
                 out += x._hash if hasattr(x, '_hash') else hash(x.data.tobytes())
         return out
     
+    def __len__(self):
+        return self.R.shape[0]
     
     def __eq__(self, data) -> bool:
         "Using string means this doesn't break when we do updates. Maybe delete when finalized"
@@ -132,6 +157,9 @@ class Data():
         # todo I was a little confused by that, might be useful to rename the return function? -K
         return fit(self, bounds=bounds, parallel=parallel)
     
+    def opt2dist(self,rhoz_cleanup=False,parallel=False):
+        return opt2dist(self,rhoz_cleanup=rhoz_cleanup,parallel=parallel)
+    
     def save(self, filename, overwrite: bool = False, save_src: bool = True, src_fname=None):
         # todo might be useful to check for src_fname? -K
         if not(save_src):
@@ -139,6 +167,18 @@ class Data():
             self.src_data=src_fname  #For this to work, we need to update bin_io to save and load by filename
         write_file(filename=filename,ob=self,overwrite=overwrite)
         if not(save_src):self.src_data=src
+    
+    def del_data_pt(self,index:int) -> None:
+        if hasattr(index,'__len__'):
+            index=[i%len(self) for i in index]
+            for i in np.sort(index)[::-1]:
+                self.del_data_pt(i)
+        else:
+            index%=len(self)
+            flds = ['R', 'Rstd', 'S2', 'S2std', 'label','Rc']
+            for f in flds:
+                if hasattr(self,f) and getattr(self,f) is not None:
+                    setattr(self,f,np.delete(getattr(self,f),index,axis=0))
     
     def plot(self, errorbars=False, style='plot', fig=None, index=None, rho_index=None, plot_sens=True, split=True,**kwargs):
         # todo maybe worth to remove the args and put them all into kwargs? -K

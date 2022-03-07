@@ -34,14 +34,11 @@ def dist_opt(X):
     
     Ropt,dist=dist_opt((R,R_std,rhoz,S2,dz))
     
-    Note- intput is via tuple
+    Note- input is via tuple (or iterable)
     """
     
     R,R_std,rhoz,S2=X
     total=atleast_1d(1-S2)
-    """Later, we may need to play with the weighting here- at the moment, we
-    fit to having a sum of 1, but in fact it is not forced....it should be
-    """
     
     ntc=rhoz.shape[1]
     rhoz=concatenate((rhoz/repeat(atleast_2d(R_std).T,ntc,axis=1),
@@ -51,8 +48,8 @@ def dist_opt(X):
     dist=0
     while abs(sum(dist)-total)>1e-3:  #This is a check to see that the sum condition has been satisfied
         dist=lsq(rhoz,Rin,bounds=(0,1))['x']
-        Rin[-1]=Rin[-1]*10
-        rhoz[-1]=rhoz[-1]*10
+        Rin[-1]=Rin[-1]*10 #Increase the weighting of the total if sum condition not satisfied
+        rhoz[-1]=rhoz[-1]*10 
     Ropt=(rhoz[:-1]@dist)*R_std
     
     return Ropt,dist

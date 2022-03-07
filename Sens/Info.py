@@ -9,6 +9,8 @@ Created on Tue Nov  9 14:29:46 2021
 import numpy as np
 import copy
 
+
+
 class Info():
     """
     Info stores a 2D array describing experimental parameters for a set of 
@@ -286,6 +288,5 @@ class Info():
                 
     def copy(self):
         return copy.deepcopy(self)
-            
-            
-        
+
+     

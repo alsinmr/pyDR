@@ -43,6 +43,7 @@ def readNMR(filename):
             data.source.status='raw'
             data.source.Type='NMR'
             data.sens.info['med_val']=np.median(data.R,0)
+            data.sens.info['stdev']=np.median(data.Rstd,0)
             return data
         
 #%% Info read and write (intended only for NMR sensitivities)

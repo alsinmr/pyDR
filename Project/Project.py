@@ -26,6 +26,7 @@ class DataMngr():
         for fname in os.listdir(self.directory):
             if fname[0] != '.':
                 self._saved_files.append(fname)
+        self._saved_files.sort()
         self.data_objs = [None for _ in self.saved_files]
         self._hashes = [None for _ in self.saved_files]
 
@@ -97,13 +98,14 @@ class DataMngr():
             
     
     def __getitem__(self,i):
-        if isinstance(i,int):
+        if hasattr(i,'__len__'):
+            return [self[i0] for i0 in i]
+        else:
             assert i<len(self.data_objs),"Index exceeds number of data objects in this project"
             if self.data_objs[i] is None:
                 self.load_data(index=i)
             return self.data_objs[i]
-        elif hasattr(i,'__len__'):
-            return [self[i0] for i0 in i]
+            
     
     
     def __len__(self):
@@ -173,9 +175,12 @@ class DataMngr():
             assert i<len(self),"Index {0} to large for project with {1} data objects".format(i,len(self))
             if not(self.saved[i]):
                 src_fname=None
-                if self[i].src_data is not None:
+                if self[i].src_data is not None and not(isinstance(self[i].src_data,str)):
                     k=np.argwhere([self[i].src_data==d for d in self])[0,0]
-                    self.save(i=k)
+                    if self[k].R.size<=ME:
+                        self.save(k)
+                    else:
+                        print('Skipping source data of object {0} (project index {1}). Size of source data exceeds default max elements ({2})'.format(i,k,ME))
                     src_fname=self.save_name[k]
                 self[i].save(self.save_name[i],overwrite=True,save_src=False,src_fname=src_fname)
                 self[i].source.saved_filename=self.save_name[i]
@@ -222,8 +227,14 @@ class Project():
         self.data=DataMngr(self)
         self.__subproject = subproject  #Subprojects cannot be edited/saved
         self.plots = [None]
-        self._current_plot = [1]
+        self._current_plot = [0]
     
+    
+    @property
+    def fig(self):
+        if self.current_plot:
+            return self.plots[self.current_plot-1].fig
+        
     def plot(self, data_index=None, data=None, fig=None, style='plot',
                   errorbars=False, index=None, rho_index=None, split=True, plot_sens=True, **kwargs):
         """
@@ -263,6 +274,8 @@ class Project():
                          rho_index=rho_index,plot_sens=plot_sens,split=split,fig=fig,**kwargs)
             return
         
+        if fig is None and self.current_plot==0:self.current_plot=1
+        
         fig = self.current_plot-1 if fig is None else fig-1
         self._current_plot[0] = fig+1
         if fig is not None:
@@ -273,6 +286,7 @@ class Project():
         if self.plots[fig] is None:
             self.plots[fig] = clsDict['DataPlots'](data=data, style=style, errorbars=errorbars, index=index,
                          rho_index=rho_index, plot_sens=plot_sens, split=split, **kwargs)
+            self.plots[fig].project=self
         else:
             self.plots[fig].append_data(data=data,style=style,errorbars=errorbars,index=index,
                          rho_index=rho_index,plot_sens=plot_sens,split=split,**kwargs)
@@ -317,7 +331,13 @@ class Project():
         self.data.append_data(data)
     def remove_data(self,index,delete=False):
         assert not(self.__subproject),"Data cannot be removed from subprojects"
-        self.data.remove_data(index=index,delete=delete)
+        proj=self[index]
+        if hasattr(proj,'R'):
+            self.data.remove_data(index=self.data.data_objs.index(proj),delete=delete)
+        else:
+            if delete:print('Delete data sets permanently by full title or index (no multi-delete of saved data)')
+            for d in proj:        
+                self.data.remove_data(index=self.data.data_objs.index(d))
         
     def save(self):
         assert not(self.__subproject),"Sub-projects cannot be saved"
@@ -374,7 +394,18 @@ class Project():
     
     def __len__(self) -> int:
         return self.data.__len__()
+    
+    def __setattr__(self,name,value):
+        if name=='current_plot':
+            self._current_plot[0]=value
+            while len(self.plots)<value:
+                self.plots.append(None)
+            self.plots[value-1]=clsDict['DataPlots']()
+            return
+        super().__setattr__(name,value)
 
+    def _ipython_display_(self):
+        print("pyDIFRATE project with {0} data sets\n{1}".format(self.size,super().__repr__()))
     @property
     def size(self) -> int:
         return self.__len__()
@@ -427,6 +458,7 @@ class Project():
             stop = self.size if index.stop is None else min(index.stop, self.size)
             start %= self.size
             stop = (stop-1) % self.size+1
+            if step<0:start,stop=stop-1,start-1
             data = [self[i] for i in range(start, stop, step)]
         else:
             print('index was not understood')
@@ -443,6 +475,27 @@ class Project():
                     out.append(v)
         return out
 
+    def opt2dist(self, rhoz_cleanup=False, parallel=False) -> None:
+        """
+        Optimize fits to match a distribution for all detectors in the project.
+        """
+        sens = list()
+        detect = list()
+        count = 0
+        for d in self:
+            if hasattr(d.sens,'opt_pars') and 'n' in d.sens.opt_pars:
+                fit = d.opt2dist(rhoz_cleanup, parallel=parallel)
+                if fit is not None:
+                    count += 1
+                    if fit.sens in sens:
+                        i = sens.index(fit.sens)
+                        fit.sens = sens[i]
+                        fit.detect = detect[i]
+                    else:
+                        sens.append(fit.sens)
+                        detect.append(clsDict['Detector'](fit.sens))
+        print('Optimized {0} data objects'.format(count))
+    
     def fit(self, bounds: bool = True, parallel: bool = False) -> None:
         """
         Fit all data in the project that has optimized detectors.
@@ -455,7 +508,7 @@ class Project():
                 count += 1
                 fit = d.fit(bounds=bounds, parallel=parallel)
                 if fit.sens in sens:
-                    i = sens.index(fit.sens)
+                    i = sens.index(fit.sens)    #We're making sure not to have copies of identical sensitivities and detectors
                     fit.sens = sens[i]
                     fit.detect = detect[i]
                 else:
@@ -472,14 +525,14 @@ class Project():
         return [d.source.status for d in self]
     
     @property
-    def titles(self):
+    def titles(self): 
         return [d.title for d in self]
     
     @property
     def add_info(self):
         return [d.source.additional_info for d in self]
     
-    def comparable(self, i: int, threshold: float = 0.9, mode: str = 'auto', min_match: int = 2):
+    def comparable(self, i: int, threshold: float = 0.9, mode: str = 'auto', min_match: int = 2) -> tuple:
         """
         Find objects that are recommended for comparison to a given object. 
         Provide either an index (i) referencing the data object's position in 
@@ -501,7 +554,6 @@ class Project():
 
         if isinstance(i, int):
             i = self[i] #Get the corresponding data object
-        print('Updated1')
         out = list()
         for s in self:
             if s.select.compare(i.select)[0].__len__() == 0:
