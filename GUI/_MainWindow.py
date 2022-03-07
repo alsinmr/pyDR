@@ -27,19 +27,24 @@ class QMainWindow(QMainWindow):
 
 
 class MyWindow(Ui_MainWindow):
+    def setupUi(self, MainWindow, project):
+        # to run the GUI, the project has to be initialized, either by opening an existing one, or by creating a new
+        # one. The Project shall then be accessible from all tabs equally
+        MainWindow.working_project = project
+
+        super().setupUi(MainWindow)
+
     def retranslateUi(self, MainWindow):
         super().retranslateUi(MainWindow)
-
         #todo think about creating GUI AFTER creating a new or loading existing project
         self.parent = MainWindow
-        MainWindow.working_project = pyDR.Project.Project("testproject", create=True)
+        self.load_project(init=True)
         # general procedure to connect a Tab of the main_window with the widgets for every page
         # first step: create the object
         # second step: run setup and pass the "tab"
         self.data_tab = Ui_Data_final()
         self.data_tab.setupUi(self.tab_data)
 
-       
         self.sensitivity_tab = Ui_Sensitivity_final()
         self.sensitivity_tab.setupUi(self.tab_sensitivity)
        
@@ -58,18 +63,28 @@ class MyWindow(Ui_MainWindow):
         self.actionQuitProgram.triggered.connect(MainWindow.close)   # this connects the 'action' to QAction!
 
         self.actionLoad_Project.triggered.connect(self.load_project)
+        #todo I am not sure if it might be useful to just load another project. Setting this up might be a little
+        # complicated because of the hard connections to the gui
+        # maybe it is just more useful to run two windows of pyDR
+
         #todo add function for save project
 
 
 
 
 
-    def load_project(self):
-        filename = openFileNameDialog()
-        self.label_projectname.setText(f"Project: {filename}")
+    def load_project(self, init=False):
+        if not init:
+            filename = openFileNameDialog()
+            self.label_projectname.setText(f"pROJECT: {filename}")
+        else:
+            self.label_projectname.setText(f"Project: {self.parent.working_project.name}")
+
 
     def create_new_project(self):
         self.parent.working_project = pyDR.Project.Project()
+
+
 
 
 

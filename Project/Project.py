@@ -213,6 +213,7 @@ class DataSub(DataMngr):
     
 class Project():
     def __init__(self, directory, create=False, subproject=False):
+        self.name = directory   #todo maybe create the name otherwise?
         self._directory = os.path.abspath(directory)
         if not(os.path.exists(self.directory)) and create:
             os.mkdir(self.directory)
