@@ -372,7 +372,7 @@ class MolSelect():
             in12.append(np.any([np.array_equal(i,i1) for i1 in id2]))
         in12=np.argwhere(in12)[:,0]
         
-        in21=[(np.argwhere([np.array_equal(id1[k],i2) for i2 in id2])[0,0]) for k in in12]
+        in21=np.array([(np.argwhere([np.array_equal(id1[k],i2) for i2 in id2])[0,0]) for k in in12])
             
             
         # in21=np.array([np.argwhere([id1[k]==i2 for i2 in id2])[0,0] for k in in12])

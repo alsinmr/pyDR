@@ -113,9 +113,11 @@ class DataPlots():
         for a in self.ax[1:]:a.sharex(self.ax[0])
         
         not_rho0=self.data[0].sens.rhoz[0,0]/self.data[0].sens.rhoz[0].max()<.98
-        for k,a,color in zip(rho_index,self.ax,self.colors):
+        for m,(k,a) in enumerate(zip(rho_index,self.ax)):
+            color=self.colors[m%len(self.colors)]
             if not(a.is_last_row()):plt.setp(a.get_xticklabels(), visible=False)
-            a.set_ylabel(r'$\rho_'+'{}'.format(k+not_rho0)+r'^{(\theta,S)}$')
+            print(r'$\rho_{'+'{}'.format(k+not_rho0)+r'}^{(\theta,S)}$')
+            a.set_ylabel(r'$\rho_{'+'{}'.format(k+not_rho0)+r'}^{(\theta,S)}$')
             a.yaxis.label.set_color(color)
     
     def calc_rho_index(self,i=-1):
