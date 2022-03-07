@@ -200,7 +200,10 @@ class DataPlots():
         i%=len(self)
         if i==0:
             lbl=self.data[0].label
-            return (lbl if lbl.dtype.kind in ['i','f'] else np.arange(self.data[0].R.shape[0]))[self.xindex(0)]
+            if lbl.dtype.kind in ['i','f']:
+                return lbl[self.xindex(i)]
+            else:
+                return np.arange(self.data[0].R.shape[0])[self.xindex(0)]
         
 
         mode=self.mode
@@ -213,11 +216,12 @@ class DataPlots():
             xindex=self.xindex(i=i)
             xpos=np.zeros(xindex.shape)
             in0,in1=self.comparex(i=-1)
-            xpos[in1]=self.xpos(i=0)[in0]
+            xpos[:in1.size]=self.xpos(i=0)[in0]
             index=np.ones(di.R.shape[0],dtype=bool)
             index[in1]=False
             if di.label.dtype.kind in ['i','f']:
-                xpos[index]=di.label[index]
+                print('checkpoint')
+                xpos[in1.size:]=di.label[index]
             else:
                 start=(self.xpos(i=0)[in0]).max()+1
                 xpos[index]=np.arange(start,start+index.sum())
