@@ -29,7 +29,7 @@ if __name__ == '__main__':
         msg.setDetailedText("The details are as follows:")  # a button for more details will add in
         msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Open)  # type of buttons associated
         #msg.buttonClicked.connect(myfunc)  # connect clicked signal
-
+        print("test")
         return_value = msg.exec_()  # get the return value
 
         if return_value == 1024:   # this is the Ok Button
