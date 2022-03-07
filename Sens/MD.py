@@ -107,8 +107,7 @@ of the time axis for an MD simulation
 
     """
     index=sparse_index(tf,n=n,nr=nr)
-    N=get_count(index)
-    t=np.argwhere(N)[:,0]*.005
+    t=np.arange(tf)*dt if n==-1 else np.argwhere(get_count(index))[:,0]*dt
     md=MD(t=t)
     md.sampling_info={'tf':tf,'dt':dt,'n':n,'nr':nr}
     #TODO add in parameters and return

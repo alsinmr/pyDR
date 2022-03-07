@@ -49,7 +49,8 @@ class Data():
         self.Rstd=np.array(Rstd) if Rstd is not None else np.zeros(self.R.shape,dtype=dtype)
         self.S2=np.array(S2) if S2 is not None else None
         self.S2std=np.array(S2std) if S2std is not None else None
-        self.Rc=np.array(Rc) if Rc is not None else None
+        self._Rc=np.array(Rc) if Rc is not None else None
+        self._S2c=None
         self.label=np.array(label) if label is not None else None
         if self.label is None:
             if select is not None and select.label is not None and len(select.label)==self.R.shape[0]:
@@ -62,6 +63,24 @@ class Data():
 #        self.select=select #Stores the molecule selection for this data object
         self.vars=dict() #Storage for miscellaneous variable
         
+    @property
+    def Rc(self):
+        if self._Rc is None and hasattr(self.sens,'opt_pars') and 'n' in self.sens.opt_pars:
+            print("Don't forget to check that this returns the right results")
+            #TODO check that this calculation is correct
+            Rc=(self.sens.r@self.R.T).T
+            if 'inclS2' in self.sens.opt_pars['options']:
+                self._S2c,self._Rc=1-Rc[:,-1],Rc[:,:-1]
+            else:
+                self._Rc=Rc
+        return self._Rc
+    
+    @property
+    def S2c(self):
+        if self._S2c is None and hasattr(self.sens,'opt_pars') and\
+            'n' in self.sens.opt_pars and 'inclS2' in self.sens.opt_pars['options']:
+                self.Rc
+        return self._S2c
     
     def _ipython_display_(self):
         print(self.title+' with {0} data points'.format(self.__len__()) +'\n'+self.__repr__())
@@ -85,6 +104,9 @@ class Data():
             return
         elif name in ['select', 'project']:
             setattr(self.source, name, value)
+            return
+        elif name in ['Rc','S2c']:
+            setattr(self,'_'+name,value)
             return
         super().__setattr__(name, value)
         

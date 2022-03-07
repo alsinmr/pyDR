@@ -73,10 +73,10 @@ def avg2sel(data,sel):
                     np.logical_and(s01.id==sel0.sel2.ids,s02.id==sel0.sel1.ids))
             else:                        
                 i=np.logical_or(\
-                  np.all([s01.segid==sel.sel1.segids,s01.resid==sel.sel1.resids,s01.name==sel.sel1.names,
-                          s02.segid==sel.sel2.segids,s02.resid==sel.sel2.resids,s02.name==sel.sel2.names],axis=0),
-                  np.all([s01.segid==sel.sel2.segids,s01.resid==sel.sel2.resids,s01.name==sel.sel2.names,
-                          s02.segid==sel.sel1.segids,s02.resid==sel.sel1.resids,s02.name==sel.sel1.names],axis=0))
+                  np.all([s01.segid==sel0.sel1.segids,s01.resid==sel0.sel1.resids,s01.name==sel0.sel1.names,
+                          s02.segid==sel0.sel2.segids,s02.resid==sel0.sel2.resids,s02.name==sel0.sel2.names],axis=0),
+                  np.all([s01.segid==sel0.sel2.segids,s01.resid==sel0.sel2.resids,s01.name==sel0.sel2.names,
+                          s02.segid==sel0.sel1.segids,s02.resid==sel0.sel1.resids,s02.name==sel0.sel1.names],axis=0))
             if np.any(i):
                 count+=1
                 if sel1 is None:

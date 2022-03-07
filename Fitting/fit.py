@@ -159,7 +159,7 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
                 if np.any(ind):
                     ind=np.argwhere(ind)[-1,0]+1
                     rhoz[:ind]=0
-            elif len(ind0)==2: #One maximum in the middle
+            elif len(ind0)==2 and below_thresh[0] and below_thresh[-1]: #One maximum in the middle
                 ind1=np.diff(np.diff(rhoz[ind0[-1]:])<0)>0
                 ind2=np.diff(np.diff(rhoz[:ind0[0]])<0)>0
                 if np.any(ind1):

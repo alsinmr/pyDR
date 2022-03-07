@@ -131,9 +131,11 @@ def read_Sens(f: typing.TextIO):
         dt=float(line.split('dt:')[1].split(',')[0])
         n=int(line.split('n:')[1].split(',')[0])
         nr=int(line.split('nr:')[1])
+        line=decode(f.readline())[:-1]
         return MDsens_from_pars(tf=tf,dt=dt,n=n,nr=nr)
-    if line!='OBJECT:INFO':print('Warning: Info object should be only data stored in sensitivity after object type')
-    info=read_Info(f)
+    else:
+        if line!='OBJECT:INFO':print('Warning: Info object should be only data stored in sensitivity after object type')
+        info=read_Info(f)
     line=decode(f.readline())[:-1]
     if line!='END:OBJECT':print('Warning: Sens object did not terminate correctly')
     return clsDict[object_class](info=info)
@@ -146,7 +148,7 @@ def write_Detector(f: typing.BinaryIO, detect: pyDR.Sens.Detector, src_fname=Non
     else:
         write_Sens(f,detect.sens)
     
-    if detect.opt_pars.__len__()==5:
+    if 'n' in detect.opt_pars:
         op=detect.opt_pars
         for k in ['n','Type','Normalization','NegAllow']:
             f.write(bytes('{0}:{1}\n'.format(k,op[k]),'utf-8'))
@@ -155,11 +157,14 @@ def write_Detector(f: typing.BinaryIO, detect: pyDR.Sens.Detector, src_fname=Non
             f.write(bytes('{}\n'.format(o),'utf-8'))
         f.write(b'END:OPTIONS\n')
         target=detect.rhoz
-        if 'inclS2' in op['options']:
-            target=target[1:]
-        if 'R2ex' in op['options']:
-            target=target[:-1]
+#        if 'inclS2' in op['options']:
+#            target=target[1:]
+#        if 'R2ex' in op['options']:
+#            target=target[:-1]
+        f.write(b'TARGET\n')
         np.save(f,target,allow_pickle=False)
+        f.write(b'NORM\n')
+        np.save(f,detect.norm,allow_pickle=False)
     elif detect.opt_pars.__len__()==0:
         f.write(b'Unoptimized detector\n')
     else:
@@ -190,15 +195,30 @@ def read_Detector(f):
     for l in f:
         if decode(l)[:-1]=='END:OPTIONS':break
         opt_pars['options'].append(decode(l)[:-1])
-        
+    
+    if decode(f.readline()).strip()!='TARGET':print('Target not correctly saved')    
     target=np.load(f,allow_pickle=False)
-    detect.r_target(target)
+    detect._Sens__rho=target
+    #TODO The below line is a little risky- can be fixed with r.reload(), but how to check if this gets run?
+    detect._Sens__rhoCSA=np.zeros(target.shape)
+    if decode(f.readline()).strip()!='NORM':print('Norm not correctly saved')
+    detect._Sens__norm=np.load(f,allow_pickle=False)
+    
+    dz=detect.z[1]-detect.z[0]
+    info=detect.info
+    for k in info.keys.copy():info.del_parameter(k)
+    info.new_parameter(z0=np.array([(detect.z*rz).sum()/rz.sum() for rz in detect.rhoz]))
+    info.new_parameter(zmax=np.array([detect.z[np.argmax(rz)] for rz in detect.rhoz]))
+    info.new_parameter(Del_z=np.array([rz.sum()*dz/rz.max() for rz in detect.rhoz]))
+    
+#    if detect.norm.size==detect.rhoz.shape[0]:
+    info.new_parameter(stdev=1/detect.norm)
+
+
+    
+#    detect.r_target(target)
     detect.opt_pars=opt_pars.copy()
-    detect.opt_pars['options']=list()
-    if np.max(np.abs(target-detect.rhoz))>1e-6:
-        print('Warning: Detector reoptimization failed')
-    for o in opt_pars['options']:
-        getattr(detect,o)()
+#    detect.opt_pars['options']=list()
     
     if decode(f.readline()[:-1])!='END:OBJECT':print('Detector file not terminated correctly')
     
@@ -208,7 +228,7 @@ def read_Detector(f):
 
 #%% Data input and output   
 def write_Data(f,data):
-    flds=['R','Rstd','S2','S2std','Rc']
+    flds=['R','Rstd','S2','S2std']
     f.write(b'OBJECT:DATA\n')
     if data.detect is None:data.detect=Sens.Detector(data.sens)
     write_Detector(f,data.detect)
@@ -317,7 +337,6 @@ def write_MolSelect(f,select):
                 for v0 in v:
                     np.save(f,v0.indices,allow_pickle=False)
             else:
-                print(v)
                 f.write(bytes('{0}\n'.format(fld),'utf-8'))
                 np.save(f,v.indices,allow_pickle=False)
     f.write(b'END:OBJECT\n')

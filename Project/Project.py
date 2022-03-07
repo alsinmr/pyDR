@@ -26,6 +26,7 @@ class DataMngr():
         for fname in os.listdir(self.directory):
             if fname[0] != '.':
                 self._saved_files.append(fname)
+        self._saved_files.sort()
         self.data_objs = [None for _ in self.saved_files]
         self._hashes = [None for _ in self.saved_files]
 
@@ -174,9 +175,8 @@ class DataMngr():
             assert i<len(self),"Index {0} to large for project with {1} data objects".format(i,len(self))
             if not(self.saved[i]):
                 src_fname=None
-                if self[i].src_data is not None:
+                if self[i].src_data is not None and not(isinstance(self[i].src_data,str)):
                     k=np.argwhere([self[i].src_data==d for d in self])[0,0]
-                    for m in range(len(self)):print(self[m].title)
                     if self[k].R.size<=ME:
                         self.save(k)
                     else:
@@ -330,7 +330,13 @@ class Project():
         self.data.append_data(data)
     def remove_data(self,index,delete=False):
         assert not(self.__subproject),"Data cannot be removed from subprojects"
-        self.data.remove_data(index=index,delete=delete)
+        proj=self[index]
+        if hasattr(proj,'R'):
+            self.data.remove_data(index=self.data.data_objs.index(proj),delete=delete)
+        else:
+            if delete:print('Delete data sets permanently by full title or index (no multi-delete of saved data)')
+            for d in proj:        
+                self.data.remove_data(index=self.data.data_objs.index(d))
         
     def save(self):
         assert not(self.__subproject),"Sub-projects cannot be saved"
@@ -451,6 +457,7 @@ class Project():
             stop = self.size if index.stop is None else min(index.stop, self.size)
             start %= self.size
             stop = (stop-1) % self.size+1
+            if step<0:start,stop=stop-1,start-1
             data = [self[i] for i in range(start, stop, step)]
         else:
             print('index was not understood')
@@ -546,7 +553,6 @@ class Project():
 
         if isinstance(i, int):
             i = self[i] #Get the corresponding data object
-        print('Updated1')
         out = list()
         for s in self:
             if s.select.compare(i.select)[0].__len__() == 0:
