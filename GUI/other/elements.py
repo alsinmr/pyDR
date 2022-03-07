@@ -13,6 +13,7 @@ def get_mainwindow(widget):
     
 def get_workingproject(widget):
     while not hasattr(widget, "get_project"):
+        print(widget)
         if hasattr(widget, "parent"):
             widget = widget.parent()
         else:

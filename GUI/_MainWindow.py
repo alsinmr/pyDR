@@ -21,6 +21,7 @@ class QMainWindow(QMainWindow):
     # since the idea is that it is shouldnt be possible to work with the gui without a project open, this throws an
     # assertion if no project is available
     def get_project(self):
+        print("miauz")
         if self.working_project is not None:
             return self.working_project
         assert 0, "No Project available"
@@ -76,7 +77,7 @@ class MyWindow(Ui_MainWindow):
     def load_project(self, init=False):
         if not init:
             filename = openFileNameDialog()
-            self.label_projectname.setText(f"pROJECT: {filename}")
+            self.label_projectname.setText(f"Project: {filename}")
         else:
             self.label_projectname.setText(f"Project: {self.parent.working_project.name}")
 

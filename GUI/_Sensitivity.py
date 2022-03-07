@@ -16,8 +16,8 @@ def get_defaults() -> list:
                 default_entries.append(entry)
             elif len(line.strip()):
                 entry.append(line.strip())
-    for entry in default_entries:
-        print(entry)
+    #for entry in default_entries:
+    #    print(entry)
     return default_entries
 
 
@@ -25,6 +25,7 @@ def get_defaults() -> list:
 class Ui_Sensitivity_final(Ui_Sensitivity):
     def retranslateUi(self, Sensitivity) -> None:
         super().retranslateUi(Sensitivity)
+        self.parent = Sensitivity.parent()
         self.plot  = create_Figure_canvas(self.layout_plot)
         self.layout_plot.layout().setContentsMargins(0,0,0,0)
 

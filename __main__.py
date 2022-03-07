@@ -1,6 +1,8 @@
 import pyDR.Project
+from pyDR.GUI import QMainWindow   # this is important to import because of the get_project function! Maybe there is a
+                                    # better solution
 from pyDR.GUI import MyWindow
-from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QInputDialog
+from PyQt5.QtWidgets import QApplication, QMessageBox, QInputDialog
 from pyDR.GUI.other.elements import openFileNameDialog
 import sys
 import os.path

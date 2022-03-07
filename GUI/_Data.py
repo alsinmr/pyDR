@@ -7,9 +7,8 @@ from pyDR.IO import read_file, readNMR, isbinary
 class Ui_Data_final(Ui_Data):
     def retranslateUi(self, Data: QWidget) -> None:
         super().retranslateUi(Data)
+        # important: connect parent!
         self.parent = Data.parent()
-        #self.parent = get_mainwindow(Data)
-
 
         # connect a function to a button with clicked.connect
         # target is a label, of which the text will be overwritten by the function

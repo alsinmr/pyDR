@@ -14,11 +14,11 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(789, 469)
+        MainWindow.resize(1102, 667)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.gridLayout = QtWidgets.QGridLayout(self.centralwidget)
-        self.gridLayout.setContentsMargins(0, 0, 0, 0)
+        self.gridLayout.setContentsMargins(2, 2, 2, 2)
         self.gridLayout.setSpacing(0)
         self.gridLayout.setObjectName("gridLayout")
         self.tabWidget = QtWidgets.QTabWidget(self.centralwidget)
@@ -58,7 +58,7 @@ class Ui_MainWindow(object):
         self.gridLayout.addWidget(self.label_projectname, 0, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 789, 22))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 1102, 22))
         self.menubar.setObjectName("menubar")
         self.menupyDR = QtWidgets.QMenu(self.menubar)
         self.menupyDR.setObjectName("menupyDR")
