@@ -52,6 +52,9 @@ class Ui_MainWindow(object):
         self.tab_ired = QtWidgets.QWidget()
         self.tab_ired.setObjectName("tab_ired")
         self.tabWidget.addTab(self.tab_ired, "")
+        self.tab_md = QtWidgets.QWidget()
+        self.tab_md.setObjectName("tab_md")
+        self.tabWidget.addTab(self.tab_md, "")
         self.gridLayout.addWidget(self.tabWidget, 1, 0, 1, 1)
         self.label_projectname = QtWidgets.QLabel(self.centralwidget)
         self.label_projectname.setObjectName("label_projectname")
@@ -99,7 +102,7 @@ class Ui_MainWindow(object):
         self.menubar.addAction(self.menuOptionen.menuAction())
 
         self.retranslateUi(MainWindow)
-        self.tabWidget.setCurrentIndex(4)
+        self.tabWidget.setCurrentIndex(6)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -111,6 +114,7 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_frames), _translate("MainWindow", "Frames"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_selection), _translate("MainWindow", "Selection"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_ired), _translate("MainWindow", "iRed"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_md), _translate("MainWindow", "MDSimulation"))
         self.label_projectname.setText(_translate("MainWindow", "Project:"))
         self.menupyDR.setTitle(_translate("MainWindow", "pyDR"))
         self.menuOptionen.setTitle(_translate("MainWindow", "Optionen"))

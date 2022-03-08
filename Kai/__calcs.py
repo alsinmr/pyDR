@@ -39,7 +39,7 @@ def search_methyl_groups(residue: MDAnalysis.core.groups.Residue, v=True):
 
     def search(atom, exclude=[]):  # ignore possible warning on the mutable [], this is on purpose here
         """searching a path from a methyl group of a residue down to the C-alpha of the residue
-        returns a list of atoms (MDA.Atom) beginning with the hydrogens of the methyl group and continuing
+        returns a list of atoms (mda.Atom) beginning with the hydrogens of the methyl group and continuing
         with the carbons of the side chain
         returns empty list if atom is not a methyl carbon"""
 

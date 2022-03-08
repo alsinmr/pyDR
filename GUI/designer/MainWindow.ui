@@ -42,7 +42,7 @@
        <cursorShape>ArrowCursor</cursorShape>
       </property>
       <property name="currentIndex">
-       <number>4</number>
+       <number>6</number>
       </property>
       <widget class="QWidget" name="tab_data">
        <property name="sizePolicy">
@@ -78,6 +78,11 @@
       <widget class="QWidget" name="tab_ired">
        <attribute name="title">
         <string>iRed</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="tab_md">
+       <attribute name="title">
+        <string>MDSimulation</string>
        </attribute>
       </widget>
      </widget>

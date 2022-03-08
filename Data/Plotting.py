@@ -94,7 +94,7 @@ class DataPlots():
            
         if plot_sens:self.plot_sens()
         self.plot_data(errorbars=errorbars,split=split,**kwargs)
-        self.show()
+        #self.show()
     
     
     def setup_plots(self,plot_sens=True):

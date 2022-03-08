@@ -18,7 +18,6 @@ def get_workingproject(widget: QWidget):
     :return:            a pointer to the actual working project
     """
     while not hasattr(widget, "get_project"):
-        print(widget)
         if hasattr(widget, "parent"):
             widget = widget.parent()
         else:
@@ -36,10 +35,12 @@ def openFileNameDialog(**kwargs) -> str:
     :return:            filename (or foldername if folder=True)
     """
     W = QWidget()
+    windowtitle = kwargs.get("title") if kwargs.get("title") else ""
+
     if kwargs.get("folder"):
         #if you only want to open a folder, set the options for this and use another Dialog
         options = QFileDialog.Options(QFileDialog.DirectoryOnly)
-        fileName = QFileDialog.getExistingDirectory(W, kwargs.get("title") if kwargs.get("title") else "", options=options)
+        fileName = QFileDialog.getExistingDirectory(W, windowtitle, options=options)
     else:
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
@@ -50,7 +51,7 @@ def openFileNameDialog(**kwargs) -> str:
             filetypes = "All Files (*)"
             #"All Files (*);;Python Files (*.py)"
 
-        fileName, _ = QFileDialog.getOpenFileName(W, kwargs.get("title") if kwargs.get("title") else "", "",
+        fileName, _ = QFileDialog.getOpenFileName(W, windowtitle, "",
                                                   filetypes, options=options)
 
     if fileName:
