@@ -116,6 +116,21 @@
             </item>
             <item>
              <widget class="QPushButton" name="pushButton">
+              <property name="maximumSize">
+               <size>
+                <width>50</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="statusTip">
+               <string>apply segment to all signals</string>
+              </property>
+              <property name="whatsThis">
+               <string/>
+              </property>
               <property name="text">
                <string>apply</string>
               </property>
@@ -123,6 +138,18 @@
             </item>
             <item>
              <widget class="QPushButton" name="pushButton_2">
+              <property name="maximumSize">
+               <size>
+                <width>90</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="statusTip">
+               <string>apply residue to all signals (if available in selected segment)</string>
+              </property>
+              <property name="whatsThis">
+               <string/>
+              </property>
               <property name="text">
                <string>apply</string>
               </property>
@@ -130,6 +157,18 @@
             </item>
             <item>
              <widget class="QPushButton" name="pushButton_3">
+              <property name="maximumSize">
+               <size>
+                <width>70</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="statusTip">
+               <string>apply atom to all signals (if available in selected residue)</string>
+              </property>
+              <property name="whatsThis">
+               <string/>
+              </property>
               <property name="text">
                <string>apply</string>
               </property>
@@ -137,6 +176,18 @@
             </item>
             <item>
              <widget class="QPushButton" name="pushButton_4">
+              <property name="maximumSize">
+               <size>
+                <width>70</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="statusTip">
+               <string>apply atom to all signals (if available in selected residue)</string>
+              </property>
+              <property name="whatsThis">
+               <string/>
+              </property>
               <property name="text">
                <string>apply</string>
               </property>
@@ -235,16 +286,44 @@
              </spacer>
             </item>
             <item>
-             <widget class="QComboBox" name="comboBox"/>
+             <widget class="QComboBox" name="comboBox">
+              <property name="maximumSize">
+               <size>
+                <width>50</width>
+                <height>16777215</height>
+               </size>
+              </property>
+             </widget>
             </item>
             <item>
-             <widget class="QComboBox" name="comboBox_2"/>
+             <widget class="QComboBox" name="comboBox_2">
+              <property name="maximumSize">
+               <size>
+                <width>90</width>
+                <height>16777215</height>
+               </size>
+              </property>
+             </widget>
             </item>
             <item>
-             <widget class="QComboBox" name="comboBox_3"/>
+             <widget class="QComboBox" name="comboBox_3">
+              <property name="maximumSize">
+               <size>
+                <width>70</width>
+                <height>16777215</height>
+               </size>
+              </property>
+             </widget>
             </item>
             <item>
-             <widget class="QComboBox" name="comboBox_4"/>
+             <widget class="QComboBox" name="comboBox_4">
+              <property name="maximumSize">
+               <size>
+                <width>70</width>
+                <height>16777215</height>
+               </size>
+              </property>
+             </widget>
             </item>
             <item>
              <spacer name="horizontalSpacer_3">

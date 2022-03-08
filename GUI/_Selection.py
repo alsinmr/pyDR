@@ -27,7 +27,6 @@ class Ui_Selection_final(Ui_Selection):
             entry["residue_box"].clear()
             for res in self.universe.segments[entry["segment_box"].currentIndex()].residues:
                 entry["residue_box"].addItem(f"{res.resname}-{res.resid}")
-
             get_atoms_of_residue(entry)
 
         def get_atoms_of_residue(entry):
@@ -65,6 +64,8 @@ class Ui_Selection_final(Ui_Selection):
                       "atom2_box": self.comboBox_4}
         zero_entry["segment_box"].currentIndexChanged.connect(lambda a, e=zero_entry: get_residues_of_segment(e))
         zero_entry["residue_box"].currentIndexChanged.connect(lambda a, e=zero_entry: get_atoms_of_residue(e))
+        zero_entry["residue_box"].setMaxVisibleItems(15)
+        zero_entry["residue_box"].setStyleSheet("combobox-popup: 0;")
         self.entries = [zero_entry]
 
         def apply_to_all_signals(box : str):
@@ -101,12 +102,12 @@ class Ui_Selection_final(Ui_Selection):
             widget.setContentsMargins(1,1,1,1)
             new_layout = QHBoxLayout(widget)
             new_layout.setContentsMargins(1,1,1,1)
-            new_layout.insertWidget(index+2, new_entry["label"])
+            new_layout.addWidget(new_entry["label"])
             new_entry["label"].setFixedWidth(60)
 
             new_entry["segment_box"] = QComboBox(parent=Selection)
             #self.verticalLayout_assignsegment.insertWidget(index + 1, new_entry["segment_box"])
-            new_layout.insertWidget(index+2, new_entry["segment_box"])
+            new_layout.addWidget(new_entry["segment_box"])
             new_entry["segment_box"].setFixedWidth(40)
             new_entry["segment_box"].currentIndexChanged.connect(lambda a, e=new_entry: get_residues_of_segment(e))
 
@@ -115,7 +116,9 @@ class Ui_Selection_final(Ui_Selection):
             new_layout.addWidget(new_entry["residue_box"])
             new_entry["residue_box"].setFixedWidth(90)
             new_entry["residue_box"].currentIndexChanged.connect(lambda a, e=new_entry: get_atoms_of_residue(e))
-
+            new_entry["residue_box"].setMaxVisibleItems(15)
+            new_entry["residue_box"].setStyleSheet("combobox-popup: 0;")
+            # this stylesheet is a little ugly inbetween, but the only possibility I see to limit the number of items
 
             new_entry["atom1_box"] = QComboBox(parent=Selection)
             #self.verticalLayout_assignatom1.insertWidget(index + 1, new_entry["atom1_box"])
