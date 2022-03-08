@@ -1,14 +1,21 @@
 from pyDR.GUI.designer2py.selection_widget import Ui_Selection
 from pyDR.GUI.other.elements import openFileNameDialog
-import MDAnalysis as MDA
+import MDAnalysis as mda
 from PyQt5.QtWidgets import QLabel, QSpacerItem, QSizePolicy, QPushButton, QComboBox
 from PyQt5.QtCore import Qt, QRect
 
+
 class Ui_Selection_final(Ui_Selection):
     def retranslateUi(self, Selection):
-        self.universe=None
-        def get_segments_of_pdb(list_of_entries):
-            for entry in list_of_entries:
+        self.universe = None
+
+        def get_segments_of_pdb(*args):
+            """
+            when a pdb and nmr signals are available, this will
+            :param
+            :return:
+            """
+            for entry in args:
                 entry["segment_box"].clear()
                 try:
                     entry["segment_box"].currentIndexChanged.disconnect()
@@ -22,7 +29,6 @@ class Ui_Selection_final(Ui_Selection):
                 entry["segment_box"].currentIndexChanged.connect(lambda a, e=entry: get_residues_of_segment(e))
                 get_residues_of_segment(entry)
 
-
         def get_residues_of_segment(entry):
             entry["residue_box"].clear()
             try:
@@ -33,20 +39,20 @@ class Ui_Selection_final(Ui_Selection):
 
             for res in self.universe.segments[entry["segment_box"].currentIndex()].residues:
                 entry["residue_box"].addItem(f"{res.resname}-{res.resid}")
-            entry["residue_box"].currentIndexChanged.connect(lambda a,e=entry:get_atoms_of_residue(e))
+            entry["residue_box"].currentIndexChanged.connect(lambda a, e=entry: get_atoms_of_residue(e))
 
             get_atoms_of_residue(entry)
 
         def get_atoms_of_residue(entry):
-            entry["atom1_box"].clear()
-            #todo think about making another function that looks for connected atoms as atom2 and fill the combobox separately
-            entry["atom2_box"].clear()
-            try:
-                resid = int(entry["residue_box"].currentText().split("-")[-1])
-            except:
+            if not len(entry["residue_box"].currentText()):
+                #for some reason this is called in moments when no entries are available and throws an error
                 return
-            print(resid)
-            for atom in self.universe.residues[resid].atoms:
+            entry["atom1_box"].clear()
+            # todo think about making another function that looks for connected atoms as atom2 and fill the combobox separately
+            #  for atom 1 only make heavy atoms available?
+            entry["atom2_box"].clear()
+            resid = int(entry["residue_box"].currentText().split("-")[-1])
+            for atom in self.universe.residues[resid-1].atoms:
                 entry["atom1_box"].addItem(atom.name)
                 entry["atom2_box"].addItem(atom.name)
             #todo add function that adds the atom numbers to the dicitonary
@@ -55,8 +61,8 @@ class Ui_Selection_final(Ui_Selection):
             #self.listWidget_pdbresidues.clear()
             pdbpath = openFileNameDialog(filetypes="*.pdb")
             self.label_pdbpath.setText(pdbpath)
-            self.universe = MDA.Universe(pdbpath)
-            get_segments_of_pdb(self.entries)
+            self.universe = mda.Universe(pdbpath)
+            get_segments_of_pdb(*self.entries)
             #for res in self.universe.residues:
             #    self.listWidget_pdbresidues.addItem(f"{res.resname}-{res.resid} in Segment({res.segid})")
 
@@ -88,9 +94,11 @@ class Ui_Selection_final(Ui_Selection):
 
             new_entry["segment_box"] = QComboBox(parent=Selection)
             self.verticalLayout_assignsegment.insertWidget(index + 1, new_entry["segment_box"])
+            new_entry["segment_box"].setFixedWidth(40)
 
             new_entry["residue_box"] = QComboBox(parent=Selection)
             self.verticalLayout_assignresidue.insertWidget(index + 1, new_entry["residue_box"])
+            new_entry["residue_box"].setFixedWidth(90)
 
             new_entry["atom1_box"] = QComboBox(parent=Selection)
             self.verticalLayout_assignatom1.insertWidget(index + 1, new_entry["atom1_box"])
@@ -105,7 +113,7 @@ class Ui_Selection_final(Ui_Selection):
 
             self.entries.insert(index, new_entry)
             if self.universe:
-                get_segments_of_pdb([new_entry])
+                get_segments_of_pdb(new_entry)
 
         for signal in [f"Res{x}" for x in range(5)]:  #  todo exchange this list by a function that reads out NMRfile
             add_entry(signal)

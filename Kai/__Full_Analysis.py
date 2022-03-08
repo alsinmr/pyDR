@@ -43,7 +43,7 @@ class KaiMarkov():
         self.pdb = None  # pdb file (path) that will fit to the selected simulation
         self.sel_sim = None  # filename of selected simulation
         self.sel_sim_name = None  # same just with removed xtc
-        self.universe = None  # will be MDA.Universe object
+        self.universe = None  # will be mda.Universe object
         self.default_float = "float32"  # used for all kinds of calculations and saves some space compared to float 64
         self.save_float = "float16"  # saves space for saving issues, since md accuracy is only 0.01 it shouldn't matter
         self.v = False  # verbose, if activated, print
@@ -166,7 +166,7 @@ class KaiMarkov():
 
         :return:
         """
-        #return an MDA Atomgroup from a list of Atoms
+        #return an mda Atomgroup from a list of Atoms
         make_AG = lambda alist: MDA.AtomGroup([this[_] for _ in alist])
         assert self.sel_sim and self.pdb, "You have to select a PDB file AND a simulation before "
         if self.universe is None:

@@ -17,7 +17,7 @@ import numbers
   
 def sel0_filter(mol,resids=None,segids=None,filter_str=None):
     """
-    Performs initial filtering of all atoms in an MDA Universe. Filtering may
+    Performs initial filtering of all atoms in an mda Universe. Filtering may
     be by resid, segid, and/or a selection string. Each selector will default
     to None, in which case it is not applied
     
@@ -423,7 +423,7 @@ def peptide_plane(mol,resids=None,segids=None,filter_str=None,full=True):
 def get_chain(atom,sel0,exclude=None):
     if exclude is None:exclude=[]
     '''searching a path from a methyl group of a residue down to the C-alpha of the residue
-    returns a list of atoms (MDA.Atom) beginning with the Hydrogens of the methyl group and continuing
+    returns a list of atoms (mda.Atom) beginning with the Hydrogens of the methyl group and continuing
     with the carbons of the side chain
     returns empty list if atom is not a methyl carbon'''
     final=False
