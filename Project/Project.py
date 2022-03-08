@@ -405,7 +405,9 @@ class Project():
         super().__setattr__(name,value)
 
     def _ipython_display_(self):
-        print("pyDIFRATE project with {0} data sets\n{1}".format(self.size,super().__repr__()))
+        print("pyDIFRATE project with {0} data sets\n{1}\n".format(self.size,super().__repr__()))
+        print('Titles:')
+        for t in self.titles:print(t)
     @property
     def size(self) -> int:
         return self.__len__()

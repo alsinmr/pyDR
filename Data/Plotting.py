@@ -113,9 +113,11 @@ class DataPlots():
         for a in self.ax[1:]:a.sharex(self.ax[0])
         
         not_rho0=self.data[0].sens.rhoz[0,0]/self.data[0].sens.rhoz[0].max()<.98
-        for k,a,color in zip(rho_index,self.ax,self.colors):
+        for m,(k,a) in enumerate(zip(rho_index,self.ax)):
+            color=self.colors[m%len(self.colors)]
             if not(a.is_last_row()):plt.setp(a.get_xticklabels(), visible=False)
-            a.set_ylabel(r'$\rho_'+'{}'.format(k+not_rho0)+r'^{(\theta,S)}$')
+            print(r'$\rho_{'+'{}'.format(k+not_rho0)+r'}^{(\theta,S)}$')
+            a.set_ylabel(r'$\rho_{'+'{}'.format(k+not_rho0)+r'}^{(\theta,S)}$')
             a.yaxis.label.set_color(color)
     
     def calc_rho_index(self,i=-1):
@@ -198,7 +200,11 @@ class DataPlots():
         i%=len(self)
         if i==0:
             lbl=self.data[0].label
-            return (lbl if lbl.dtype.kind in ['i','f'] else np.arange(self.data[0].R.shape[0]))[self.xindex(0)]
+            if lbl.dtype.kind in ['i','f']:
+                # return lbl[self.xindex(i)]
+                return lbl
+            else:
+                return np.arange(self.data[0].R.shape[0])[self.xindex(0)]
         
 
         mode=self.mode
@@ -211,11 +217,12 @@ class DataPlots():
             xindex=self.xindex(i=i)
             xpos=np.zeros(xindex.shape)
             in0,in1=self.comparex(i=-1)
-            xpos[in1]=self.xpos(i=0)[in0]
+            xpos[:in1.size]=self.xpos(i=0)[in0]
             index=np.ones(di.R.shape[0],dtype=bool)
             index[in1]=False
             if di.label.dtype.kind in ['i','f']:
-                xpos[index]=di.label[index]
+                print('checkpoint')
+                xpos[in1.size:]=di.label[index]
             else:
                 start=(self.xpos(i=0)[in0]).max()+1
                 xpos[index]=np.arange(start,start+index.sum())
@@ -318,6 +325,8 @@ def plot_rho(lbl,R,R_std=None,style='plot',color=None,ax=None,split=True,**kwarg
     """
     Plots a set of rates or detector responses. 
     """
+    i=np.argsort(lbl)
+    lbl,R,R_std=[x[i] if x is not None else None for x in [lbl,R,R_std]]
     if ax is None:
         ax=plt.figure().add_subplot(111)
     
