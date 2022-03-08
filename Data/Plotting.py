@@ -116,7 +116,6 @@ class DataPlots():
         for m,(k,a) in enumerate(zip(rho_index,self.ax)):
             color=self.colors[m%len(self.colors)]
             if not(a.is_last_row()):plt.setp(a.get_xticklabels(), visible=False)
-            print(r'$\rho_{'+'{}'.format(k+not_rho0)+r'}^{(\theta,S)}$')
             a.set_ylabel(r'$\rho_{'+'{}'.format(k+not_rho0)+r'}^{(\theta,S)}$')
             a.yaxis.label.set_color(color)
     
