@@ -29,7 +29,6 @@ if __name__ == '__main__':
         msg.setDetailedText("The details are as follows:")  # a button for more details will add in
         msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Open)  # type of buttons associated
         #msg.buttonClicked.connect(myfunc)  # connect clicked signal
-        print("test")
         return_value = msg.exec_()  # get the return value
 
         if return_value == 1024:   # this is the Ok Button
@@ -47,7 +46,7 @@ if __name__ == '__main__':
         elif return_value == 8192:  # this is the open button
             # todo add file dialog to open existing project
             print("Open File Dialog and load project")
-            filename = openFileNameDialog()
+            filename = openFileNameDialog(folder=True)
             assert filename, "You have to select a project file"
             # todo this here might get a little tricky since there is not directly a file to open right now
             #  we might consider opening a folder, but I havent make up my mind how we solve that properly

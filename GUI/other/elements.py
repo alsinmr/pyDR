@@ -12,6 +12,11 @@ def get_mainwindow(widget):
     assert 0, "Widget is not connected to Main Window!"
     
 def get_workingproject(widget):
+    """
+
+    :param widget:
+    :return:            a pointer to the actual working project
+    """
     while not hasattr(widget, "get_project"):
         print(widget)
         if hasattr(widget, "parent"):
@@ -20,25 +25,40 @@ def get_workingproject(widget):
             assert 0, "No Project!"
     return widget.get_project()
 
-def openFileNameDialog(**kwargs):
+def openFileNameDialog(**kwargs) -> str:
+    """
+    :param kwargs:
+        folder:         returns a folder name if set to true
+        filetypes:      set listed filetypes
+        target:         if the target, for example a QLabel has the Attribute "setText", then the result will be insert
+                        there
+        title:          the title of the dialog window
+    :return:            filename (or foldername if folder=True)
+    """
     W = QWidget()
-    options = QFileDialog.Options()
-    options |= QFileDialog.DontUseNativeDialog
-    # TODO change the file things
-
-    if kwargs.get("filetypes"):
-        filetypes = kwargs['filetypes']
+    if kwargs.get("folder"):
+        #if you only want to open a folder, set the options for this and use another Dialog
+        options = QFileDialog.Options(QFileDialog.DirectoryOnly)
+        fileName = QFileDialog.getExistingDirectory(W, kwargs.get("title") if kwargs.get("title") else "", options=options)
     else:
-        filetypes = "All Files (*)"
-        #"All Files (*);;Python Files (*.py)"
-    fileName, _ = QFileDialog.getOpenFileName(W,"QFileDialog.getOpenFileName()", "",filetypes, options=options)
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+
+        if kwargs.get("filetypes"):
+            filetypes = kwargs['filetypes']
+        else:
+            filetypes = "All Files (*)"
+            #"All Files (*);;Python Files (*.py)"
+
+        fileName, _ = QFileDialog.getOpenFileName(W, kwargs.get("title") if kwargs.get("title") else "", "",
+                                                  filetypes, options=options)
+
     if fileName:
         if kwargs.get("target"):
             target = kwargs["target"]
             if hasattr(target, "setText"):
                 target.setText(fileName)
-        else:
-            return fileName
+        return fileName
     return ""
     
     
