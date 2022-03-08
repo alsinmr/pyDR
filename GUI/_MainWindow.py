@@ -11,6 +11,7 @@ from pyDR.GUI._Detectors import Ui_Detectors_final
 from pyDR.GUI._iRed import Ui_iRed_final
 from pyDR.GUI._Frames import Ui_Frames_final
 from pyDR.GUI._Selection import Ui_Selection_final
+from pyDR.GUI._MDSimulation import Ui_MDSimulation_final
 
 from pyDR.GUI.other.elements import openFileNameDialog
 
@@ -60,6 +61,9 @@ class MyWindow(Ui_MainWindow):
         
         self.selection_tab = Ui_Selection_final()
         self.selection_tab.setupUi(self.tab_selection)
+
+        self.mdsimulation_tab = Ui_MDSimulation_final()
+        self.mdsimulation_tab.setupUi(self.tab_md)
        
         self.actionQuitProgram.triggered.connect(MainWindow.close)   # this connects the 'action' to QAction!
 

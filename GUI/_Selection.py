@@ -69,6 +69,11 @@ class Ui_Selection_final(Ui_Selection):
         self.entries = [zero_entry]
 
         def apply_to_all_signals(box : str):
+            """
+            Applying the selection of the zeroentry to all signals below, if it is possible
+            :param box:  str -> segment_box or residue_box or atom1_box or atom2_box
+            :return:  none
+            """
             val = self.entries[0][box].currentText()
             for entry in self.entries:
                 index = entry[box].findText(val)
