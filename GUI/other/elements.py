@@ -11,7 +11,7 @@ def get_mainwindow(widget):
             return widget
     assert 0, "Widget is not connected to Main Window!"
     
-def get_workingproject(widget):
+def get_workingproject(widget: QWidget):
     """
 
     :param widget:
@@ -74,7 +74,7 @@ def create_Figure_canvas(layout: PyQt5.QtWidgets.QVBoxLayout):
     canvas = FigureCanvasQTAgg()
     # todo add arguments to funciton to create a figure with multiple plots
     #  in that case, make ax a list to return
-    ax = canvas.figure.add_subplot()
+    canvas.figure.add_subplot()
     toolbar = NavigationToolbar2QT(canvas,canvas)
 
     layout.addWidget(canvas)
