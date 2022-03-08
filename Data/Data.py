@@ -150,7 +150,7 @@ class Data():
     
     def __eq__(self, data) -> bool:
         "Using string means this doesn't break when we do updates. Maybe delete when finalized"
-        assert str(self.__class__) == str(data.__class__), "Object is not the same type. == not defined"
+        if str(self.__class__) != str(data.__class__): return False
         return self._hash == data._hash
     
     def fit(self, bounds: bool = True, parallel: bool = False):

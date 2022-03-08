@@ -12,6 +12,7 @@ from pyDR.IO import read_file, readNMR, isbinary
 from pyDR import Defaults
 from pyDR import clsDict
 import re
+from copy import copy
 ME=Defaults['max_elements']
 decode=bytes.decode
 
@@ -43,7 +44,7 @@ class DataMngr():
             assert filename in self.saved_files,"{} not found in project. Use 'append_data' for new data".format(filename)
             index=self.saved_files.index(filename)
         fullpath=os.path.join(self.directory,self.saved_files[index])
-        self.data_objs[index]=read_file(fullpath)
+        self.data_objs[index]=read_file(fullpath,directory=self.project.directory)
         self._hashes[index]=self.data_objs[index]._hash
         self.data_objs[index].source.project=self.project
         
@@ -61,9 +62,9 @@ class DataMngr():
                     so we do not check that directory here.
                     """
             assert os.path.exists(filename),"{} does not exist".format(filename)
-            data=read_file(filename) if isbinary(filename) else readNMR(filename)
+            data=read_file(filename,directory=self.project.directory) if isbinary(filename) else readNMR(filename)
 
-        if data in self:
+        if data in self.data_objs:
             print("Data already in project (index={})".format(self.data_objs.index(data)))
             return
             
@@ -71,8 +72,16 @@ class DataMngr():
         self._hashes.append(None)   #We only add the hash value if data is saved
         self._saved_files.append(None)
         self.data_objs[-1].source.project=self.project
+        
+        if self.project is not None:
+            flds=['Type','status','short_file','title','additional_info']
+            dct={f:getattr(self.data_objs[-1].source,f) for f in flds}
+            dct['filename']=None
+            self.project.info.new_exper(**dct)
+            self.project._index=np.append(self.project._index,len(self.data_objs)-1)
+        
         if data.src_data is not None:
-            if data.src_data in self:
+            if data.src_data in self.data_objs:
                 data.src_data=self[self.data_objs.index(data.src_data)]
             else:
                 self.append_data(data=data.src_data) #Recursively append source data
@@ -137,8 +146,12 @@ class DataMngr():
         List of filenames used for saving data
         """
         names=list()
-        for d in self:
-            name=os.path.split(d.source.default_save_location)[1]
+        for k,d in enumerate(self.data_objs):
+            if d is None:
+                name=self.saved_files[k]    #saved files can be shorter than d,
+                                            #but I think d cannot be None for the latter values
+            else:
+                name=os.path.split(d.source.default_save_location)[1]
             if name in names:
                 name=name[:-5]+'1'+name[-5:]
                 k=2
@@ -160,7 +173,7 @@ class DataMngr():
     @property
     def saved(self):
         "Logical index "
-        return [h==d._hash for h,d in zip(self._hashes,self)]
+        return [True if d is None else h==d._hash for h,d in zip(self._hashes,self.data_objs)]
     
     def save(self,i='all'):
         """
@@ -171,16 +184,17 @@ class DataMngr():
         """
         if i=='all':
             for i in range(len(self)):
-                if self[i].R.size>ME:
-                    print('Skipping data object {0}. Size of data.R ({1}) exceeds default max elements ({2})'.format(i,self[i].R.size,ME))
-                    continue
-                self.save(i)
+                if not(self.saved[i]):
+                    if self[i].R.size>ME:
+                        print('Skipping data object {0}. Size of data.R ({1}) exceeds default max elements ({2})'.format(i,self[i].R.size,ME))
+                        continue
+                    self.save(i)
         else:
             assert i<len(self),"Index {0} to large for project with {1} data objects".format(i,len(self))
             if not(self.saved[i]):
                 src_fname=None
                 if self[i].src_data is not None and not(isinstance(self[i].src_data,str)):
-                    k=np.argwhere([self[i].src_data==d for d in self])[0,0]
+                    k=np.argwhere([self[i].src_data==d for d in self.data_objs])[0,0]
                     
                     if self[k].R.size<=ME:
                         self.save(k)
@@ -191,6 +205,7 @@ class DataMngr():
                 self[i].source.saved_filename=self.save_name[i]
                 self._hashes[i]=self[i]._hash #Update the hash so we know this state of the data is saved
                 self._saved_files[i]=self.save_name[i]
+                self.project.info['filename',np.argwhere(self.project._index==i)[0,0]]=os.path.split(self.save_name[i])[1]
           
 
 class DataSub(DataMngr):
@@ -221,7 +236,7 @@ class DataSub(DataMngr):
     
     
     
-class Project():
+class Project1():
     def __init__(self, directory, create=False, subproject=False):
         self.name = directory   #todo maybe create the name otherwise?
         self._directory = os.path.abspath(directory)
@@ -577,9 +592,18 @@ class Project():
             out.append(s.sens.overlap_index(i.sens, threshold=threshold)[0].__len__() >= min_match)
         return np.argwhere(out)[:, 0]
             
-        
+
+class np_str_list(np.ndarray):
+    def __init__(self,x):
+        self=np.array(x)
+        print(self.__class__)
+        self.__class__=np_str_list
+    def _ipython_display_(self):
+        for s in self:
+            print(s)
+
             
-class Project1():
+class Project():
     def __init__(self, directory, create=False, subproject=False):
         self.name = directory   #todo maybe create the name otherwise?
         self._directory = os.path.abspath(directory)
@@ -588,19 +612,30 @@ class Project1():
         assert os.path.exists(self.directory),'Project directory does not exist. Select an existing directory or set create=True'
                
         self.data=DataMngr(self)
-        self.__subproject = subproject  #Subprojects cannot be edited/saved
+        self._subproject = subproject  #Subprojects cannot be edited/saved
         self.plots = [None]
         self._current_plot = [0]
         
         self.read_proj()
     
-        
-    
+    @property
+    def directory(self):
+        return self._directory
+    #%% setattr        
+    def __setattr__(self,name,value):
+        if name=='current_plot':
+            self._current_plot[0]=value
+            while len(self.plots)<value:
+                self.plots.append(None)
+            self.plots[value-1]=clsDict['DataPlots']()
+            self.plots[value-1].project=self
+            return
+        super().__setattr__(name,value)
     #%% Read/write project file
     def read_proj(self):
-        self.info=clsDict['Info']()
+        info=clsDict['Info']()
         flds=['Type','status','short_file','title','additional_info','filename']
-        for f in flds:self.info.new_parameter(f)
+        for f in flds:info.new_parameter(f)
         
         if os.path.exists(os.path.join(self.directory,'project.txt')):
             dct={}
@@ -608,25 +643,24 @@ class Project1():
                 for line in f:
                     if line.strip()=='DATA':    #Start reading a new data entry
                         if len(dct):
-                            self.info.new_exper(**dct)    #Store the previous entry if exists
-                            print(self.info)
+                            info.new_exper(**dct)    #Store the previous entry if exists
                         dct={}  #Reset entry
                         for l in f:     #Sweep until the end of this entry
                             if l.strip()=='END:DATA':break   #End of entry reached
                             if len(l.split(':\t'))==2:
                                 k,v=[l0.strip() for l0 in l.strip().split(':\t')]
                                 if k in flds:dct[k]=v #Add this field to dct
-                if len(dct):self.info.new_exper(**dct)    #Store the current entry
+                if len(dct):info.new_exper(**dct)    #Store the current entry
                 
         for k,file in enumerate(self.data.saved_files):
-            if file not in self.info['filename']:   #Also include data that might be missing from the project file
+            if file not in info['filename']:   #Also include data that might be missing from the project file
                 src=self.data[k].source
                 dct={f:getattr(src,f) for f in flds}
                 dct['filename']=file
-                self.info.new_exper(**dct)
+                info.new_exper(**dct)
         
         self._index=list()
-        for file in self.info['filename']:
+        for file in info['filename']:
             if file in self.data.saved_files:
                 self._index.append(self.data.saved_files.index(file))
             else:
@@ -635,8 +669,12 @@ class Project1():
         
         while None in self._index: #Delete all missing data
             i=self._index.index(None)
-            self.info.del_exp(i)
-        
+            self._index.pop(i)
+
+        self.info=clsDict['Info']()
+        for k in range(len(self._index)):
+            self.info.new_exper(**info[self._index.index(k)])
+        self._index=np.array(self._index)
                 
     def write_proj(self):
         with open(os.path.join(self.directory,'project.txt'),'w') as f:
@@ -648,17 +686,15 @@ class Project1():
     #%%Indexing/subprojects
     @property
     def subproject(self):
-        return self.__subproject
-    
-    @property
-    def directory(self):
-        return self._directory
+        return self._subproject
     
     def append_data(self,data):
-        assert not(self.__subproject),"Data cannot be appended to subprojects"
+        assert not(self._subproject),"Data cannot be appended to subprojects"
         self.data.append_data(data)
+        
     def remove_data(self,index,delete=False):
-        assert not(self.__subproject),"Data cannot be removed from subprojects"
+        #TODO implement this the right way
+        assert not(self._subproject),"Data cannot be removed from subprojects"
         proj=self[index]
         if hasattr(proj,'R'):
             self.data.remove_data(index=self.data.data_objs.index(proj),delete=delete)
@@ -670,21 +706,12 @@ class Project1():
 
     def __iter__(self):
         def gen():
-            for k in range(len(self.data)):
+            for k in self._index:
                 yield self.data[k]
         return gen()
     
     def __len__(self) -> int:
-        return self.data.__len__()
-    
-    def __setattr__(self,name,value):
-        if name=='current_plot':
-            self._current_plot[0]=value
-            while len(self.plots)<value:
-                self.plots.append(None)
-            self.plots[value-1]=clsDict['DataPlots']()
-            return
-        super().__setattr__(name,value)
+        return self._index.size
 
 
     @property
@@ -698,82 +725,64 @@ class Project1():
         """
         if isinstance(index, int): #Just return the data object
             assert index < self.__len__(), "index too large for project of length {}".format(self.__len__())
-            return self.data[index]
+            return self.data[self._index[index]]
         
-        #Otherwise, return a subproject
-        proj=Project(self.directory, create=False, subproject=True)
-        proj.plots = self.plots
-        proj._current_plot = self._current_plot
-
-        data = list()
-        if isinstance(index, str):
-            if index in self.Types:
-                for k, t in enumerate(self.Types):
-                    if index == t:
-                        data.append(self[k])
-            elif index in self.statuses:
-                for k,s in enumerate(self.statuses):
-                    if index == s:
-                        data.append(self[k])
-            elif index in self.add_info:
-                for k, s in enumerate(self.add_info):
-                    if index == s:
-                        data.append(self[k])
-            elif index in self.titles:
-                return self[self.titles.index(index)]
-            elif index in self.short_files:
-                for k, s in enumerate(self.short_files):
-                    if index == s:
-                        data.append(self[k])
-            else:
-                r = re.compile(index)
-                for k,t in enumerate(self.titles):
-                    if r.match(t):data.append(self[k])
-                if not(len(data)):
-                    print('Unknown project index')
-                    return
-        elif hasattr(index, '__len__'):
-            for k, s in enumerate(self.add_info):
-                if index == s:
-                    data.append(self[k])     # todo I am not sure what you try to achieve here
-            data = [self[i] for i in index]  #  but it looks wrong   -K
-        elif isinstance(index, slice):
+        
+        proj=copy(self)
+        proj._subproject=True
+        if isinstance(index,str):
+            flds=['Types','statuses','additional_info','titles','short_files']
+            for f in flds:
+                if index in getattr(self,f):
+                    proj._index=self._index[getattr(self,f)==index]
+                    return proj
+            r = re.compile(index)
+            i=list()
+            for t in self.titles:
+                i.append(True if r.match(t) else False)
+                
+            proj._index=self._index[np.array(i)]
+        elif hasattr(index,'__len__'):
+            proj._index=self._index[index]
+        elif isinstance(index,slice):
             start = 0 if index.start is None else index.start
             step = 1 if index.step is None else index.step
             stop = self.size if index.stop is None else min(index.stop, self.size)
             start %= self.size
             stop = (stop-1) % self.size+1
             if step<0:start,stop=stop-1,start-1
-            data = [self[i] for i in range(start, stop, step)]
+            proj._index = self._index[np.arange(start,stop,step)]
+            if len(proj._index):
+                return proj
         else:
             print('index was not understood')
             return
-    
-        proj.data = DataSub(data[0].source.project, *data)
         return proj
-    
+        
+        
+        
     @property
     def Types(self):
-        return self.info['Type']
+        return self.info['Type'][self._index]
     
     @property
     def statuses(self):
-        return self.info['status']
+        return self.info['status'][self._index]
     
     @property
     def titles(self): 
-        return self.info['title']
+        return self.info['title'][self._index]
     
     @property
     def short_files(self):
-        return self.info['short_file']
+        return self.info['short_file'][self._index]
     
     @property
     def additional_info(self):
-        return self.info['additional_info']
+        return self.info['additional_info'][self._index]
     
     def save(self):
-        assert not(self.__subproject),"Sub-projects cannot be saved"
+        assert not(self._subproject),"Sub-projects cannot be saved"
         self.data.save()
         self.write_proj()
     
@@ -786,6 +795,8 @@ class Project1():
         
     @property
     def current_plot(self):
+        if not(self._current_plot[0]<=len(self.plots)) or self.plots[self._current_plot[0]-1] is None:
+            self._current_plot[0]=1 if len(self.plots) and self.plots[0] is not None else 0
         return self._current_plot[0]
     
     def close_fig(self, fig):
@@ -848,6 +859,7 @@ class Project1():
             for i in range(self.size):
                 self.plot(data_index=i,style=style,errorbars=errorbars,index=index,
                          rho_index=rho_index,plot_sens=plot_sens,split=split,fig=fig,**kwargs)
+                print(self.plots[self.current_plot-1].project)
             return
         
         if fig is None and self.current_plot==0:self.current_plot=1
@@ -863,6 +875,7 @@ class Project1():
             self.plots[fig] = clsDict['DataPlots'](data=data, style=style, errorbars=errorbars, index=index,
                          rho_index=rho_index, plot_sens=plot_sens, split=split, **kwargs)
             self.plots[fig].project=self
+            print('checkpoint')
         else:
             self.plots[fig].append_data(data=data,style=style,errorbars=errorbars,index=index,
                          rho_index=rho_index,plot_sens=plot_sens,split=split,**kwargs)
@@ -994,4 +1007,8 @@ class Project1():
                 if v not in out:
                     out.append(v)
         return out
-        
+ 
+
+
+
+       

@@ -12,6 +12,7 @@ from pyDR.Selection import select_tools as selt
 from pyDR.MDtools.vft import pbc_corr
 from pyDR import Defaults
 import copy
+import os
 dtype=Defaults['dtype']
 
 class MolSys():
@@ -20,9 +21,17 @@ class MolSys():
     """
     def __init__(self,topo=None,traj_files=None,t0=0,tf=-1,step=1,dt=None):
         if traj_files is not None and not(isinstance(traj_files,list) and len(traj_files)==0):
-            self._uni=Universe(topo,traj_files)
-        else:
+            if isinstance(traj_files,list):
+                traj_files=[os.path.abspath(tf) for tf in traj_files]
+            else:
+                traj_files=os.path.abspath(traj_files)
+            self._uni=Universe(os.path.abspath(topo),traj_files)
+        elif topo is not None:
             self._uni=Universe(topo)
+        else:
+            self._uni=None
+            self._traj=None
+            return
         self._traj=Trajectory(self.uni.trajectory,t0=t0,tf=tf,step=step,dt=dt) \
             if hasattr(self.uni,'trajectory') else None     
     

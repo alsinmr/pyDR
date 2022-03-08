@@ -55,8 +55,8 @@ class DataPlots():
         if self.project is not None and self in self.project.plots:
             i=self.project.plots.index(self)
             self.project.plots[i]=None
-        self.__init__(fig=self.fig)
-        plt.close(self.fig)
+        # self.__init__(fig=self.fig)
+        # plt.close(self.fig)
     
     def show(self):
         self.fig.show()
