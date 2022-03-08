@@ -211,8 +211,8 @@ def read_Detector(f):
     info.new_parameter(zmax=np.array([detect.z[np.argmax(rz)] for rz in detect.rhoz]))
     info.new_parameter(Del_z=np.array([rz.sum()*dz/rz.max() for rz in detect.rhoz]))
     
-#    if detect.norm.size==detect.rhoz.shape[0]:
-    info.new_parameter(stdev=1/detect.norm)
+    if detect.norm.size==detect.rhoz.shape[0]:
+        info.new_parameter(stdev=1/detect.norm)
 
 
     

@@ -19,7 +19,7 @@ proj.append_data('HETs_13C.txt')
 proj[0].del_data_pt(range(-5,0))
 
 if os.path.exists('/Volumes/My Book/HETs/MDSimulation/HETs_MET_4pw.xtc'):
-    molsys=pyDR.MolSys('HETs_5chain.pdb','/Volumes/My Book/HETs/MDSimulation/HETs_MET_4pw.xtc',tf=100000,step=10)
+    molsys=pyDR.MolSys('HETs_3chain.pdb','/Volumes/My Book/HETs/MDSimulation/HETs_MET_4pw.xtc',tf=100000,step=10)
 else:
     molsys=pyDR.MolSys('HETs_5chain.pdb','/Users/albertsmith/MDSimulations/HETs/HETs_5c_MET_4pw.xtc',step=50)
 select=pyDR.MolSelect(molsys)

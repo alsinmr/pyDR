@@ -514,7 +514,7 @@ def get_count(index):
 
 #%% Direct calculation with njit
 
-@njit(parallel=True)
+# @njit(parallel=True)
 def Ct_jit(ct,index,i1,x,y=None,c=1):
     """
     Calculate linear correlation function of x with itself or with y. Provide
