@@ -129,6 +129,10 @@ class DataMngr():
         return [d.source.saved_filename for d in self]
     
     @property
+    def short_files(self):
+        return [d.source.short_file for d in self]
+    
+    @property
     def save_name(self):
         """
         List of filenames used for saving data
@@ -142,7 +146,8 @@ class DataMngr():
                 while name in names:
                     name=name[:-5]+'{}'.format(k)+name[-5:]
                     k+=1
-            names.append(os.path.join(self.directory,name))
+            names.append(name)
+        names=[os.path.join(self.directory,name) for name in names]
         return names
         
     @property
@@ -177,6 +182,7 @@ class DataMngr():
                 src_fname=None
                 if self[i].src_data is not None and not(isinstance(self[i].src_data,str)):
                     k=np.argwhere([self[i].src_data==d for d in self])[0,0]
+                    
                     if self[k].R.size<=ME:
                         self.save(k)
                     else:
@@ -442,6 +448,10 @@ class Project():
                         data.append(self[k])
             elif index in self.titles:
                 return self[self.titles.index(index)]
+            elif index in self.short_files:
+                for k, s in enumerate(self.short_files):
+                    if index == s:
+                        data.append(self[k])
             else:
                 r = re.compile(index)
                 for k,t in enumerate(self.titles):
@@ -529,6 +539,10 @@ class Project():
     @property
     def titles(self): 
         return [d.title for d in self]
+    
+    @property
+    def short_files(self):
+        return [d.source.short_file for d in self]
     
     @property
     def add_info(self):
