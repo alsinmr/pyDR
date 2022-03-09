@@ -44,6 +44,7 @@ class MyWindow(Ui_MainWindow):
         # general procedure to connect a Tab of the main_window with the widgets for every page
         # first step: create the object
         # second step: run setup and pass the "tab"
+        '''
         self.data_tab = Ui_Data_final()
         self.data_tab.setupUi(self.tab_data)
 
@@ -61,7 +62,7 @@ class MyWindow(Ui_MainWindow):
         
         self.selection_tab = Ui_Selection_final()
         self.selection_tab.setupUi(self.tab_selection)
-
+        '''
         self.mdsimulation_tab = Ui_MDSimulation_final()
         self.mdsimulation_tab.setupUi(self.tab_md)
        

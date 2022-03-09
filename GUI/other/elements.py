@@ -36,6 +36,7 @@ def openFileNameDialog(**kwargs) -> str:
     """
     W = QWidget()
     windowtitle = kwargs.get("title") if kwargs.get("title") else ""
+    target = kwargs.get("target")
 
     if kwargs.get("folder"):
         #if you only want to open a folder, set the options for this and use another Dialog
@@ -55,10 +56,11 @@ def openFileNameDialog(**kwargs) -> str:
                                                   filetypes, options=options)
 
     if fileName:
-        if kwargs.get("target"):
-            target = kwargs["target"]
+        if target is not None:
             if hasattr(target, "setText"):
                 target.setText(fileName)
+            elif hasattr(target, "addItem"):
+                target.addItem(fileName)
         return fileName
     return ""
     

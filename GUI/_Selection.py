@@ -1,3 +1,4 @@
+#!usr/bin/python3
 from pyDR.GUI.designer2py.selection_widget import Ui_Selection
 from pyDR.GUI.other.elements import openFileNameDialog
 import MDAnalysis as mda
