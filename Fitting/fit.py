@@ -178,16 +178,16 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
             
         in0,in1=np.argwhere(rhoz<threshold*rhoz.max())[[0,-1],0]
 
-    Rc=list()
-    if 'inclS2' in sens.opt_pars['options']:
-        for k in range(out.R.shape[0]):
-            R0in=np.concatenate((sens.sens[k].R0,[0]))
-            Rc0=np.dot(sens[k].r,out.R[k,:])+R0in
-            Rc.append(Rc0[:-1])
-    else:
-        for k in range(out.R.shape[0]):
-            Rc.append(np.dot(sens[k].r,out.R[k,:])+sens.sens[k].R0)
-    out.Rc=np.array(Rc)
+    # Rc=list()
+    # if 'inclS2' in sens.opt_pars['options']:
+    #     for k in range(out.R.shape[0]):
+    #         R0in=np.concatenate((sens.sens[k].R0,[0]))
+    #         Rc0=np.dot(sens[k].r,out.R[k,:])+R0in
+    #         Rc.append(Rc0[:-1])
+    # else:
+    #     for k in range(out.R.shape[0]):
+    #         Rc.append(np.dot(sens[k].r,out.R[k,:])+sens.sens[k].R0)
+    # out.Rc=np.array(Rc)
     if not(hasattr(data.src_data,'S2')) or data.src_data.S2 is not None:
         out.S2c=np.array([d.sum() for d in dist])
         
