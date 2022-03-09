@@ -830,7 +830,7 @@ class Project():
         self.info=clsDict['Info']()
         for k in range(len(self._index)):
             self.info.new_exper(**info[self._index.index(k)])
-        self._index=np.array(self._index)
+        self._index=np.array(self._index,dtype=int)
                 
     def write_proj(self):
         with open(os.path.join(self.directory,'project.txt'),'w') as f:
