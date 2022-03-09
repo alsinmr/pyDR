@@ -14,12 +14,26 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MDSimulation(object):
     def setupUi(self, MDSimulation):
         MDSimulation.setObjectName("MDSimulation")
-        MDSimulation.resize(400, 300)
+        MDSimulation.resize(770, 442)
         self.gridLayout = QtWidgets.QGridLayout(MDSimulation)
         self.gridLayout.setObjectName("gridLayout")
+        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.gridLayout.addItem(spacerItem, 4, 0, 1, 1)
+        self.pushButton_addsim = QtWidgets.QPushButton(MDSimulation)
+        self.pushButton_addsim.setMaximumSize(QtCore.QSize(30, 16777215))
+        self.pushButton_addsim.setObjectName("pushButton_addsim")
+        self.gridLayout.addWidget(self.pushButton_addsim, 0, 1, 1, 1)
         self.label = QtWidgets.QLabel(MDSimulation)
+        self.label.setMaximumSize(QtCore.QSize(16777215, 16777215))
         self.label.setObjectName("label")
         self.gridLayout.addWidget(self.label, 0, 0, 1, 1)
+        self.listWidget = QtWidgets.QListWidget(MDSimulation)
+        self.listWidget.setMinimumSize(QtCore.QSize(400, 4))
+        self.listWidget.setMaximumSize(QtCore.QSize(16777215, 100))
+        self.listWidget.setObjectName("listWidget")
+        self.gridLayout.addWidget(self.listWidget, 3, 0, 1, 2)
+        spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.gridLayout.addItem(spacerItem1, 0, 2, 1, 1)
 
         self.retranslateUi(MDSimulation)
         QtCore.QMetaObject.connectSlotsByName(MDSimulation)
@@ -27,4 +41,5 @@ class Ui_MDSimulation(object):
     def retranslateUi(self, MDSimulation):
         _translate = QtCore.QCoreApplication.translate
         MDSimulation.setWindowTitle(_translate("MDSimulation", "Form"))
-        self.label.setText(_translate("MDSimulation", "TextLabel"))
+        self.pushButton_addsim.setText(_translate("MDSimulation", "+"))
+        self.label.setText(_translate("MDSimulation", "Available Simulations:"))
