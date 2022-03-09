@@ -11,12 +11,16 @@ import numpy as np
 from copy import copy
 from difflib import SequenceMatcher
 
+Data=clsDict['Data']
+MolSelect=clsDict['MolSelect']
 
-
-def avg2sel(data,sel):
+def avg2sel(data:Data,sel:MolSelect) -> Data:
     """
     Averages data points in a data object together such that we may define a new
-    data object whose selection matches a given input selection.
+    data object whose selection matches a given input selection. 
+    
+    One may instead provide a project, in which case the operation is performed 
+    on all data in that project (returns None, but appends results to project)
 
     Parameters
     ----------
@@ -40,6 +44,10 @@ def avg2sel(data,sel):
     Averaged data object.
 
     """
+    
+    if str(data.__class__)==str(clsDict['Project']):
+        for d in data:avg2sel(d,sel)
+        return
     
     out=clsDict['Data'](sens=data.sens) #Create output data with sensitivity as input detectors
     out.source=copy(data.source)
@@ -112,10 +120,43 @@ def avg2sel(data,sel):
     return out
         
             
-def avgData(data,index,wt=None):
+def avgData(data:Data,index:list,wt:list=None)->Data:
     """
-    Average together a data set according to values in index and with weightings wt (optional)
+    Averages data points in a data object together according to an index.
+    
+    One may instead provide a project, in which case the operation is performed 
+    on all data in that project (returns None, but appends results to project)
+
+    Parameters
+    ----------
+    data : pyDR.Data
+        Data object to be averaged. Must have its selection specified. We assume
+        that this selection consists of single bonds (usually we're averaging 
+        an MD trajectory, which does not have ambiguity in its assignment)
+    
+    index : list/np.ndarray
+        List of indices to define which data points to average together. Should
+        be the same length as the original data object, where the returned data
+        will have length equal to the number of uniqe values in index.
+        
+    wt : list
+        List of weightings for each unique element in index. For example, if
+        index=[0,0,0,0,1,1,2], uniform weighting is given by
+        wt=[[0.25,0.25,0.25,0.25],[0.5,0.5],[1]]
+        Note that uniform weighting is implemented by default
+        Default is None
+    
+    Returns
+    -------
+    pyDR.Data
+        Averaged data object.
+
     """
+    
+    if str(data.__class__)==str(clsDict['Project']):
+        for d in data:avgData(d,index=index,wt=wt)
+        return
+    
     out=clsDict['Data'](sens=data.sens) #Create output data with sensitivity as input detectors
     out.detect=data.detect
     out.source=copy(data.source)
@@ -186,7 +227,26 @@ def avgData(data,index,wt=None):
     return out
     
         
-def avgMethyl(data):
+def avgMethyl(data:Data) -> None:
+    """
+    Average together every three data points in a data object.    
+    
+    One may instead provide a project, in which case the operation is performed 
+    on all data in that project (returns None, but appends results to project)
+
+    Parameters
+    ----------
+    data : TYPE
+        Data to be averaged where each group of three data points are in principle
+        equivalent, and therefore can be averaged together. An example would be
+        H–C bonds in a methyl group.
+        
+    Returns
+    -------
+    pyDR.Data
+        Averaged data object.
+
+    """
     index=np.repeat(np.arange(data.R.shape[0]//3),3)
     return avgData(data,index)        
     

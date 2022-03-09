@@ -89,18 +89,19 @@ class DataMngr():
     def remove_data(self,index,delete=False):
         """
         Remove a data object from project. Set delete to True to also delete 
-        saved data in the project folder. Note that this can also delete 
-        associated data. If delete is not set to True, saved data will re-appear
-        upon the next project load even if removed here.
+        saved data in the project folder. If delete is not set to True, saved 
+        data will re-appear upon the next project load even if removed here.
         """
             
-        if isinstance(index,int):
+        if not(hasattr(index,'__len__')):
             self.data_objs.pop(index)
             self._hashes.pop(index)
             if delete and self.saved_files[index] is not None:
                 os.remove(os.path.join(self.directory,self.saved_files[index]))
             self._saved_files.pop(index)
+            self.project.info.del_exp(index)
         else:
+            print(index)
             for i in np.sort(index)[::-1]:self.remove_data(i,delete=delete)
                 
             
@@ -593,16 +594,165 @@ class Project1():
         return np.argwhere(out)[:, 0]
             
 
-class np_str_list(np.ndarray):
-    def __init__(self,x):
-        self=np.array(x)
-        print(self.__class__)
-        self.__class__=np_str_list
-    def _ipython_display_(self):
-        for s in self:
-            print(s)
+#%% Detector Manager
+class DetectMngr():
+    def __init__(self,project):
+        self.project=project
 
-            
+    def __iter__(self):
+        r=self.detectors
+        def gen():
+            for r0 in r:
+                yield r0
+        return gen()
+
+    @property
+    def detectors(self):
+        r=list()
+        for d in self.project:
+            if not(any([r0 is d.detect for r0 in r])):
+                r.append(d.detect)
+        return r
+        
+    def unify_detect(self, chk_sens_only: bool = False) ->None:
+        """
+        Checks for equality among the detector objects and assigns all equal
+        detectors to the same object. This allows one to only optimize one of
+        the data object's detectors, and all other objects with equal detectors
+        will automatically be optimized.
+        
+        Note that by default, two detectors with differently defined sensitivities
+        will not be considered equal. However, one may set chk_sens_only=True in
+        which case only the sensitivity of the detectors will be checked, so
+        all detectors having the same initial sensitivity will be combined.
+        """
+        project=self.project
+        r = project.data.detect_list
+        s = [r0.sens for r0 in r]
+        for k, (s0, r0) in enumerate(zip(s, r)):
+            if (s0 in s[:k]) if chk_sens_only else (r0 in r[:k]):                
+                i=s[:k].index(s0) if chk_sens_only else r[:k].index(r0)
+                project.data[k].sens = s[i]
+                project.data[k].detect = r[i]
+                
+    def unique_detect(self, index: int = None) -> None:
+        project=self.project
+        if index is None:
+            for i in range(len(project.data)):
+                self.unique_detect(i)
+        else:
+            d = project.data[index]
+            sens = d.detect.sens
+            d.detect = d.detect.copy()
+            d.detect.sens = sens
+    
+    def r_auto(self,n:int,Normalization:str='MP',NegAllow:bool=False) -> None:
+        """
+        Finds the n optimal detector sensitivites for all data objects in the
+        current subproject.
+
+        Parameters
+        ----------
+        n : int
+            Number of detector sensitivities to optimize.
+        Normalization : str, optional
+            Type of normalization used for optimization.
+            'MP': Equal maxima, where if S2 is included, rho0 is positive
+            'M': Equal maxima, where the sum of detector sensitivities is 1
+                 -'M' and 'MP' are the same if S2 not used
+            'I': Equal integrals
+            The default is 'MP'.
+        NegAllow : bool, optional
+            Allow detector sensitivities to oscillate below zero. 
+            The default is False.
+
+        Returns
+        -------
+        None
+
+        """
+
+        for r in self:r.r_auto(n,Normalization=Normalization,NegAllow=NegAllow)
+        
+    def r_target(self,target:np.ndarray,n:int=None) -> None:
+        """
+        Optimizes detector sensitivities to some target function for all data
+        objects in the current subproject.
+
+        Parameters
+        ----------
+        target : np.ndarray
+            numpy array with NxM elements. N is the number of detector sensitivities
+            to match, and M is the number of correlation times stored in the
+            sensitivity objects (default is 200)
+        n : int, optional
+            Number of singular values to use to match to the target function.
+            By default, n gets set to N (see above), but often the reproduction
+            of experimental sensitivities requires a larger value
+            The default is None.
+
+        Returns
+        -------
+        None
+
+        """
+        for r in self:r.r_target(target,n=n)
+    
+    def inclS2(self):
+        """
+        Include S2 in analysis (NMR experiments only!)
+
+        Returns
+        -------
+        None.
+
+        """
+        for r in self:r.inclS2()
+    
+    def r_no_opt(self,n:int) -> None:
+        """
+        Optimize n detectors for pre-processing, i.e. with the no_opt setting
+
+        Parameters
+        ----------
+        n : int
+            Number of detectors to use.
+
+        Returns
+        -------
+        None
+
+        """
+        for r in self:r.r_no_opt(n)
+    
+    def r_zmax(self,zmax,Normalization:str='MP',NegAllow:bool=False) -> None:
+        """
+        Optimize n detectors with maxima located at the positions given in zmax.
+
+        Parameters
+        ----------
+        zmax : list,np.ndarray
+            List of the target maxima for n detectors (n is the length of zmax).
+        Normalization : str, optional
+            Type of normalization used for optimization.
+            'MP': Equal maxima, where if S2 is included, rho0 is positive
+            'M': Equal maxima, where the sum of detector sensitivities is 1
+                 -'M' and 'MP' are the same if S2 not used
+            'I': Equal integrals
+            The default is 'MP'.
+        NegAllow : bool, optional
+            Allow detector sensitivities to oscillate below zero. 
+            The default is False.
+
+        Returns
+        -------
+        None
+
+        """
+        for r in self:r.r_zmax(zmax,Normalization=Normalization,NegAllow=NegAllow)
+
+    
+#%% Project class
 class Project():
     def __init__(self, directory, create=False, subproject=False):
         self.name = directory   #todo maybe create the name otherwise?
@@ -625,12 +775,18 @@ class Project():
     def __setattr__(self,name,value):
         if name=='current_plot':
             self._current_plot[0]=value
-            while len(self.plots)<value:
-                self.plots.append(None)
-            self.plots[value-1]=clsDict['DataPlots']()
-            self.plots[value-1].project=self
+            if value:
+                while len(self.plots)<value:
+                    self.plots.append(None)
+                if self.plots[value-1] is None:
+                    self.plots[value-1]=clsDict['DataPlots']()
+                    self.plots[value-1].project=self
             return
         super().__setattr__(name,value)
+    #%% Detector manager
+    @property
+    def detect(self):
+        return DetectMngr(self)
     #%% Read/write project file
     def read_proj(self):
         info=clsDict['Info']()
@@ -674,7 +830,7 @@ class Project():
         self.info=clsDict['Info']()
         for k in range(len(self._index)):
             self.info.new_exper(**info[self._index.index(k)])
-        self._index=np.array(self._index)
+        self._index=np.array(self._index,dtype=int)
                 
     def write_proj(self):
         with open(os.path.join(self.directory,'project.txt'),'w') as f:
@@ -696,13 +852,20 @@ class Project():
         #TODO implement this the right way
         assert not(self._subproject),"Data cannot be removed from subprojects"
         proj=self[index]
-        if hasattr(proj,'R'):
-            self.data.remove_data(index=self.data.data_objs.index(proj),delete=delete)
+        
+        if hasattr(proj,'R'):#Single index given, thus self[index] returns a data object
+            index=[self.data.data_objs.index(proj)]
         else:
-            if delete:print('Delete data sets permanently by full title or index (no multi-delete of saved data)')
-            for d in proj:        
-                self.data.remove_data(index=self.data.data_objs.index(d))
-    
+            index=np.sort(proj._index)[::-1]
+        
+        if delete and len(index)>1:
+            print('Delete data sets permanently by full title or index (no multi-delete of saved data allowed)')
+            return
+        
+        for i in index:
+            self.data.remove_data(index=i,delete=delete)
+            self._index=self._index[self._index!=i]
+            self._index[self._index>i]-=1
 
     def __iter__(self):
         def gen():
@@ -795,8 +958,7 @@ class Project():
         
     @property
     def current_plot(self):
-        if not(self._current_plot[0]<=len(self.plots)) or self.plots[self._current_plot[0]-1] is None:
-            self._current_plot[0]=1 if len(self.plots) and self.plots[0] is not None else 0
+        if self._current_plot[0]>len(self.plots):self._current_plot[0]=len(self.plots)
         return self._current_plot[0]
     
     def close_fig(self, fig):
@@ -855,30 +1017,26 @@ class Project():
         None.
 
         """
+        if fig is None:fig=self.current_plot if self.current_plot else 1
+        self.current_plot=fig
+        
         if data is None and data_index is None: #Plot everything in project
             for i in range(self.size):
                 self.plot(data_index=i,style=style,errorbars=errorbars,index=index,
                          rho_index=rho_index,plot_sens=plot_sens,split=split,fig=fig,**kwargs)
-                print(self.plots[self.current_plot-1].project)
             return
         
-        if fig is None and self.current_plot==0:self.current_plot=1
         
-        fig = self.current_plot-1 if fig is None else fig-1
-        self._current_plot[0] = fig+1
-        if fig is not None:
-            while len(self.plots) <= fig:
-                self.plots.append(None)
         if data is None:
             data = self[data_index]
-        if self.plots[fig] is None:
-            self.plots[fig] = clsDict['DataPlots'](data=data, style=style, errorbars=errorbars, index=index,
-                         rho_index=rho_index, plot_sens=plot_sens, split=split, **kwargs)
-            self.plots[fig].project=self
-            print('checkpoint')
-        else:
-            self.plots[fig].append_data(data=data,style=style,errorbars=errorbars,index=index,
-                         rho_index=rho_index,plot_sens=plot_sens,split=split,**kwargs)
+        # if self.plots[fig-1] is None:
+        #     self.plots[fig-1] = clsDict['DataPlots'](data=data, style=style, errorbars=errorbars, index=index,
+        #                  rho_index=rho_index, plot_sens=plot_sens, split=split, **kwargs)
+        #     self.plots[fig].project=self
+        # else:
+            
+        self.plots[fig-1].append_data(data=data,style=style,errorbars=errorbars,index=index,
+                     rho_index=rho_index,plot_sens=plot_sens,split=split,**kwargs)
 
     def comparable(self, i: int, threshold: float = 0.9, mode: str = 'auto', min_match: int = 2) -> tuple:
         """
@@ -910,46 +1068,7 @@ class Project():
             out.append(s.sens.overlap_index(i.sens, threshold=threshold)[0].__len__() >= min_match)
         return np.argwhere(out)[:, 0]
                     
-    #%% Detector functions
-    @property
-    def detectors(self):
-        r=list()
-        for r0 in self.data.detect_list:
-            if r0 not in r:
-                r.append(r0)
-        return r
-        
-    def unify_detect(self, chk_sens_only: bool = False) ->None:
-        """
-        Checks for equality among the detector objects and assigns all equal
-        detectors to the same object. This allows one to only optimize one of
-        the data object's detectors, and all other objects with equal detectors
-        will automatically be optimized.
-        
-        Note that by default, two detectors with differently defined sensitivities
-        will not be considered equal. However, one may set chk_sens_only=True in
-        which case only the sensitivity of the detectors will be checked, so
-        all detectors having the same initial sensitivity will be combined.
-        """
-        r = self.data.detect_list
-        s = [r0.sens for r0 in r]
-        for k, (s0, r0) in enumerate(zip(s, r)):
-            if (s0 in s[:k]) if chk_sens_only else (r0 in r[:k]):                
-                i=s[:k].index(s0) if chk_sens_only else r[:k].index(r0)
-                self.data[k].sens = s[i]
-                self.data[k].detect = r[i]
-                
-    def unique_detect(self, index: int = None) -> None:
-        if index is None:
-            for i in range(len(self.data)):
-                self.unique_detect(i)
-        else:
-            d = self.data[index]
-            sens = d.detect.sens
-            d.detect = d.detect.copy()
-            d.detect.sens = sens
     
-
 
 
     #%% Fitting functions
@@ -1002,7 +1121,7 @@ class Project():
         
     def _ipython_key_completions_(self) -> list:
         out = list()
-        for k in ['Types', 'statuses', 'add_info', 'titles']:
+        for k in ['Types', 'statuses', 'additional_info', 'titles']:
             for v in getattr(self, k):
                 if v not in out:
                     out.append(v)
@@ -1012,3 +1131,11 @@ class Project():
 
 
        
+
+
+
+
+
+
+
+

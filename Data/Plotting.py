@@ -55,6 +55,7 @@ class DataPlots():
         if self.project is not None and self in self.project.plots:
             i=self.project.plots.index(self)
             self.project.plots[i]=None
+            if self.project.current_plot==i+1:self.project.current_plot=0
         # self.__init__(fig=self.fig)
         # plt.close(self.fig)
     
@@ -220,7 +221,6 @@ class DataPlots():
             index=np.ones(di.R.shape[0],dtype=bool)
             index[in1]=False
             if di.label.dtype.kind in ['i','f']:
-                print('checkpoint')
                 xpos[in1.size:]=di.label[index]
             else:
                 start=(self.xpos(i=0)[in0]).max()+1
@@ -277,8 +277,6 @@ class DataPlots():
     def adjust_bar_width(self):
         BCclass=mpl.container.BarContainer
         for hd in self.hdls:    #Loop over the plot axes
-            
-            
             #How many bars do we need to fit into plot?
             nbars=0
             for ha in hd:            #Loop over the data in each axis
@@ -289,7 +287,8 @@ class DataPlots():
                 count=0
                 for k,ha in enumerate(hd):           #Loop over data in each axis
                     if ha is not None:
-                        x=np.array(self.xpos(k),dtype=float)
+                        #TODO can we really just sort xpos???
+                        x=np.sort(np.array(self.xpos(k),dtype=float)) 
                         dx=np.diff(x).min()
                         x+=-0.45+dx*count*0.9/nbars
                         
@@ -311,14 +310,7 @@ class DataPlots():
                             ebc.lines[2][0].set_segments(segs)
                         if bc:count+=1
                                     
-            
-            
-            
-            
-        
-        
-        
-        
+     
 
 def plot_rho(lbl,R,R_std=None,style='plot',color=None,ax=None,split=True,**kwargs):
     """
