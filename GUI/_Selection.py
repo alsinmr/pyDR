@@ -1,6 +1,6 @@
 #!usr/bin/python3
 from pyDR.GUI.designer2py.selection_widget import Ui_Selection
-from pyDR.GUI.other.elements import openFileNameDialog
+from pyDR.GUI.other.elements import openFileNameDialog, get_workingproject
 import MDAnalysis as mda
 from PyQt5.QtWidgets import QLabel, QSpacerItem, QSizePolicy, QPushButton, QComboBox, QHBoxLayout, QWidget
 from PyQt5.QtCore import Qt, QRect
@@ -157,3 +157,6 @@ class Ui_Selection_final(Ui_Selection):
         #        self.verticalLayout_assignatom2, self.verticalLayout_assignresidue, self.verticalLayout_assignsegment]:
         self.verticalLayout.addItem(QSpacerItem(20, 40, QSizePolicy.MinimumExpanding,QSizePolicy.Expanding))
 
+
+    def load_from_working_project(self):
+        self.working_project = get_workingproject(self.parent)

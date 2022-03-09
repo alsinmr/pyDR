@@ -92,9 +92,6 @@ class MyWindow(Ui_MainWindow):
 
 
 
-
-
-
 if __name__ =="__main__":
     app = QApplication(sys.argv)
     Window = QMainWindow()

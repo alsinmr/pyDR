@@ -39,3 +39,7 @@ class Ui_Data_final(Ui_Data):
 
         self.plot.draw()
 
+
+    def load_from_working_project(self):
+        self.working_project = get_workingproject(self.parent)
+

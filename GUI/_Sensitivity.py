@@ -1,5 +1,5 @@
 from pyDR.GUI.designer2py.sensitivity_widget import Ui_Sensitivity
-from pyDR.GUI.other.elements import openFileNameDialog, create_Figure_canvas
+from pyDR.GUI.other.elements import openFileNameDialog, create_Figure_canvas, get_workingproject
 from os import listdir
 from os.path import join, abspath
 
@@ -33,3 +33,6 @@ class Ui_Sensitivity_final(Ui_Sensitivity):
             self.comboBox_nuctype.addItem(entry[0].split(" ")[0])
         #for i in ["15N","13C","CO","CH3","CHD2"]:
         #   self.comboBox_nuctype.addItem(i)
+
+    def load_from_working_project(self):
+        self.working_project = get_workingproject(self.parent)
