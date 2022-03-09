@@ -53,6 +53,21 @@ class MD(Sens):
         """
         return self.info['t'].astype(float)
     
+    @property
+    def rhoz(self):
+        """
+        Return the sensitivities stored in this sensitivity object
+        """
+        return self._rho()
+         
+    @property
+    def _rhozCSA(self):
+        """
+        Return the sensitivities due to CSA relaxation in this sensitivity object
+        """
+        self._update_rho()
+        return np.zeros([self.info.N,self.z.size])
+    
     def _rho(self):
         """
         Calculates and returns the sensitivities of all time points in the correlation function
