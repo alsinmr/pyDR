@@ -55,7 +55,7 @@ def write_file(filename,ob,overwrite=False):
         elif object_class=='Source':
             write_Source(f,ob)
             
-def read_file(filename):
+def read_file(filename:str,directory:str='')->object:
     with open(filename,'rb') as f:
         l=decode(f.readline())[:-1]
         if l=='OBJECT:INFO':
@@ -71,7 +71,7 @@ def read_file(filename):
             out.source.saved_filename=os.path.abspath(filename)
             return out
         if l=='OBJECT:MOLSELECT':
-            return read_MolSelect(f)
+            return read_MolSelect(f,directory)
 
 
 #%% Info Input/Output
@@ -211,8 +211,8 @@ def read_Detector(f):
     info.new_parameter(zmax=np.array([detect.z[np.argmax(rz)] for rz in detect.rhoz]))
     info.new_parameter(Del_z=np.array([rz.sum()*dz/rz.max() for rz in detect.rhoz]))
     
-#    if detect.norm.size==detect.rhoz.shape[0]:
-    info.new_parameter(stdev=1/detect.norm)
+    if detect.norm.size==detect.rhoz.shape[0]:
+        info.new_parameter(stdev=1/detect.norm)
 
 
     
@@ -341,10 +341,12 @@ def write_MolSelect(f,select):
                 np.save(f,v.indices,allow_pickle=False)
     f.write(b'END:OBJECT\n')
     
-def read_MolSelect(f):
+def read_MolSelect(f,directory=''):
     line=decode(f.readline())[:-1]
     if line!='TOPO':print('Warning: First entry of MolSelect object should be topo')
-    topo=decode(f.readline())[:-1]
+    topo=decode(f.readline())[:-1]  #First try provided full path
+    topo=find_file(topo,directory)
+    
     line=decode(f.readline())[:-1]
     tr_files=list()
     t0,tf,step,dt=0,-1,1,None
@@ -353,8 +355,11 @@ def read_MolSelect(f):
         t0,tf,step,dt=[float(line.split(':')[k+1] if k==3 else line.split(':')[k+1].split(',')[0]) for k in range(4)]
         line=decode(f.readline())[:-1]
         while line!='END:TRAJ':
-            tr_files.append(line)
+            tr_files.append(find_file(line,directory))
             line=decode(f.readline())[:-1]
+        if None in tr_files:
+            tr_files=None
+            tf=1
     molsys=clsDict['MolSys'](topo,tr_files,t0=t0,tf=tf,step=step,dt=dt)
     select=clsDict['MolSelect'](molsys)
     line=decode(f.readline())[:-1]
@@ -418,7 +423,15 @@ def read_np_object(f):
         pos=f.tell()
     return np.array(out,dtype=object).reshape(shape)
 
-
+def find_file(filename,directory):
+    if os.path.exists(filename):    #Full path correctly given (could be in current folder)
+        return os.path.abspath(filename)
+    if os.path.exists(os.path.split(filename)[1]): #File in current folder (but wrong full path given)
+        return os.path.abspath(os.path.split(filename)[1])
+    if os.path.exists(os.path.join(directory,os.path.split(filename)[1])):
+        return os.path.abspath(os.path.join(directory,os.path.split(filename)[1]))
+    print('{0} could not be found'.format(os.path.split(filename)[1]))
+    return
 
 
 

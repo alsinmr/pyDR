@@ -26,6 +26,7 @@ class Source():
         self.project=None
         self.additional_info=additional_info
         self._status=status
+        self.details=list()
         
         if self.src_data is not None:
             flds=['Type','select','filename']
