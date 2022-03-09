@@ -23,6 +23,8 @@ from pyDR.misc.disp_tools import set_plot_attr,NiceStr
 import matplotlib.pyplot as plt
 from matplotlib import ticker
 from copy import deepcopy
+from pyDR import Defaults
+zrange=Defaults['zrange'] #Program defaults for correlation times
 # from pyDR._Data._Data import write_file
 
 class Sens():
@@ -40,20 +42,20 @@ class Sens():
 
         if tc is not None:
             if len(tc)==2:
-                self.__z=np.linspace(np.log10(tc[0]),np.log10(tc[1]),200)
+                self.__z=np.linspace(np.log10(tc[0]),np.log10(tc[1]),zrange[2])
             elif len(tc)==3:
                 self.__z=np.linspace(np.log10(tc[0]),np.log10(tc[1]),tc[2])
             else:
                 self.__z=np.array(np.log10(tc))
         elif z is not None:
             if len(z)==2:
-                self.__z=np.linspace(z[0],z[1],200)
+                self.__z=np.linspace(z[0],z[1],zrange[2])
             elif len(z)==3:
                 self.__z=np.linspace(*z)
             else:
                 self.__z=np.array(z)
         else:
-            self.__z=np.linspace(-14,-3,200)
+            self.__z=np.linspace(*zrange)
             
         self.info=Info()
         self.__rho=np.zeros([0,self.__z.size])      #Store sensitivity calculations
