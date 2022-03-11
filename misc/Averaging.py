@@ -247,6 +247,10 @@ def avgMethyl(data:Data) -> None:
         Averaged data object.
 
     """
+    if str(data.__class__)==str(clsDict['Project']):    #Perform function on full project
+        for d in data:avgMethyl(d)
+        return
+    
     index=np.repeat(np.arange(data.R.shape[0]//3),3)
     return avgData(data,index)        
     

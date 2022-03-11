@@ -100,7 +100,7 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
 
     """
     
-    out=clsDict['Data'](sens=data.sens,src_data=data.src_data) #Create output data with sensitivity as input detectors
+    out=clsDict['Data'](sens=data.sens) #Create output data with sensitivity as input detectors
     out.label=data.label
 #    out.sens.lock() #Lock the detectors in sens since these shouldn't be edited after fitting
     out.select=data.select
@@ -188,7 +188,7 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
     #     for k in range(out.R.shape[0]):
     #         Rc.append(np.dot(sens[k].r,out.R[k,:])+sens.sens[k].R0)
     # out.Rc=np.array(Rc)
-    if not(hasattr(data.src_data,'S2')) or data.src_data.S2 is not None:
+    if data.S2c is not None:
         out.S2c=np.array([d.sum() for d in dist])
         
         

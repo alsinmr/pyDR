@@ -12,7 +12,7 @@ import matplotlib.colors as colors
 import matplotlib as mpl
 from copy import copy
 import re
-from ..misc.disp_tools import set_plot_attr
+from ..misc.disp_tools import set_plot_attr,NiceStr
 
 
 class DataPlots():
@@ -31,6 +31,7 @@ class DataPlots():
         self.style=''
         self.colors=plt.rcParams['axes.prop_cycle'].by_key()['color']
         self.threshold=0.7  #Overlap threshold
+        self.tclabels=None
         assert mode in ['auto','union','b_in_a'],"mode must be 'auto','union', or 'b_in_a'"
         self._mode=mode  
         if data is not None:
@@ -95,7 +96,8 @@ class DataPlots():
            
         if plot_sens:self.plot_sens()
         self.plot_data(errorbars=errorbars,split=split,**kwargs)
-        #self.show()
+        
+        # self.show_tc()
     
     
     def setup_plots(self,plot_sens=True):
@@ -119,10 +121,55 @@ class DataPlots():
             if not(a.is_last_row()):plt.setp(a.get_xticklabels(), visible=False)
             a.set_ylabel(r'$\rho_{'+'{}'.format(k+not_rho0)+r'}^{(\theta,S)}$')
             a.yaxis.label.set_color(color)
+        
+            
+    def show_tc(self,show_z:bool = False) -> None:
+        """
+        Shows the mean correlation times for each detector in the upper right
+        corner of the plot
+
+        Parameters
+        ----------
+        show_z : bool, optional
+            Toggle to show <z0> instead of 10**(<z0>). The default is False.
+
+        Returns
+        -------
+        None
+            
+        """
+        
+        self.remove_tc()   
+        self.tclabels=list()         
+        string=NiceStr(r'$z_{1}^0$~{0:q2}' if show_z else r'$\tau_c$~{0:q2}',unit='' if show_z else 's')
+        for m,(a,k) in enumerate(zip(self.ax,self.rho_index[0])):
+            xlim=a.get_xlim()
+            ylim=a.get_ylim()
+            
+            val=self.data[0].sens.info['z0'][k]
+            if not(show_z):val=10**val
+            
+            self.tclabels.append(\
+                a.text(xlim[0]+(xlim[1]-xlim[0])*.025,ylim[0]+(ylim[1]-ylim[0])*0.95,
+                   horizontalalignment='left',verticalalignment='top',
+                   color=self.colors[m%len(self.colors)],fontsize='x-small',   
+                   s=string.format(val,k)))
+            
+    def remove_tc(self):
+        """
+        Remove the mean correlation times for each detector
+
+        Returns
+        -------
+        None.
+
+        """
+        if self.tclabels is not None:
+            for v in self.tclabels:v.remove()
+            self.tclabels=None
     
     def calc_rho_index(self,i=-1):
         if len(self.data)==1:return np.arange(self.data[0].R.shape[1])
-        rho_index=list()
         in0,in1=self.data[0].sens.overlap_index(self.data[i].sens,threshold=self.threshold)
         return [in1[ri==in0][0] if np.isin(ri,in0) else None for ri in self.rho_index[0]]
 

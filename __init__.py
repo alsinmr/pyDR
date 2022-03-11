@@ -23,5 +23,5 @@ from pyDR import Project
 clsDict.update({'Data':Data,'Source':Project.Source,'Info':Sens.Info,
          'Sens':Sens.Sens,'Detector':Sens.Detector,'NMR':Sens.NMR,'MD':Sens.MD,
          'MolSys':MolSys,'MolSelect':MolSelect,'Project':Project.Project,
-         'DataMngr':Project.DataMngr,'FrameObj':Frames.FrameObj,
-         'Ctcalc':MDtools.Ctcalc,'DataPlots':Plotting.DataPlots})
+         'FrameObj':Frames.FrameObj,'Ctcalc':MDtools.Ctcalc,
+         'DataPlots':Plotting.DataPlots})

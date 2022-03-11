@@ -8,6 +8,8 @@ Created on Thu Feb 17 11:22:53 2022
 
 import os
 from pyDR.IO import read_file
+import numpy as np
+from copy import copy
 
 class Source():
     """
@@ -26,9 +28,10 @@ class Source():
         self.project=None
         self.additional_info=additional_info
         self._status=status
-        self.details=list()
+        self.details=list()  #TODO use details to track data analysis
         
-        if self.src_data is not None:
+        if self._src_data is not None and not(isinstance(self._src_data,str)):
+            #TODO work on making this less dependent on loading previous data sets
             flds=['Type','select','filename']
             for f in flds:  #Pass the Type, selection, and original filename
                 if getattr(self,f) is None:setattr(self,f,getattr(src_data.source,f))
@@ -46,7 +49,17 @@ class Source():
                 self._status='raw'
             
         assert self._status[0].lower() in ['r','n','p','e'],"Status should be 'raw','proc','no_opt', or 'empty'"
-        
+    
+    def __copy__(self):
+        cls = self.__class__
+        out = cls.__new__(cls)
+        out.__dict__.update(self.__dict__)
+        for f in ['Type','_src_data','select','filename','saved_filename','n_det',
+                  '_title','additional_info','_status','details']:
+            setattr(out,f,copy(getattr(self,f)))
+        return out
+            
+    
     @property
     def topo(self):
         if self.select is None:return None
@@ -66,9 +79,9 @@ class Source():
     def src_data(self):
         if isinstance(self._src_data,str):
             if self.project is not None:
-                if self._src_data in self.project.data.filenames:    #Is the source data part of the project?
-                    i=self.project.data.filenames.index(self._src_data)
-                    self._src_data=self.project[i]      #Copy into self._src_data
+                if os.path.split(self._src_data)[1] in self.project.info['filename']:    #Is the source data part of the project?
+                    i=np.argwhere(self.project.info['filename']==os.path.split(self._src_data)[1])[0,0]
+                    self._src_data=self.project.data[i]      #Copy into self._src_data
                 else:   #Data not in project
                     if os.path.exists(self._src_data):
                         self.project.append_data(self._src_data) #Append the data to the current project

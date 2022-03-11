@@ -11,7 +11,7 @@ from pyDR.misc.ProgressBar import ProgressBar
 from pyDR.Selection import select_tools as selt
 from pyDR.MDtools.vft import pbc_corr
 from pyDR import Defaults
-import copy
+from copy import copy
 import os
 dtype=Defaults['dtype']
 
@@ -153,6 +153,14 @@ class MolSelect():
         
         super().__setattr__(name,value)
         
+    def __copy__(self):
+        cls = self.__class__
+        out = cls.__new__(cls)
+        out.__dict__.update(self.__dict__)
+        for f in ['sel1','sel2','_repr_sel','_label']:
+            setattr(out,f,copy(getattr(self,f)))
+        return out
+        
         
     def select_bond(self,Nuc=None,resids=None,segids=None,filter_str=None,label=None):
         """
@@ -200,13 +208,40 @@ class MolSelect():
                 self.repr_sel=[s0 for s0 in self.sel1]
         return self._repr_sel
     
-    def set_selection(i,sel=None,resids=None,segids=None,fitler_str=None):
+    def set_selection(self,i,sel=None,resids=None,segids=None,fitler_str=None):
         """
         Define sel2 and sel2 separately. The first argument is 0 or 1, depending on
         which selection is to be set. Following arguments are:
             sel: Atom group, string
         """
         pass
+    
+    def del_sel(self,index) -> None:
+        """
+        Delete a bond or bonds from a list (argument is one or a list/array of
+            integers)
+
+        Parameters
+        ----------
+        index : int or int array (list or numpy array)
+            Indices of the selections to be removed.
+
+        Returns
+        -------
+        None
+            DESCRIPTION.
+
+        """
+        if hasattr(index,'__len__'):
+            index=np.sort(index)[::-1]
+            for i in index:self.del_sel(i)
+            return
+        
+        for f in ['sel1','sel2','_repr_sel','label']:
+            v=getattr(self,f)
+            if v is not None and len(v):
+                setattr(self,f,np.delete(v,index))
+                    
     
     @property
     def box(self):

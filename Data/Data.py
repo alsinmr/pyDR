@@ -11,6 +11,7 @@ from ..IO import write_file
 from .Plotting import plot_fit,DataPlots
 from ..Fitting import fit,opt2dist
 from matplotlib.figure import Figure
+from copy import copy
 
 dtype=Defaults['dtype']
 
@@ -68,6 +69,7 @@ class Data():
         if self._Rc is None and hasattr(self.sens,'opt_pars') and 'n' in self.sens.opt_pars:
             print("Don't forget to check that this returns the right results")
             #TODO check that this calculation is correct
+            self.sens.reload()
             Rc=(self.sens.r@self.R.T).T
             if 'inclS2' in self.sens.opt_pars['options']:
                 self._S2c,self._Rc=1-Rc[:,-1],Rc[:,:-1]
@@ -175,10 +177,22 @@ class Data():
                 self.del_data_pt(i)
         else:
             index%=len(self)
-            flds = ['R', 'Rstd', 'S2', 'S2std', 'label','Rc']
+            flds = ['R', 'Rstd', 'S2', 'S2std', 'label']
+            #TODO when we also include anisotropic tumlbing (soln state) we need to delete elements of the sensitivity objects
             for f in flds:
                 if hasattr(self,f) and getattr(self,f) is not None:
                     setattr(self,f,np.delete(getattr(self,f),index,axis=0))
+            if self.select is not None:
+                self.select.del_sel(index)
+    
+    def __copy__(self):
+        cls = self.__class__
+        out = cls.__new__(cls)
+        out.__dict__.update(self.__dict__)  
+        for f in ['R','Rstd','_Rc','S2','_S2c','label','source']:
+            setattr(out,f,copy(getattr(self,f)))
+        return out
+            
     
     def plot(self, errorbars=False, style='plot', fig=None, index=None, rho_index=None, plot_sens=True, split=True,**kwargs):
         # todo maybe worth to remove the args and put them all into kwargs? -K
