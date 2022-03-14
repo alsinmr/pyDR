@@ -115,7 +115,7 @@ class Info():
     def new_exper(self,**kwargs):
         """
         Adds a new experiment, where one provides all parameters for that experiment
-        as keywork arguments.
+        as keyword arguments.
         """
         for key in kwargs.keys():   #Add new keys in case they do not exist yet
             if key not in self.keys:

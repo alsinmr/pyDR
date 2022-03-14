@@ -16,7 +16,7 @@ from copy import copy
 from matplotlib.figure import Figure
 ME=Defaults['max_elements']
 decode=bytes.decode
-DataPlots=clsDict['DataPlots']
+
 
 class DataMngr():
     def __init__(self, project):
@@ -642,7 +642,7 @@ class Project():
     
     #%% Plotting functions
     @property
-    def plot_obj(self)->DataPlots:
+    def plot_obj(self):
         """
         Returns the current DataPlots object.
 

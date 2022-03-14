@@ -25,14 +25,14 @@ def writeNMR(filename,ob,overwrite=False):
             
 def readNMR(filename):
     with open(filename,'r') as f:
-        info,data=None,None
+        info,keys=None,None
         for line in f:
             line=line.strip()
             if line=='INFO':
                 info=read_INFO(f)
             elif line=='DATA':
                 keys=read_Data(f)
-        if info is None and data is None:
+        if info is None and keys is None:
             print('Unrecognized text file format')
         elif keys is None:
             return info
