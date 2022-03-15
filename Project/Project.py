@@ -873,9 +873,14 @@ class Project():
         print('Titles:')
         for t in self.titles:print(t)
         
+    def __repr__(self):
+        out='pyDIFRATE project with {0} data sets\n\ntitles:\n'.format(self.size)
+        for t in self.titles:out+=t+'\n'
+        return out
+        
     def _ipython_key_completions_(self) -> list:
         out = list()
-        for k in ['Types', 'statuses', 'additional_info', 'titles']:
+        for k in ['Types','statuses','additional_info','titles','short_files']:
             for v in getattr(self, k):
                 if v not in out:
                     out.append(v)
