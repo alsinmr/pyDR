@@ -728,9 +728,11 @@ class Project():
         """
         if isinstance(fig,str) and fig.lower()=='all':
             for i in range(len(self.plots)):self.close_fig(i)
+            self.plots=[None]
             return
         fig-=1
         if len(self.plots) > fig and self.plots[fig] is not None:
+            hdl=self.plots[fig]
             self.plots[fig].close()
             self.plots[fig] = None
         
@@ -793,8 +795,12 @@ class Project():
         return self.plots[fig-1]
     
     def add_fig(self,fig):
-        self.plots.append(clsDict['DataPlots'](fig=fig))
+        if len(self.plots) and self.plots[-1] is None:
+            self.plots[-1]=clsDict['DataPlots'](fig=fig)
+        else:
+            self.plots.append(clsDict['DataPlots'](fig=fig))
         self.plots[-1].project=self
+        self.current_plot=len(self.plots)
         
 
     def comparable(self, i: int, threshold: float = 0.9, mode: str = 'auto', min_match: int = 2) -> tuple:

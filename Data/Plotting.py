@@ -58,7 +58,7 @@ class DataPlots():
             self.project.plots[i]=None
             if self.project.current_plot==i+1:self.project.current_plot=0
         # self.__init__(fig=self.fig)
-        # plt.close(self.fig)
+        plt.close(self.fig)
     
     def show(self):
         self.fig.show()
