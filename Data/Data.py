@@ -194,33 +194,33 @@ class Data():
         return out
             
     
-    def plot(self, errorbars=False, style='plot', fig=None, index=None, rho_index=None, plot_sens=True, split=True,**kwargs):
+    def plot(self, errorbars=False, style='canvas', fig=None, index=None, rho_index=None, plot_sens=True, split=True,**kwargs):
         # todo maybe worth to remove the args and put them all into kwargs? -K
         """
         Plots the detector responses for a given data object. Options are:
         
-        errorbars:  Show the errorbars of the plot (False/True or int)
+        errorbars:  Show the errorbars of the canvas (False/True or int)
                     (default 1 standard deviation, or insert a constant to multiply the stdev.)
-        style:      Plot style ('plot','scatter','bar')
+        style:      Plot style ('canvas','scatter','bar')
         fig:        Provide the desired figure object (matplotlib.pyplot.figure) or provide
                     an integer specifying which of the project's figures to append
-                    the plot to (if data attached to a project)
-        index:      Index to specify which residues to plot (None or logical/integer indx)
-        rho_index:  Index to specify which detectors to plot (None or logical/integer index)
-        plot_sens:  Plot the sensitivity as the first plot (True/False)
+                    the canvas to (if data attached to a project)
+        index:      Index to specify which residues to canvas (None or logical/integer indx)
+        rho_index:  Index to specify which detectors to canvas (None or logical/integer index)
+        plot_sens:  Plot the sensitivity as the first canvas (True/False)
         split:      Break the plots where discontinuities in data.label exist (True/False)  
         
-        By default, if the data has an associated project, this will create a plot within the
+        By default, if the data has an associated project, this will create a canvas within the
         project, unless a figure
         """
         if self.source.project is None or fig.__class__ is Figure:
-            "Don't append the plot to the project"
+            "Don't append the canvas to the project"
             return DataPlots(data=self, style=style, errorbars=errorbars, index=index,
                              rho_index=rho_index, plot_sens=plot_sens, split=split,fig=fig,**kwargs)
         else:
-            self.source.project.plot(data=self,style=style,errorbars=errorbars,index=index,
-                             rho_index=rho_index, plot_sens=plot_sens, split=split,
-                             fig=fig, **kwargs)
+            self.source.project.canvas(data=self, style=style, errorbars=errorbars, index=index,
+                                       rho_index=rho_index, plot_sens=plot_sens, split=split,
+                                       fig=fig, **kwargs)
             return self.source.project.plots[self.source.project.current_plot-1]
             
             

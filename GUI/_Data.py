@@ -15,39 +15,51 @@ class Ui_Data_final(Ui_Data):
         # connect a function to a button with clicked.connect
         # target is a label, of which the text will be overwritten by the function
         self.loadfileButton.clicked.connect(lambda: openFileNameDialog(target=self.label_filename))
+        # todo add function, that the appended data is going to land in the project as well as in the listwidget
 
-        # create a plot by passing a predefined layout to the function
-        self.plot = create_Figure_canvas(self.layout_plot)
-        self.working_project.add_fig(self.plot.figure)
+        # create a canvas by passing a predefined layout to the function
+        self.canvas = create_Figure_canvas(self.layout_plot)
+        self.working_project.add_fig(self.canvas.figure)
         self.pushButton_plotdata.clicked.connect(self.plot_data)
         self.pushButton_clear.clicked.connect(self.clear_button)
+        self.pushButton_plotchimerax.clicked.connect(self.open_chimerax)
 
     def plot_data(self) -> None:
         """
-        plotting data of a Data object onto the figure of self.plot
+        plotting data of a Data object onto the figure of self.canvas
         :return: None
         """
         assert len(self.working_project.titles), "No data available, please append data"
         self.working_project = get_workingproject(self.parent)
         style = self.comboBox_plotstyle.currentText()
         errorbars = self.checkBox_errorbars.checkState()
-        self.working_project[self.listWidget_dataobjects.currentIndex().row()].plot(style=style, errorbars=errorbars)
-        self.plot.draw()
+        self.working_project[self.listWidget_dataobjects.currentIndex().row()].canvas(style=style, errorbars=errorbars)
+        self.canvas.draw()
 
-    def clear_button(self):
+    def clear_button(self) -> None:
         """
         closing the figure of the canvas and creating a new one
         there is probably a better way to do it, just clearing the figure won't work
-        :return:
+        :return none:
         """
         self.working_project.close_fig('all')
-        self.plot.figure = plt.figure()
-        self.working_project.add_fig(self.plot.figure)
-        self.plot.draw()
+        self.canvas.figure = plt.figure()
+        self.working_project.add_fig(self.canvas.figure)
+        self.canvas.draw()
 
-    def load_from_working_project(self):
+    def load_from_working_project(self) -> None:
         self.working_project = get_workingproject(self.parent)
-        for title in self.working_project.titles:
-            self.listWidget_dataobjects.addItem(title)
+        if self.working_project.titles:
+            #TODO the indexing of project and info gives very weird errors, when I try to use hasattr
+            # the solution right here is a little uncomfortable for me -K
+            for title in self.working_project.titles:
+                self.listWidget_dataobjects.addItem(title)
+        #todo load pdbs and add to combobox
+        #todo load selection for pdb and add a combobox
 
+    def open_chimerax(self) -> None:
+        pdb = self.comboBox_selectpdb.currentText()
+        assert len(pdb), "select a valid pdb file"
+        #todo launch chimerax
+        #todo launch detector canvas event
 

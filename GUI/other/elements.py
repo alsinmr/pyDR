@@ -1,5 +1,6 @@
 import PyQt5.QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT
+from matplotlib import __version__ as mplvers
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QListWidgetItem, QWidget, QFileDialog, QMainWindow
 
@@ -74,13 +75,17 @@ def create_Figure_canvas(layout: PyQt5.QtWidgets.QVBoxLayout):
     :param layout: QVerticalLayout
     :return:
     """
-    canvas = FigureCanvasQTAgg()
-    # todo add arguments to funciton to create a figure with multiple plots
+    if mplvers == '3.3.4':
+        #todo find out which version needs that, right now it is my plt at home that is suffering from that -K
+        fig = plt.figure()
+        canvas = FigureCanvasQTAgg(fig)
+    else:
+        canvas = FigureCanvasQTAgg()
+    # todo add arguments to function to create a figure with multiple plots
     #  in that case, make ax a list to return
     canvas.figure.add_subplot()
-    toolbar = NavigationToolbar2QT(canvas,canvas)
+    toolbar = NavigationToolbar2QT(canvas, canvas)
 
     layout.addWidget(canvas)
     layout.addWidget(toolbar)
-
     return canvas
