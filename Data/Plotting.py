@@ -48,7 +48,9 @@ class DataPlots():
         
     
     def clear(self):
+        proj=self.project
         self.__init__(fig=self.fig)
+        self.project=proj
     
     def close(self,event=None):
         "Clear out the object on close and remove from project"
