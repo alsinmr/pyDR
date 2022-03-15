@@ -1,1 +1,1 @@
-chimerax
+/Applications/ChimeraX-1.2.5.app/Contents/MacOS/ChimeraX

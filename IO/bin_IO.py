@@ -67,11 +67,11 @@ def read_file(filename:str,directory:str='')->object:
         if l=='OBJECT:DETECTOR':
             return read_Detector(f)
         if l=='OBJECT:DATA':
-            out=read_Data(f)
+            out=read_Data(f,directory=directory)
             out.source.saved_filename=os.path.abspath(filename)
             return out
         if l=='OBJECT:MOLSELECT':
-            return read_MolSelect(f,directory)
+            return read_MolSelect(f,directory=directory)
 
 
 #%% Info Input/Output
@@ -244,13 +244,13 @@ def write_Data(f,data):
             np.save(f,getattr(data,k),allow_pickle=False)
     f.write(b'END:OBJECT\n')
 
-def read_Data(f):
+def read_Data(f,directory:str=''):
     flds=['R','Rstd','S2','S2std','Rc']
     line=decode(f.readline())[:-1]
     if line!='OBJECT:DETECTOR':print('Warning: First entry of data object should be the detector')
     detect=read_Detector(f)
     assert decode(f.readline())[:-1]=='OBJECT:SOURCE','Source entry not initiated correctly'
-    source=read_Source(f)
+    source=read_Source(f,directory=directory)
 
     if decode(f.readline())[:-1]!='LABEL':print('Warning: Data label is missing')
     kwargs={}
@@ -283,7 +283,7 @@ def write_Source(f,source):
         write_MolSelect(f,source.select)
     f.write(b'END:OBJECT\n')
     
-def read_Source(f):
+def read_Source(f,directory:str=''):
     source=clsDict['Source']()
     flds=['Type','filename','saved_filename','_title','status','n_det','additional_info']
     
@@ -304,7 +304,7 @@ def read_Source(f):
             source._src_data=line
         line=decode(f.readline())[:-1]
     if line=='OBJECT:MOLSELECT':
-        source.select=read_MolSelect(f)
+        source.select=read_MolSelect(f,directory=directory)
         line=decode(f.readline())[:-1]
     if line!='END:OBJECT':print('Warning: Source object not terminated correctly')
     return source
@@ -345,7 +345,7 @@ def read_MolSelect(f,directory=''):
     line=decode(f.readline())[:-1]
     if line!='TOPO':print('Warning: First entry of MolSelect object should be topo')
     topo=decode(f.readline())[:-1]  #First try provided full path
-    topo=find_file(topo,directory)
+    topo=find_file(topo,directory=directory)
     
     line=decode(f.readline())[:-1]
     tr_files=list()
@@ -355,7 +355,7 @@ def read_MolSelect(f,directory=''):
         t0,tf,step,dt=[float(line.split(':')[k+1] if k==3 else line.split(':')[k+1].split(',')[0]) for k in range(4)]
         line=decode(f.readline())[:-1]
         while line!='END:TRAJ':
-            tr_files.append(find_file(line,directory))
+            tr_files.append(find_file(line,directory=directory))
             line=decode(f.readline())[:-1]
         if None in tr_files:
             tr_files=None
@@ -423,12 +423,12 @@ def read_np_object(f):
         pos=f.tell()
     return np.array(out,dtype=object).reshape(shape)
 
-def find_file(filename,directory):
+def find_file(filename,directory:str=''):
     if os.path.exists(filename):    #Full path correctly given (could be in current folder)
         return os.path.abspath(filename)
     if os.path.exists(os.path.split(filename)[1]): #File in current folder (but wrong full path given)
         return os.path.abspath(os.path.split(filename)[1])
-    if os.path.exists(os.path.join(directory,os.path.split(filename)[1])):
+    if os.path.exists(os.path.join(directory,os.path.split(filename)[1])): #File in the project directory
         return os.path.abspath(os.path.join(directory,os.path.split(filename)[1]))
     print('{0} could not be found'.format(os.path.split(filename)[1]))
     return
