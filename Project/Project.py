@@ -580,7 +580,6 @@ class Project():
             assert index < self.__len__(), "index too large for project of length {}".format(self.__len__())
             return self.data[self._index[index]]
         
-        
         proj=copy(self)
         proj._subproject=True
         if isinstance(index,str):
