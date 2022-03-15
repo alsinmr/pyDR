@@ -35,6 +35,11 @@ class Ui_Data_final(Ui_Data):
         self.plot.draw()
 
     def clear_button(self):
+        """
+        closing the figure of the canvas and creating a new one
+        there is probably a better way to do it, just clearing the figure won't work
+        :return:
+        """
         self.working_project.close_fig('all')
         self.plot.figure = plt.figure()
         self.working_project.add_fig(self.plot.figure)

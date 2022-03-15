@@ -48,7 +48,7 @@ class Hover():
 class Click(Hover):
     def __init__(self,cmx):
         super().__init__(cmx)
-        self.mod =QApplication.mouseButtons
+        self.mod = QApplication.mouseButtons
 
     def __call__(self, *args, **kwargs):
         mod = self.mod()
