@@ -791,6 +791,11 @@ class Project():
         self.plots[fig-1].append_data(data=data,style=style,errorbars=errorbars,index=index,
                      rho_index=rho_index,plot_sens=plot_sens,split=split,**kwargs)
         return self.plots[fig-1]
+    
+    def add_fig(self,fig):
+        self.plots.append(clsDict['DataPlots'](fig=fig))
+        self.plots[-1].project=self
+        
 
     def comparable(self, i: int, threshold: float = 0.9, mode: str = 'auto', min_match: int = 2) -> tuple:
         """
