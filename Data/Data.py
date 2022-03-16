@@ -218,7 +218,7 @@ class Data():
             return DataPlots(data=self, style=style, errorbars=errorbars, index=index,
                              rho_index=rho_index, plot_sens=plot_sens, split=split,fig=fig,**kwargs)
         else:
-            self.source.project.canvas(data=self, style=style, errorbars=errorbars, index=index,
+            self.source.project.plot(data=self, style=style, errorbars=errorbars, index=index,
                                        rho_index=rho_index, plot_sens=plot_sens, split=split,
                                        fig=fig, **kwargs)
             return self.source.project.plots[self.source.project.current_plot-1]

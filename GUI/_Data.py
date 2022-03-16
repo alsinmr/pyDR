@@ -33,7 +33,7 @@ class Ui_Data_final(Ui_Data):
         self.working_project = get_workingproject(self.parent)
         style = self.comboBox_plotstyle.currentText()
         errorbars = self.checkBox_errorbars.checkState()
-        self.working_project[self.listWidget_dataobjects.currentIndex().row()].canvas(style=style, errorbars=errorbars)
+        self.working_project[self.listWidget_dataobjects.currentIndex().row()].plot(style=style, errorbars=errorbars)
         self.canvas.draw()
 
     def clear_button(self) -> None:
@@ -49,11 +49,11 @@ class Ui_Data_final(Ui_Data):
 
     def load_from_working_project(self) -> None:
         self.working_project = get_workingproject(self.parent)
-        if self.working_project.titles:
+        #if self.working_project.titles:
             #TODO the indexing of project and info gives very weird errors, when I try to use hasattr
             # the solution right here is a little uncomfortable for me -K
-            for title in self.working_project.titles:
-                self.listWidget_dataobjects.addItem(title)
+        for title in self.working_project.titles:
+            self.listWidget_dataobjects.addItem(title)
         #todo load pdbs and add to combobox
         #todo load selection for pdb and add a combobox
 
