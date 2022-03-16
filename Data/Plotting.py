@@ -312,8 +312,8 @@ class DataPlots():
             out['linestyle']=['-',':','--','-.'][len([_ for _ in re.finditer('p',self.style[:i])])%4]
         elif self.style[i]=='s':
             out['linestyle']=''
-            out['marker']=['o','^','x','*','D','p','d','h'][len([_ for _ in re.finditer('s',self.style[:i])])%4]
-            out['s']=5
+            out['marker']=['o','^','x','*','D','p','d','h'][len([_ for _ in re.finditer('s',self.style[:i])])%8]
+            out['markersize']=5
             out['color']=(0,0,0) if 'b' in self.style else self.colors[ax_index]
         out.update(kwargs)
         return out  
