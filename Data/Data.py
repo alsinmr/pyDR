@@ -254,12 +254,26 @@ class Data():
 
         """
         
+        CMXRemote=clsDict['CMXRemote']
         index=np.arange(self.R.shape[0]) if index is None else np.array(index)
         if rho_index is None:rho_index=0
         R=self.R[index]
         R*=1/R.max() if scaling is None else scaling
         
-        ID=self.project.CMX.id if self.project is not None else 0
+        
+        if self.source.project is not None:
+            ID=self.source.project.chimera.id
+            if ID is None:
+                self.source.project.chimera.current=0
+                ID=self.source.project.chimera.id
+                print(ID)
+        else: #Hmm....how should this work?
+            ID=CMXRemote.launch()
+        
+        ids=np.array([s.ids for s in self.select.repr_sel])
+        
+        out=dict(R=R,rho_index=rho_index,ids=ids)
+        CMXRemote.add_event(ID,'Detectors',out)
         
         
         

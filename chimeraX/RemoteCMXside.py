@@ -17,6 +17,13 @@ import RemoteCMXside
 import os
 
 class ListenExec(Thread):
+    """
+    This is run as a thread. For most of the time it sits at the line
+    self.args = self.cmx.client.recv() and does not proceed until a message comes
+    in. If a message is received, then we execute wait4command in the CMXReceiver.
+    
+    CMXReceiver.wait4command() gets the commands via args stored here.
+    """
     def __init__(self, cmx):
         super().__init__()
         self.cmx = cmx
@@ -42,7 +49,7 @@ class EventManager(Thread):
         print('Event manager started')
         while self.is_session_alive:
             sleep(.1)
-            if self.cmx.session.ui.main_window.isActiveWindow():
+            if self.cmx.session.ui.main_window.isActiveWindow(): #This checks if chimera is terminated (chimera hangs on close without this)
                 for name,f in self.cmx._events.copy().items():
                     try:
                         f()
@@ -153,16 +160,20 @@ class CMXReceiver():
             print([fun for fun in dir(CMXEvents) if fun[0] is not "_"])
             return
         event=getattr(CMXEvents,name)
+        print('Check0a')
         if event.__class__ is type: #Event is a class. First initialize
             event=event(self)
-
+        print('Check1a')
         if not(hasattr(event,'__call__')):
             print('Event "{}" must be callable'.format(name))
             return
 
+        
         self.Stop() #Stop the event manager
         self._events[name]=event #Add the event
+        print('Check2')
         self.Start()
+        print('Check3')
         
         
     def remove_event(self,name):

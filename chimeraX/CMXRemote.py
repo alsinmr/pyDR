@@ -59,7 +59,7 @@ class CMXRemote():
         cls.listener=Listener(('localhost',cls.ports[ID]),authkey=b'pyDIFRATE2chimeraX')
 
         cls.PIDs[ID] = (os.spawnl(os.P_NOWAIT, chimera_path(), chimera_path(), cls.full_path(ID))
-                        if not "Linux" in platform() and False else
+                        if not "Linux" in platform() else
                         Popen([chimera_path().strip(), cls.full_path(ID)]))
 
         cls.tr=StartThread(cls.listener)
@@ -91,10 +91,6 @@ class CMXRemote():
                 cls.closed[ID]=True
             if cls.conn[ID] is not None:
                 cls.conn[ID].close()
-    
-#    @classmethod
-#    def send_command(cls,ID,string):
-#        cls.command_line(ID,string)   
 
     
     @classmethod
@@ -120,9 +116,12 @@ class CMXRemote():
                     
     @classmethod
     def isConnected(cls,ID):
+        if ID>=len(cls.PIDs):return False
         try:
             cls.conn[ID].send(('phone_home',))
         except:
+            cls.kill(ID)
+            cls.closed[ID]=True
             return False
         tr=Listen(cls.conn[ID])
         tr.start()
@@ -232,7 +231,7 @@ class CMXRemote():
 #%% Event handling
     @classmethod
     def add_event(cls,ID,name,*args,**kwargs):
-        print(name,args)
+        # print(name,args)
         cls.conn[ID].send(('add_event',name,*args,kwargs))
 
     @classmethod

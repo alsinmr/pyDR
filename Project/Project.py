@@ -433,7 +433,8 @@ class Chimera():
     
     @property
     def current(self):
-        if self._current[0] is -1:return None
+        if self._current[0]==-1:return None
+        if not(self.CMX.isConnected(self._current[0])):return None
         return self._current[0]
     
     def __setattr__(self,name,value):
