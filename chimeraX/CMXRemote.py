@@ -26,6 +26,8 @@ class CMXRemote():
     conn=list()
     closed=list()
     
+    
+    #%% Open and close chimeraX instances
     @classmethod
     def launch(cls,commands=None):
         if True in cls.closed:
@@ -57,7 +59,7 @@ class CMXRemote():
         cls.listener=Listener(('localhost',cls.ports[ID]),authkey=b'pyDIFRATE2chimeraX')
 
         cls.PIDs[ID] = (os.spawnl(os.P_NOWAIT, chimera_path(), chimera_path(), cls.full_path(ID))
-                        if not "Linux" in platform() else
+                        if not "Linux" in platform() and False else
                         Popen([chimera_path().strip(), cls.full_path(ID)]))
 
         cls.tr=StartThread(cls.listener)
@@ -77,47 +79,7 @@ class CMXRemote():
         cls.closed[ID]=False
         return ID
     
-    @classmethod
-    def full_path(cls,ID):
-        return get_path('chimera_script{0:02d}.py'.format(ID))     #Location to write out chimera script 
     
-    @classmethod
-    def py_command(cls,ID,string):
-        with File(ID) as f:
-            py_line(f,string)
-        cls.send_file(ID)
-    
-    
-    @classmethod
-    def command_line(cls,ID,string):
-        with File(ID) as f:
-            py_line(f,run_command())
-            if isinstance(string,list):
-                for s in string:WrCC(f,s)
-            else:
-                WrCC(f,string)
-        cls.send_file(ID)        
-#        cls.conn[ID].send(('command_line',string))
-    
-    @classmethod
-    def send_file(cls,ID):
-        cls.send_command(ID,'open {0}'.format(cls.full_path(ID)))
-#        cls.conn[ID].send(('command_line','open {}'.format(cls.full_path(ID))))
-    
-    @classmethod
-    def add_event(cls,ID,name,*args,**kwargs):
-        print(name,args)
-        cls.conn[ID].send(('add_event',name,*args,kwargs))
-
-    @classmethod
-    def remove_event(cls,ID,name):
-        cls.conn[ID].send(('remove_event',name))
-        
-    @classmethod
-    def set_event_attr(cls,ID,name,attr_name,value):
-        cls.conn[ID].send(('set_event_attr',name,attr_name,value))
-            
-        
     @classmethod
     def kill(cls,ID):
         if ID=='all':
@@ -125,16 +87,15 @@ class CMXRemote():
                 os.system('kill {0}'.format(P))
         elif cls.PIDs[ID]!=0:
             os.system('kill {0}'.format(cls.PIDs[ID]))
-            cls.closed[ID]=True
-            cls.conn[ID].close()
+            if len(cls.closed)>ID and cls.closed[ID] is not None:
+                cls.closed[ID]=True
+            if cls.conn[ID] is not None:
+                cls.conn[ID].close()
     
 #    @classmethod
 #    def send_command(cls,ID,string):
 #        cls.command_line(ID,string)   
-    @classmethod
-    def send_command(cls,ID,string):
-        string=string.replace(' ','+')
-        return os.system('curl http://127.0.0.1:{0}/run?command={1}'.format(cls.rc_port0+ID,string))
+
     
     @classmethod
     def close(cls,ID):
@@ -171,6 +132,118 @@ class CMXRemote():
                 return True
         return False
     
+    
+    
+    @classmethod
+    def full_path(cls,ID):
+        return get_path('chimera_script{0:02d}.py'.format(ID))     #Location to write out chimera script 
+
+    #%% Send commands    
+    @classmethod
+    def send_command(cls,ID:int,string:str):
+        """
+        Send a command via string to chimeraX via http and curl
+
+        Parameters
+        ----------
+        ID : int
+            ID of the ChimeraX instance.
+        string : str
+            Command to be executed on the ChimeraX command line.
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
+        """
+        string=string.replace(' ','+')
+        return os.system('curl http://127.0.0.1:{0}/run?command={1}'.format(cls.rc_port0+ID,string))
+    
+    @classmethod
+    def py_command(cls,ID:int,string:str) -> None:
+        """
+        Send a command via str to by executed as a python command. Transfered via
+        text file.
+
+        Parameters
+        ----------
+        ID : int
+            ID of the chimeraX instance.
+        string : str
+            Command to be executed in the ChimeraX python command line.
+
+        Returns
+        -------
+        None.
+
+        """
+        with File(ID) as f:
+            py_line(f,string)
+        cls.send_file(ID)
+    
+    
+    @classmethod
+    def command_line(cls,ID:int,string:str) -> None:
+        """
+        Send a command to be executed on the ChimeraX command line, but via 
+        run_command in the python interface (why do we have this?)
+
+        Parameters
+        ----------
+        ID : int
+            ID of the chimeraX instance.
+        string : str
+           Command to be executed on the ChimeraX command line.
+
+        Returns
+        -------
+        None.
+
+        """
+        with File(ID) as f:
+            py_line(f,run_command())
+            if isinstance(string,list):
+                for s in string:WrCC(f,s)
+            else:
+                WrCC(f,string)
+        cls.send_file(ID)        
+#        cls.conn[ID].send(('command_line',string))
+    
+    @classmethod
+    def send_file(cls,ID:int):
+        """
+        Send a file to chimeraX to be executed as a python script. Note that
+        this file is always the file stored in cls.full_path(ID)
+
+        Parameters
+        ----------
+        ID : int
+            ID of the chimeraX instance.
+
+        Returns
+        -------
+        None.
+
+        """
+        cls.send_command(ID,'open {0}'.format(cls.full_path(ID)))
+#        cls.conn[ID].send(('command_line','open {}'.format(cls.full_path(ID))))
+    
+#%% Event handling
+    @classmethod
+    def add_event(cls,ID,name,*args,**kwargs):
+        print(name,args)
+        cls.conn[ID].send(('add_event',name,*args,kwargs))
+
+    @classmethod
+    def remove_event(cls,ID,name):
+        cls.conn[ID].send(('remove_event',name))
+        
+    @classmethod
+    def set_event_attr(cls,ID,name,attr_name,value):
+        cls.conn[ID].send(('set_event_attr',name,attr_name,value))
+            
+    
     @classmethod
     def get_sel(cls,ID):
         try:
@@ -184,7 +257,7 @@ class CMXRemote():
         while time()-t0<1:
             if tr.response:
                 return tr.response
-        
+#%% Thread handling        
 class Listen(Thread):
     def __init__(self,conn):
         super().__init__()

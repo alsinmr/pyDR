@@ -418,7 +418,39 @@ class DetectMngr():
         self.unify_detect(chk_sens_only=True)
         for r in self:r.r_zmax(zmax,Normalization=Normalization,NegAllow=NegAllow)
 
+
+#%% ChimeraX Manager
+class Chimera():
+    def __init__(self,project):
+        self.project=project
+        self._current=[-1]
+        self._ids=[]
+        self.CMX=clsDict['CMXRemote']
     
+    @property
+    def id(self):
+        if self.current is not None:return self._ids[self.current]
+    
+    @property
+    def current(self):
+        if self._current[0] is -1:return None
+        return self._current[0]
+    
+    def __setattr__(self,name,value):
+        if name=='current': #Set the current chimeraX connection, and assert that there is an active connection
+            assert isinstance(value,(int,np.integer)) and value>=0,"ID must be a non-negative integer"
+            while len(self._ids)<=value:
+                self._ids.append(None)
+            if self._ids[value] is None or not(self.CMX.isConnected(self._ids[value])):
+                self._ids[value]=self.CMX.launch()
+                if self.CMX.isConnected(self._ids[value]):
+                    self._current[0]=value
+            return
+        super().__setattr__(name,value)
+    
+    def __call__(self,index:int=None,rho_index:int=None,scaling=None):
+        self.project[0].chimera(index=index,rho_index=rho_index,scaling=scaling)
+
 #%% Project class
 class Project():
     """
@@ -456,6 +488,7 @@ class Project():
         self._current_plot = [0]
         
         self.read_proj()
+        self.chimera=Chimera(self)
     
     @property
     def directory(self):
@@ -476,6 +509,7 @@ class Project():
     @property
     def detect(self):
         return DetectMngr(self)
+    
     #%% Read/write project file
     def read_proj(self):
         info=clsDict['Info']()
@@ -583,6 +617,8 @@ class Project():
         
         proj=copy(self)
         proj._subproject=True
+        proj.chimera=copy(self.chimera)
+        proj.chimera.project=proj
         if isinstance(index,str):
             flds=['Types','statuses','additional_info','titles','short_files']
             for f in flds:
@@ -611,8 +647,6 @@ class Project():
             print('index was not understood')
             return
         return proj
-        
-        
         
     @property
     def Types(self):
