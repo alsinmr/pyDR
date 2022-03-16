@@ -2,6 +2,8 @@ import matplotlib.pyplot
 from pyDR.GUI.designer2py.data_widget import Ui_Data
 from PyQt5.QtWidgets import QListWidgetItem, QWidget, QFileDialog
 from pyDR.GUI.other.elements import openFileNameDialog, create_Figure_canvas, get_mainwindow, get_workingproject
+from pyDR.chimeraX.CMXRemote import CMXRemote
+
 from pyDR.IO import read_file, readNMR, isbinary
 import numpy as np
 import matplotlib.pyplot as plt
@@ -54,12 +56,26 @@ class Ui_Data_final(Ui_Data):
             # the solution right here is a little uncomfortable for me -K
         for title in self.working_project.titles:
             self.listWidget_dataobjects.addItem(title)
+            print(self.working_project[title][0].select)
         #todo load pdbs and add to combobox
         #todo load selection for pdb and add a combobox
 
     def open_chimerax(self) -> None:
         pdb = self.comboBox_selectpdb.currentText()
-        assert len(pdb), "select a valid pdb file"
+        pdb = "2kj3"
+        #assert len(pdb), "select a valid pdb file"
+
+        id = CMXRemote.launch([f"open {pdb}",
+                               "del ~#1.1",
+                               "show",
+                               "hide H",
+                               "~ribbon"])
+        from time import time,sleep
+        sleep(5)
+
+        CMXRemote.add_event(id,"Detectors",
+                            {"ids" : np.arange(10), "R" : np.random.random((10, 3))})
+
         #todo launch chimerax
         #todo launch detector canvas event
 

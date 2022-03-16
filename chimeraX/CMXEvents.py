@@ -8,6 +8,8 @@ Created on Wed Nov 24 11:49:56 2021
 from PyQt5.QtWidgets import QMouseEventTransition, QApplication
 from PyQt5.QtCore import Qt
 from PyQt5 import QtGui
+import numpy as np
+from matplotlib.pyplot import get_cmap
 
 class Hover():
     def __init__(self, cmx):
@@ -72,10 +74,12 @@ class Click(Hover):
         Out[44]: 0'''
 
 class Detectors(Hover):
-    def __init__(self,cmx):
+    def __init__(self, cmx, *args):
         Hover.__init__(self,cmx)
-        self.model = self.session.models[0]
-        self.open_detector()
+        self.model = self.session.models[1]   #todo be careful here, the index is not always the right model!!!!
+        ids = args[0][0].get("ids")
+        R = args[0][0].get("R")
+        self.open_detector(ids,R)
 
     def __call__(self):
         mx, my = self.get_mouse_pos()
@@ -91,7 +95,30 @@ class Detectors(Hover):
                 label.selected=False
             label.label.update_drawing()
 
-    def open_detector(self):
+    def open_detector(self, ids, R):
+        cmap =lambda ind: (np.array(get_cmap("tab10")(i)) * 255).astype(int)  # get_cmap("tab10")
+        def set_radius(atoms,R, color):
+            #todo check if R has a value and is greater than 0, otherwise you can get problems
+            R/=R.max()
+            R*=5# I dont understand why, but atoms.radii = R/R.min() will not work
+            #TODO decide how to display which response
+            atoms.radii = R
+            atoms.colors = color
+        self.labels = []
+        self.commands = []
+        from chimerax.label.label2d import label_create
+        #todo one can set the label text to the correlation time
+        for i in range(R.shape[1]):
+            label = label_create(self.session,"det{}".format(i), text="ρ{}".format(i)
+                         , xpos=.95,ypos=.9-i*.075,
+                         color=cmap(i), outline=1)
+            self.labels.append(self.session.models[-1])
+            self.commands.append(lambda atoms = self.model.atoms[ids],#residues[res_nums-1].atoms[atom_nums],
+                                        R = R.T[i],
+                                        color=cmap(i)
+                                         :set_radius(atoms, R, color))
+        return
+        '''
         def get_index(residue, atom):
             for j, a in enumerate(residue.atoms):
                 if a.name == atom:
@@ -143,4 +170,4 @@ class Detectors(Hover):
             self.commands.append(lambda atoms = self.model.residues[res_nums-1].atoms[atom_nums],
                                         R = det_responses.T[i],
                                         color=cmap(i)
-                                         :set_radius(atoms, R, color))
+                                         :set_radius(atoms, R, color))'''

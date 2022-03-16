@@ -21,7 +21,7 @@ class ListenExec(Thread):
         super().__init__()
         self.cmx = cmx
         self.args = None
-        
+
     def run(self):
         try:
             self.args = self.cmx.client.recv()
@@ -146,14 +146,14 @@ class CMXReceiver():
     def add_event(self,name,*args):
         # todo adding the a second event will cause the event manager to tell me add_event failed, but actually
         # todo it is still working
-        print("args:",*args)
+        print("RemoteCMXside",name, args)
         if not(hasattr(CMXEvents,name)):
             print('Unknown event "{}", available events:\n'.format(name))
             print([fun for fun in dir(CMXEvents) if fun[0] is not "_"])
             return
         event=getattr(CMXEvents,name)
         if event.__class__ is type: #Event is a class. First initialize
-            event=event(self)
+            event=event(self, args)
 
         if not(hasattr(event,'__call__')):
             print('Event "{}" must be callable'.format(name))

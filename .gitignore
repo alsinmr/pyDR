@@ -1,7 +1,7 @@
 *.pyc
 calced_data/**
 xtcs/**
-chimeraX/chimeraX_program_path.txt
+chimeraX/ChimeraX_program_path.txt
 chimeraX/chimera_script*.py
 stashed/*
 GUI/__GUI.py
