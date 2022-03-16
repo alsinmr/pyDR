@@ -28,15 +28,6 @@ class Data():
         data object.
         """
 
-        # todo I was wondering, if it might be useful to replace every argument with **kwargs, since all of them are
-        #  optional and just be like R = kwargs.get("R")
-        #  could be even more useful like
-        #   for val in ["R","R_std",...]:
-        #       if kwargs.get(val):
-        #           attr = np.array(val)
-        #       setattr(self,val, attr)
-        #  smth like this?
-
         if R is not None:R=np.array(R,dtype=dtype)
         if Rstd is not None:Rstd=np.array(Rstd,dtype=dtype)
         
@@ -240,6 +231,37 @@ class Data():
         
         return plot_fit(lbl=lbl,Rin=Rin,Rc=Rc,Rin_std=Rin_std,\
                     info=info,index=index,exp_index=exp_index,fig=fig)
+            
+    def chimera(self,index=None,rho_index:int=None,scaling=None):
+        """
+        Plots a set of detectors in chimera.
+
+        Parameters
+        ----------
+        index : list-like, optional
+            Select which residues to plot. The default is None.
+        rho_index : int, optional
+            Select which detector to initiall show. The default is None.
+            NOT IMPLEMENTED
+        scaling : float, optional
+            Scale the display size of the detectors. If not provided, a scaling
+            will be automatically selected based on the size of the detectors.
+            The default is None.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        index=np.arange(self.R.shape[0]) if index is None else np.array(index)
+        if rho_index is None:rho_index=0
+        R=self.R[index]
+        R*=1/R.max() if scaling is None else scaling
+        
+        ID=self.project.CMX.id if self.project is not None else 0
+        
+        
         
             
             

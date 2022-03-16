@@ -21,7 +21,7 @@ class ListenExec(Thread):
         super().__init__()
         self.cmx = cmx
         self.args = None
-        
+
     def run(self):
         try:
             self.args = self.cmx.client.recv()
@@ -67,8 +67,7 @@ class CMXReceiver():
         except:
             self.__isRunning=False
             if hasattr(self,'client'):self.client.close()
-            print('fail')
-            # run(self.session,'exit')
+            run(self.session,'exit')
             return
 
         self.wait4command()
@@ -136,25 +135,25 @@ class CMXReceiver():
         self.client.send(sel)
 
 
-    def send_command(self,string):
-        """todo I found out, that creating any Model with the command line interface inside the thread will cause a program
-        crash. since I want to create the buttons inside chimera i needed to implement this funciton from the remote side here
-        it is working, still i think its ugly
-        the port should be saved somewhere in the class object"""
-        string=string.replace(' ','+')
-        return os.system('curl http://127.0.0.1:{0}/run?command={1}'.format(self.rc_port0,string))
+    # def send_command(self,string):
+    #     """todo I found out, that creating any Model with the command line interface inside the thread will cause a program
+    #     crash. since I want to create the buttons inside chimera i needed to implement this funciton from the remote side here
+    #     it is working, still i think its ugly
+    #     the port should be saved somewhere in the class object"""
+    #     string=string.replace(' ','+')
+    #     return os.system('curl http://127.0.0.1:{0}/run?command={1}'.format(self.rc_port0,string))
 
     def add_event(self,name,*args):
         # todo adding the a second event will cause the event manager to tell me add_event failed, but actually
         # todo it is still working
-        print("args:",*args)
+        print("RemoteCMXside",name, args)
         if not(hasattr(CMXEvents,name)):
             print('Unknown event "{}", available events:\n'.format(name))
             print([fun for fun in dir(CMXEvents) if fun[0] is not "_"])
             return
         event=getattr(CMXEvents,name)
         if event.__class__ is type: #Event is a class. First initialize
-            event=event(self)
+            event=event(self, args)
 
         if not(hasattr(event,'__call__')):
             print('Event "{}" must be callable'.format(name))
