@@ -230,9 +230,9 @@ class CMXRemote():
     
 #%% Event handling
     @classmethod
-    def add_event(cls,ID,name,*args,**kwargs):
+    def add_event(cls,ID,name,*args):
         # print(name,args)
-        cls.conn[ID].send(('add_event',name,*args,kwargs))
+        cls.conn[ID].send(('add_event',name,*args))
 
     @classmethod
     def remove_event(cls,ID,name):

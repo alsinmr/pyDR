@@ -449,8 +449,14 @@ class Chimera():
             return
         super().__setattr__(name,value)
     
-    def __call__(self,index:int=None,rho_index:int=None,scaling=None):
-        self.project[0].chimera(index=index,rho_index=rho_index,scaling=scaling)
+    def __call__(self,index:int=None,rho_index:int=None,scaling=None,offset=None):
+
+        for k,d in enumerate(self.project):
+            if offset is None:
+                offset=np.std(d.select.pos,0)*3
+                # offset[offset!=offset.min()]=0
+            d.chimera(index=index,rho_index=rho_index,scaling=scaling)
+            self.CMX.conn[self.id].send(('shift_position',-1,offset*k))
 
 #%% Project class
 class Project():

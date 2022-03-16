@@ -15,6 +15,7 @@ import CMXEvents
 import importlib
 import RemoteCMXside
 import os
+import numpy as np
 
 class ListenExec(Thread):
     """
@@ -124,6 +125,44 @@ class CMXReceiver():
     def phone_home(self):
         self.client.send('still here')
         
+    
+    def get_atoms(self):
+        """
+        Returns a list of all atom groups in the current chimera session
+
+        Returns
+        -------
+        None.
+
+        """
+        atoms=list()
+        for m in self.session.models:
+            if hasattr(m,'atoms'):
+                atoms.append(m.atoms)
+        return atoms
+    
+    def shift_position(self,index:int,shift=[0,0,0]):
+        """
+        Shifts the position of a selected atom group. Index corresponds to 
+        which order it was added.
+
+        Parameters
+        ----------
+        index : int
+            DESCRIPTION.
+        shift : TYPE, optional
+            DESCRIPTION. The default is [0,0,0].
+
+        Returns
+        -------
+        None.
+
+        """
+        if len(self.get_atoms())<=index:
+            print('index exceeds number of atom groups')
+            return
+        self.get_atoms()[index].coords+=np.array(shift)
+        
     def Exit(self):
         try:
             self.client.close()
@@ -154,26 +193,27 @@ class CMXReceiver():
     def add_event(self,name,*args):
         # todo adding the a second event will cause the event manager to tell me add_event failed, but actually
         # todo it is still working
-        print("args:",*args)
         if not(hasattr(CMXEvents,name)):
             print('Unknown event "{}", available events:\n'.format(name))
             print([fun for fun in dir(CMXEvents) if fun[0] is not "_"])
             return
         event=getattr(CMXEvents,name)
-        print('Check0a')
         if event.__class__ is type: #Event is a class. First initialize
-            event=event(self)
-        print('Check1a')
+            event=event(self,*args)
         if not(hasattr(event,'__call__')):
             print('Event "{}" must be callable'.format(name))
             return
-
         
         self.Stop() #Stop the event manager
+        if name in self._events:
+            name0=name+'0'
+            k=0
+            while name0 in self._events:
+                k+=1
+                name0=name+str(k)
+            name=name0
         self._events[name]=event #Add the event
-        print('Check2')
         self.Start()
-        print('Check3')
         
         
     def remove_event(self,name):

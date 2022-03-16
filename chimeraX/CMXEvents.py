@@ -76,10 +76,16 @@ class Click(Hover):
 class Detectors(Hover):
     def __init__(self, cmx, *args):
         Hover.__init__(self,cmx)
-        self.model = self.session.models[1]   #todo be careful here, the index is not always the right model!!!!
-        ids = args[0][0].get("ids")
-        R = args[0][0].get("R")
-        self.open_detector(ids,R)
+        for k in range(len(self.session.models),0,-1):
+            print(self.session.models[k-1])
+            if hasattr(self.session.models[k-1],'atoms'):
+                self.model=self.session.models[k-1]
+                break
+        # self.model = self.session.models[0]   #todo be careful here, the index is not always the right model!!!!
+        ids = args[0].get("ids")
+        R = args[0].get("R")
+        rho_index=args[0].get('rho_index')
+        self.open_detector(ids,R,rho_index)
 
     def __call__(self):
         mx, my = self.get_mouse_pos()
@@ -95,28 +101,31 @@ class Detectors(Hover):
                 label.selected=False
             label.label.update_drawing()
 
-    def open_detector(self, ids, R):
+    def open_detector(self, ids, R,rho_index):
         cmap =lambda ind: (np.array(get_cmap("tab10")(i)) * 255).astype(int)  # get_cmap("tab10")
-        def set_radius(atoms,R, color):
+        def set_radius(atoms,R, color,ids):
             #todo check if R has a value and is greater than 0, otherwise you can get problems
-            R/=R.max()
-            R*=5# I dont understand why, but atoms.radii = R/R.min() will not work
+            # R/=R.max()
+            # R*=5# I dont understand why, but atoms.radii = R/R.min() will not work
             #TODO decide how to display which response
-            atoms.radii = R
-            atoms.colors = color
+            for id0,R0 in zip(ids,R):
+                atoms[id0].radii = R0
+                atoms[id0].colors = color
+        
         self.labels = []
         self.commands = []
         from chimerax.label.label2d import label_create
         #todo one can set the label text to the correlation time
-        for i in range(R.shape[1]):
-            label = label_create(self.session,"det{}".format(i), text="ρ{}".format(i)
+        for i in range(R.T[rho_index].shape[0]):
+            # label = label_create(self.session,"det{}".format(i), text="ρ{}".format(rho_index[i])
+            label = label_create(self.session,"det{}".format(np.random.randint(1000000)), text="ρ{}".format(rho_index[i])
                          , xpos=.95,ypos=.9-i*.075,
                          color=cmap(i), outline=1)
             self.labels.append(self.session.models[-1])
-            self.commands.append(lambda atoms = self.model.atoms[ids],#residues[res_nums-1].atoms[atom_nums],
+            self.commands.append(lambda atoms = self.model.atoms,#residues[res_nums-1].atoms[atom_nums],
                                         R = R.T[i],
-                                        color=cmap(i)
-                                         :set_radius(atoms, R, color))
+                                        color=cmap(i),ids=ids
+                                         :set_radius(atoms, R, color,ids))
         return
         '''
         def get_index(residue, atom):
