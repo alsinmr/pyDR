@@ -1,4 +1,5 @@
 *.pyc
+*.DS_Store
 calced_data/**
 xtcs/**
 chimeraX/chimeraX_program_path.txt
