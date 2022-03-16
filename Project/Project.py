@@ -503,7 +503,6 @@ class Project():
                 dct={f:getattr(src,f) for f in flds}
                 dct['filename']=file
                 info.new_exper(**dct)
-                print(file)
         
         self._index=list()
         for file in info['filename']:
@@ -518,6 +517,8 @@ class Project():
             self._index.pop(i)
 
         self.info=clsDict['Info']()
+        for f in flds:self.info.new_parameter(f)
+        
         for k in range(len(self._index)):
             self.info.new_exper(**info[self._index.index(k)])
         self._index=np.array(self._index,dtype=int)
