@@ -48,7 +48,7 @@ class Hover():
 class Click(Hover):
     def __init__(self,cmx):
         super().__init__(cmx)
-        self.mod =QApplication.mouseButtons
+        self.mod = QApplication.mouseButtons
 
     def __call__(self, *args, **kwargs):
         mod = self.mod()
@@ -78,9 +78,9 @@ class Detectors(Hover):
         self.open_detector()
 
     def __call__(self):
-        mx,my = self.get_mouse_pos()
-        mx= mx/self.win2.size().width()*2-1
-        my=(my/self.win2.size().height()*2-1)*-1
+        mx, my = self.get_mouse_pos()
+        mx = mx/self.win2.size().width()*2-1
+        my = -(my/self.win2.size().height()*2-1)
         for i,label in enumerate(self.labels):
             geo = label.geometry_bounds()
             if geo.contains_point([mx,my,0]):
@@ -92,10 +92,10 @@ class Detectors(Hover):
             label.label.update_drawing()
 
     def open_detector(self):
-        def get_index(res,atom):
-            for i,a in enumerate(res.atoms):
-                if a.name==atom:
-                    return i
+        def get_index(residue, atom):
+            for j, a in enumerate(residue.atoms):
+                if a.name == atom:
+                    return j
         import numpy as np
         from matplotlib.pyplot import get_cmap
         cmap = lambda ind: (np.array(get_cmap("tab10")(i))*255).astype(int)#get_cmap("tab10")

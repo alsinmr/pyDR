@@ -1,45 +1,65 @@
+import matplotlib.pyplot
 from pyDR.GUI.designer2py.data_widget import Ui_Data
 from PyQt5.QtWidgets import QListWidgetItem, QWidget, QFileDialog
 from pyDR.GUI.other.elements import openFileNameDialog, create_Figure_canvas, get_mainwindow, get_workingproject
 from pyDR.IO import read_file, readNMR, isbinary
-
+import numpy as np
+import matplotlib.pyplot as plt
 
 class Ui_Data_final(Ui_Data):
     def retranslateUi(self, Data: QWidget) -> None:
         super().retranslateUi(Data)
         # important: connect parent!
         self.parent = Data.parent()
-
+        self.load_from_working_project()
         # connect a function to a button with clicked.connect
         # target is a label, of which the text will be overwritten by the function
         self.loadfileButton.clicked.connect(lambda: openFileNameDialog(target=self.label_filename))
+        # todo add function, that the appended data is going to land in the project as well as in the listwidget
 
-        # create a plot by passing a predefined layout to the function
-        self.plot = create_Figure_canvas(self.layout_plot)
+        # create a canvas by passing a predefined layout to the function
+        self.canvas = create_Figure_canvas(self.layout_plot)
+        self.working_project.add_fig(self.canvas.figure)
         self.pushButton_plotdata.clicked.connect(self.plot_data)
+        self.pushButton_clear.clicked.connect(self.clear_button)
+        self.pushButton_plotchimerax.clicked.connect(self.open_chimerax)
 
     def plot_data(self) -> None:
         """
-        plotting data of a Data object onto the figure of self.plot
+        plotting data of a Data object onto the figure of self.canvas
         :return: None
         """
+        assert len(self.working_project.titles), "No data available, please append data"
         self.working_project = get_workingproject(self.parent)
-        filename =self.label_filename.text()
-        if filename == "filename":
-            return
+        style = self.comboBox_plotstyle.currentText()
+        errorbars = self.checkBox_errorbars.checkState()
+        self.working_project[self.listWidget_dataobjects.currentIndex().row()].canvas(style=style, errorbars=errorbars)
+        self.canvas.draw()
 
-        self.working_project.append_data(filename)
+    def clear_button(self) -> None:
+        """
+        closing the figure of the canvas and creating a new one
+        there is probably a better way to do it, just clearing the figure won't work
+        :return none:
+        """
+        self.working_project.close_fig('all')
+        self.canvas.figure = plt.figure()
+        self.working_project.add_fig(self.canvas.figure)
+        self.canvas.draw()
 
-
-        for ax in self.plot.figure.get_axes():
-            self.plot.figure.delaxes(ax)
-
-        self.working_project[-1].plot(fig=self.plot.figure)
-        #todo something is broken here when I try to open another datafiile in the project
-
-        self.plot.draw()
-
-
-    def load_from_working_project(self):
+    def load_from_working_project(self) -> None:
         self.working_project = get_workingproject(self.parent)
+        if self.working_project.titles:
+            #TODO the indexing of project and info gives very weird errors, when I try to use hasattr
+            # the solution right here is a little uncomfortable for me -K
+            for title in self.working_project.titles:
+                self.listWidget_dataobjects.addItem(title)
+        #todo load pdbs and add to combobox
+        #todo load selection for pdb and add a combobox
+
+    def open_chimerax(self) -> None:
+        pdb = self.comboBox_selectpdb.currentText()
+        assert len(pdb), "select a valid pdb file"
+        #todo launch chimerax
+        #todo launch detector canvas event
 

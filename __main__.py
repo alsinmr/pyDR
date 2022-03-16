@@ -9,6 +9,12 @@ import os.path
 
 
 if __name__ == '__main__':
+    """
+    Open pyDR via commandline with 'python3 -m pyDR'
+    
+    This will create the GUI which will ask you to load an existing or create a new project.
+    
+    """
     project = None
     if len(sys.argv) > 1:
         #print(sys.argv)
@@ -32,7 +38,7 @@ if __name__ == '__main__':
         return_value = msg.exec_()  # get the return value
 
         if return_value == 1024:   # this is the Ok Button
-            project_name, ok = QInputDialog().getText(None, "ProjectName","Name",text="testproject")
+            project_name, ok = QInputDialog().getText(None, "ProjectName","Name",text="GlpG_pyDR")
             assert ok, "If you don't want to..."
             assert len(project_name), "Project Name must have some characters"
             create = True

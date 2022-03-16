@@ -1,10 +1,7 @@
 import sys
 from os import system
-system("python3 _convert_design.py")
 from PyQt5.QtWidgets import QApplication, QDialog, QMainWindow, QListWidgetItem, QFileDialog, QWidget
-
 from pyDR.GUI.designer2py.mymainwindow import Ui_MainWindow
-
 from pyDR.GUI._Data import Ui_Data_final
 from pyDR.GUI._Sensitivity import Ui_Sensitivity_final
 from pyDR.GUI._Detectors import Ui_Detectors_final
@@ -22,7 +19,6 @@ class QMainWindow(QMainWindow):
     # since the idea is that it is shouldnt be possible to work with the gui without a project open, this throws an
     # assertion if no project is available
     def get_project(self):
-        print("miauz")
         if self.working_project is not None:
             return self.working_project
         assert 0, "No Project available"
@@ -44,7 +40,7 @@ class MyWindow(Ui_MainWindow):
         # general procedure to connect a Tab of the main_window with the widgets for every page
         # first step: create the object
         # second step: run setup and pass the "tab"
-        '''
+
         self.data_tab = Ui_Data_final()
         self.data_tab.setupUi(self.tab_data)
 
@@ -62,7 +58,7 @@ class MyWindow(Ui_MainWindow):
         
         self.selection_tab = Ui_Selection_final()
         self.selection_tab.setupUi(self.tab_selection)
-        '''
+
         self.mdsimulation_tab = Ui_MDSimulation_final()
         self.mdsimulation_tab.setupUi(self.tab_md)
        
