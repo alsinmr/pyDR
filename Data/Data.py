@@ -254,12 +254,40 @@ class Data():
 
         """
         
+        CMXRemote=clsDict['CMXRemote']
         index=np.arange(self.R.shape[0]) if index is None else np.array(index)
-        if rho_index is None:rho_index=0
+        if rho_index is None:rho_index=np.arange(self.R.shape[1])
         R=self.R[index]
-        R*=1/R.max() if scaling is None else scaling
+        R*=1/R.T[rho_index].max() if scaling is None else scaling
         
-        ID=self.project.CMX.id if self.project is not None else 0
+        # R*=5
+        R[R<0]=0
+        # R+=0.8+4*R
+        
+        
+        if self.source.project is not None:
+            ID=self.source.project.chimera.CMXid
+            if ID is None:
+                self.source.project.chimera.current=0
+                ID=self.source.project.chimera.CMXid
+                print(ID)
+        else: #Hmm....how should this work?
+            ID=CMXRemote.launch()
+        
+        ids=np.array([s.indices for s in self.select.repr_sel])
+        
+        # CMXRemote.send_command(ID,'close')
+        CMXRemote.send_command(ID,'open {0}'.format(self.select.molsys.topo))
+        CMXRemote.send_command(ID,'style ball')
+        CMXRemote.send_command(ID,'size stickRadius 0.2')
+        CMXRemote.send_command(ID,'size atomRadius 0.8')
+        CMXRemote.send_command(ID,'~ribbon')
+        CMXRemote.send_command(ID,'show')
+        CMXRemote.send_command(ID,'color all tan')
+        
+        out=dict(R=R,rho_index=rho_index,ids=ids)
+        # CMXRemote.remove_event(ID,'Detectors')
+        CMXRemote.add_event(ID,'Detectors',out)
         
         
         

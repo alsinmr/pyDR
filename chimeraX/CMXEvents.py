@@ -76,10 +76,15 @@ class Click(Hover):
 class Detectors(Hover):
     def __init__(self, cmx, *args):
         Hover.__init__(self,cmx)
-        self.model = self.session.models[1]   #todo be careful here, the index is not always the right model!!!!
-        ids = args[0][0].get("ids")
-        R = args[0][0].get("R")
-        self.open_detector(ids,R)
+        for k in range(len(self.session.models),0,-1):
+            if hasattr(self.session.models[k-1],'atoms'):
+                self.model=self.session.models[k-1]
+                break
+        # self.model = self.session.models[0]   #todo be careful here, the index is not always the right model!!!!
+        ids = args[0].get("ids")
+        R = args[0].get("R")
+        rho_index=args[0].get('rho_index')
+        self.open_detector(ids,R,rho_index)
 
     def __call__(self):
         mx, my = self.get_mouse_pos()
@@ -95,28 +100,32 @@ class Detectors(Hover):
                 label.selected=False
             label.label.update_drawing()
 
-    def open_detector(self, ids, R):
+    def open_detector(self, ids, R,rho_index):
         cmap =lambda ind: (np.array(get_cmap("tab10")(i)) * 255).astype(int)  # get_cmap("tab10")
-        def set_radius(atoms,R, color):
+        def set_radius(atoms,R, color,ids):
             #todo check if R has a value and is greater than 0, otherwise you can get problems
-            R/=R.max()
-            R*=5# I dont understand why, but atoms.radii = R/R.min() will not work
+            # R/=R.max()
+            # R*=5# I dont understand why, but atoms.radii = R/R.min() will not work
             #TODO decide how to display which response
-            atoms.radii = R
-            atoms.colors = color
+            colors=color_calc(R,colors=[[210,180,140,255],color])
+            for id0,R0,color in zip(ids,R,colors):
+                atoms[id0].radii = 0.8+4*R0
+                atoms[id0].colors = color
+        
         self.labels = []
         self.commands = []
         from chimerax.label.label2d import label_create
         #todo one can set the label text to the correlation time
-        for i in range(R.shape[1]):
-            label = label_create(self.session,"det{}".format(i), text="ρ{}".format(i)
+        for i in range(R.T[rho_index].shape[0]):
+            # label = label_create(self.session,"det{}".format(i), text="ρ{}".format(rho_index[i])
+            label = label_create(self.session,"det{}".format(np.random.randint(1000000)), text="ρ{}".format(rho_index[i])
                          , xpos=.95,ypos=.9-i*.075,
                          color=cmap(i), outline=1)
             self.labels.append(self.session.models[-1])
-            self.commands.append(lambda atoms = self.model.atoms[ids],#residues[res_nums-1].atoms[atom_nums],
+            self.commands.append(lambda atoms = self.model.atoms,#residues[res_nums-1].atoms[atom_nums],
                                         R = R.T[i],
-                                        color=cmap(i)
-                                         :set_radius(atoms, R, color))
+                                        color=cmap(i),ids=ids
+                                         :set_radius(atoms, R, color,ids))
         return
         '''
         def get_index(residue, atom):
@@ -171,3 +180,32 @@ class Detectors(Hover):
                                         R = det_responses.T[i],
                                         color=cmap(i)
                                          :set_radius(atoms, R, color))'''
+
+def color_calc(x,x0=None,colors=[[0,0,255,255],[210,180,140,255],[255,0,0,255]]):
+    """
+    Calculates color values for a list of values in x (x ranges from 0 to 1).
+    
+    These values are linear combinations of reference values provided in colors.
+    We provide a list of N colors, and a list of N x0 values (if x0 is not provided,
+    it is set to x0=np.linspace(0,1,N). If x is between the 0th and 1st values
+    of x0, then the color is somewhere in between the first and second color 
+    provided. Default colors are blue at x=0, tan at x=0.5, and red at x=1.
+    
+    color_calc(x,x0=None,colors=[[0,0,255,255],[210,180,140,255],[255,0,0,255]])
+    """
+    
+    colors=np.array(colors,dtype='uint8')
+    N=len(colors)
+    if x0 is None:x0=np.linspace(0,1,N)
+    x=np.array(x)
+    if x.min()<x0.min():
+        print('Warning: x values less than min(x0) are set to min(x0)')
+        x[x<x0.min()]=x0.min()
+    if x.max()>x0.max():
+        print('Warning: x values greater than max(x0) are set to max(x0)')
+        x[x>x0.max()]=x0.max()
+
+    i=np.digitize(x,x0)
+    i[i==len(x0)]=len(x0)-1
+    clr=(((x-x0[i-1])*colors[i].T+(x0[i]-x)*colors[i-1].T)/(x0[i]-x0[i-1])).T
+    return clr.astype('uint8')

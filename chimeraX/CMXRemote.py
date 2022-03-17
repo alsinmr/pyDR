@@ -14,7 +14,7 @@ from pyDR.chimeraX.chimeraX_funs import get_path,py_line,WrCC,chimera_path,run_c
 from threading import Thread
 from time import time,sleep
 from platform import platform
-from subprocess import Popen
+from subprocess import Popen,check_output
 
 #%% Functions to run in pyDR
 class CMXRemote():
@@ -30,6 +30,7 @@ class CMXRemote():
     #%% Open and close chimeraX instances
     @classmethod
     def launch(cls,commands=None):
+        cls.cleanup()
         if True in cls.closed:
             ID=np.argwhere(cls.closed)[0,0]
         else:
@@ -59,7 +60,7 @@ class CMXRemote():
         cls.listener=Listener(('localhost',cls.ports[ID]),authkey=b'pyDIFRATE2chimeraX')
 
         cls.PIDs[ID] = (os.spawnl(os.P_NOWAIT, chimera_path(), chimera_path(), cls.full_path(ID))
-                        if not "Linux" in platform() and False else
+                        if not "Linux" in platform() else
                         Popen([chimera_path().strip(), cls.full_path(ID)]))
 
         cls.tr=StartThread(cls.listener)
@@ -81,20 +82,22 @@ class CMXRemote():
     
     
     @classmethod
+    def cleanup(cls):
+        for k in range(len(cls.PIDs)):
+            if cls.conn[k].closed:
+                cls.kill(k)
+    
+    @classmethod
     def kill(cls,ID):
         if ID=='all':
             for k,P in enumerate(cls.PIDs):
                 os.system('kill {0}'.format(P))
-        elif cls.PIDs[ID]!=0:
+        elif cls.PIDs[ID]!=0 and cls.PIDs[ID] is not None:
             os.system('kill {0}'.format(cls.PIDs[ID]))
             if len(cls.closed)>ID and cls.closed[ID] is not None:
                 cls.closed[ID]=True
             if cls.conn[ID] is not None:
                 cls.conn[ID].close()
-    
-#    @classmethod
-#    def send_command(cls,ID,string):
-#        cls.command_line(ID,string)   
 
     
     @classmethod
@@ -120,9 +123,12 @@ class CMXRemote():
                     
     @classmethod
     def isConnected(cls,ID):
+        if ID>=len(cls.PIDs):return False
         try:
             cls.conn[ID].send(('phone_home',))
         except:
+            cls.kill(ID)
+            cls.closed[ID]=True
             return False
         tr=Listen(cls.conn[ID])
         tr.start()
@@ -158,7 +164,8 @@ class CMXRemote():
 
         """
         string=string.replace(' ','+')
-        return os.system('curl http://127.0.0.1:{0}/run?command={1}'.format(cls.rc_port0+ID,string))
+        return check_output('curl http://127.0.0.1:{0}/run?command={1}'.format(cls.rc_port0+ID,string),shell=True)
+        # return os.system('curl http://127.0.0.1:{0}/run?command={1}'.format(cls.rc_port0+ID,string))
     
     @classmethod
     def py_command(cls,ID:int,string:str) -> None:
@@ -231,9 +238,9 @@ class CMXRemote():
     
 #%% Event handling
     @classmethod
-    def add_event(cls,ID,name,*args,**kwargs):
-        print(name,args)
-        cls.conn[ID].send(('add_event',name,*args,kwargs))
+    def add_event(cls,ID,name,*args):
+        # print(name,args)
+        cls.conn[ID].send(('add_event',name,*args))
 
     @classmethod
     def remove_event(cls,ID,name):

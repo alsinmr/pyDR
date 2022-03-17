@@ -15,8 +15,16 @@ import CMXEvents
 import importlib
 import RemoteCMXside
 import os
+import numpy as np
 
 class ListenExec(Thread):
+    """
+    This is run as a thread. For most of the time it sits at the line
+    self.args = self.cmx.client.recv() and does not proceed until a message comes
+    in. If a message is received, then we execute wait4command in the CMXReceiver.
+    
+    CMXReceiver.wait4command() gets the commands via args stored here.
+    """
     def __init__(self, cmx):
         super().__init__()
         self.cmx = cmx
@@ -42,7 +50,7 @@ class EventManager(Thread):
         print('Event manager started')
         while self.is_session_alive:
             sleep(.1)
-            if self.cmx.session.ui.main_window.isActiveWindow():
+            if self.cmx.session.ui.main_window.isActiveWindow(): #This checks if chimera is terminated (chimera hangs on close without this)
                 for name,f in self.cmx._events.copy().items():
                     try:
                         f()
@@ -68,7 +76,7 @@ class CMXReceiver():
             self.__isRunning=False
             if hasattr(self,'client'):self.client.close()
             print('fail')
-            # run(self.session,'exit')
+            run(self.session,'exit')
             return
 
         self.wait4command()
@@ -117,6 +125,44 @@ class CMXReceiver():
     def phone_home(self):
         self.client.send('still here')
         
+    
+    def get_atoms(self):
+        """
+        Returns a list of all atom groups in the current chimera session
+
+        Returns
+        -------
+        None.
+
+        """
+        atoms=list()
+        for m in self.session.models:
+            if hasattr(m,'atoms'):
+                atoms.append(m.atoms)
+        return atoms
+    
+    def shift_position(self,index:int,shift=[0,0,0]):
+        """
+        Shifts the position of a selected atom group. Index corresponds to 
+        which order it was added.
+
+        Parameters
+        ----------
+        index : int
+            DESCRIPTION.
+        shift : TYPE, optional
+            DESCRIPTION. The default is [0,0,0].
+
+        Returns
+        -------
+        None.
+
+        """
+        if len(self.get_atoms())<=index:
+            print('index exceeds number of atom groups')
+            return
+        self.get_atoms()[index].coords+=np.array(shift)
+        
     def Exit(self):
         try:
             self.client.close()
@@ -147,20 +193,25 @@ class CMXReceiver():
     def add_event(self,name,*args):
         # todo adding the a second event will cause the event manager to tell me add_event failed, but actually
         # todo it is still working
-        print("args:",*args)
         if not(hasattr(CMXEvents,name)):
             print('Unknown event "{}", available events:\n'.format(name))
             print([fun for fun in dir(CMXEvents) if fun[0] is not "_"])
             return
         event=getattr(CMXEvents,name)
         if event.__class__ is type: #Event is a class. First initialize
-            event=event(self)
-
+            event=event(self,*args)
         if not(hasattr(event,'__call__')):
             print('Event "{}" must be callable'.format(name))
             return
-
+        
         self.Stop() #Stop the event manager
+        if name in self._events:
+            name0=name+'0'
+            k=0
+            while name0 in self._events:
+                k+=1
+                name0=name+str(k)
+            name=name0
         self._events[name]=event #Add the event
         self.Start()
         

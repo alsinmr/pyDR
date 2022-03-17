@@ -424,32 +424,86 @@ class Chimera():
     def __init__(self,project):
         self.project=project
         self._current=[-1]
-        self._ids=[]
+        self._CMXids=[]
         self.CMX=clsDict['CMXRemote']
     
     @property
-    def id(self):
-        if self.current is not None:return self._ids[self.current]
+    def CMXid(self):
+        if self.current is not None:return self._CMXids[self.current]
     
     @property
     def current(self):
-        if self._current[0] is -1:return None
+        if self._current[0]==-1:return None
+        if not(len(self._CMXids)):return None
+        if not(self.CMX.isConnected(self._CMXids[self._current[0]])):
+            while len(self._CMXids):
+                if self.CMX.isConnected(self._CMXids[-1]):
+                    print('Session {0} was not connected. Reseting to session {1}'\
+                          .format(self._current[0],len(self._CMXids)-1))
+                    self._current[0]=len(self._CMXids)-1
+                    return self._current[0]
+                else:
+                    self._CMXids.pop()
+            print('No sessions were connected')
+            self._current[0]=-1
+            return None
         return self._current[0]
     
     def __setattr__(self,name,value):
         if name=='current': #Set the current chimeraX connection, and assert that there is an active connection
             assert isinstance(value,(int,np.integer)) and value>=0,"ID must be a non-negative integer"
-            while len(self._ids)<=value:
-                self._ids.append(None)
-            if self._ids[value] is None or not(self.CMX.isConnected(self._ids[value])):
-                self._ids[value]=self.CMX.launch()
-                if self.CMX.isConnected(self._ids[value]):
+            while len(self._CMXids)<=value:
+                self._CMXids.append(None)
+            if self._CMXids[value] is None or not(self.CMX.isConnected(self._CMXids[value])):
+                self._CMXids[value]=self.CMX.launch()
+                if self.CMX.isConnected(self._CMXids[value]):
                     self._current[0]=value
             return
         super().__setattr__(name,value)
     
-    def __call__(self,index:int=None,rho_index:int=None,scaling=None):
-        self.project[0].chimera(index=index,rho_index=rho_index,scaling=scaling)
+    def __call__(self,index:int=None,rho_index:int=None,scaling=None,offset=None):
+
+        for k,d in enumerate(self.project):
+            if offset is None:
+                offset=np.std(d.select.pos,0)*3
+                # offset[offset!=offset.min()]=0
+            d.chimera(index=index,rho_index=rho_index,scaling=scaling)
+            self.CMX.conn[self.CMXid].send(('shift_position',-1,offset*k))
+    
+    def command_line(self,cmds:list=None,ID:int=None) -> None:
+        """
+        Send commands to chimeraX as a single string, as a list, or interactively
+        (provide cmds as a string, as a list of strings, or None, respectively)
+
+        Parameters
+        ----------
+        cmds : list, optional
+            List of commands to send to the specified chimera instance. 
+            The default is None, in which case an interactive command line will
+            be opened. May optionally be provided a single string
+        ID : int, optional
+            Specify which chimera session to interact with. The default is None,
+            which sends to the active session.
+
+        Returns
+        -------
+        None.
+
+        """
+        CMXid=self._CMXid[ID] if ID is not None else self.CMXid
+        assert CMXid is not None,"No active sessions, exiting command_line"
+        
+        if cmds is not None:
+            if isinstance(cmds,str):cmds=[cmds]
+            for cmd in cmds:
+                self.CMX.send_command(CMXid,cmd)
+        else:
+            print('Type "exit" to return to python')
+            cmd=''
+            while True:  
+                cmd=input('ChimeraX>')
+                if cmd.strip()=='exit':break
+                self.CMX.send_command(CMXid,cmd)
 
 #%% Project class
 class Project():
@@ -558,13 +612,34 @@ class Project():
         self._index=np.array(self._index,dtype=int)
                 
     def write_proj(self):
+        self.update_info()
         with open(os.path.join(self.directory,'project.txt'),'w') as f:
             for i in self._index:
                 f.write('DATA\n')
                 for k,v in self.info[i].items():f.write('{0}:\t{1}\n'.format(k,v))
                 f.write('END:DATA\n')
+                
+    def update_info(self)->None:
+        """
+        Changes to identifying information in sourc (Type, status, short_file, 
+        etc.) will not be automatically reflected in a project's indexing. 
+        Run update_info on the project (or subproject) where changes have been
+        made to obtain the updated parameters
+
+        Returns
+        -------
+        None.
+
+        """
+        for i in self._index:
+            if self.data.data_objs[i] is not None:
+                for k in self.info.keys:
+                    self.info[k,i]=getattr(self.data.data_objs[i].source,k)
+            
 
     #%%Indexing/subprojects
+
+            
     @property
     def subproject(self):
         return self._subproject
