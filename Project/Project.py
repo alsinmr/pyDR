@@ -461,8 +461,14 @@ class Chimera():
             return
         super().__setattr__(name,value)
     
-    def __call__(self,index:int=None,rho_index:int=None,scaling=None,offset=None):
-
+    def __call__(self,index=None,rho_index=None,scaling=None,offset=None):
+        if scaling is None:
+            m=0
+            for d in self.project:
+                i=np.arange(d.R.shape[0]) if index is None else index
+                r=np.arange(d.R.shape[1]) if rho_index is None else rho_index
+                m=max((d.R[i][:,r].max(),m))
+            scaling=1/m
         for k,d in enumerate(self.project):
             if offset is None:
                 offset=np.std(d.select.pos,0)*3

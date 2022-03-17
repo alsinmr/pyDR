@@ -10,10 +10,8 @@ Created on Mon Nov 22 13:25:09 2021
 from multiprocessing.connection import Client
 from chimerax.core.commands import run
 from threading import Thread
-from time import sleep,time
+from time import sleep
 import CMXEvents
-import importlib
-import RemoteCMXside
 import os
 import numpy as np
 
