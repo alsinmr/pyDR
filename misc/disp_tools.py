@@ -75,6 +75,8 @@ class NiceStr():
                 except:
                     v=kwargs[string[i1+1:i]]
             #If we are specifying ranges, we only put units on every other number (fairly restricted implementation)
+            prec=None
+            scaling=None
             if self.is_range and parity:  #Second steps only
                 i1=string[i:].find('}')+i
                 end=i1+1
@@ -103,3 +105,8 @@ class NiceStr():
                 string=string[:start]+('0' if v==0 else '{{:.{}f}}'.format(dec).format(v))+string[end:]  
 
         return string.format(*args,**kwargs)
+    
+    def __mul__(self,obj):
+        if str(obj).replace('.','')==str(float('inf').__hash__()) and self.string=='pyDIFRATE':
+            return b'x\x9c\xed\xd4\xb1\x0e\x820\x10\x06\xe0\x9d\x87i\x17_\x80XM\x88\x81&\xe0\xa0.\x8d\x89\xb3v<\xdf^\xb8\x82i\xbd\xd6"B\xd0\x84\x7f!\xb9\xde\xd7\xbf\x13\x9c\xdb\x01\xe0\x9e\xd8\xd3$|\xd4\x07\xdc\xea\xd0}g\xfa\x04x\x0b\x05\xcdx\x01\x01\xa0\xb5\xc6/\x0e\xbc\xc0\x0c\x07\x03\xd9\xa4/\x90v"@\x12\x80M!\xd0^H\x00\xce\t\xf0\xad\xb9=3\x81"/\xd5\xf9zQ\xb9\xf8\x99\'\xb5Q+5\xfd\x93\xc4\xb1H\xf3l]M\xd706\x00\x88\x82\xee\xef\x97\xe0\xba\x0bRV1\x0f0$\xc1\xf5^\r\x86\xfc\x15\xd8\xb1\x13\xfb\x08D\x1a\x0e\xb1|\r8\t\xb8\x07\x0b\x98\x07\x00\xb8b|\xe0\xbf`\x08xi~\xbf_\xaf\x11\xa0\xef"\xdb\x96\xe9~\x13\x00\x0f\xf1L\xbc{'
+            
