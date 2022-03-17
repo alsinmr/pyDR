@@ -260,15 +260,16 @@ class Data():
         R=self.R[index]
         R*=1/R.T[rho_index].max() if scaling is None else scaling
         
-        R*=5
-        R[R<0.9]=0.9
+        # R*=5
+        R[R<0]=0
+        # R+=0.8+4*R
         
         
         if self.source.project is not None:
-            ID=self.source.project.chimera.id
+            ID=self.source.project.chimera.CMXid
             if ID is None:
                 self.source.project.chimera.current=0
-                ID=self.source.project.chimera.id
+                ID=self.source.project.chimera.CMXid
                 print(ID)
         else: #Hmm....how should this work?
             ID=CMXRemote.launch()
@@ -278,6 +279,8 @@ class Data():
         # CMXRemote.send_command(ID,'close')
         CMXRemote.send_command(ID,'open {0}'.format(self.select.molsys.topo))
         CMXRemote.send_command(ID,'style ball')
+        CMXRemote.send_command(ID,'size stickRadius 0.2')
+        CMXRemote.send_command(ID,'size atomRadius 0.8')
         CMXRemote.send_command(ID,'~ribbon')
         CMXRemote.send_command(ID,'show')
         CMXRemote.send_command(ID,'color all tan')

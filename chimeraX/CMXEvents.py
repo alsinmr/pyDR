@@ -77,7 +77,6 @@ class Detectors(Hover):
     def __init__(self, cmx, *args):
         Hover.__init__(self,cmx)
         for k in range(len(self.session.models),0,-1):
-            print(self.session.models[k-1])
             if hasattr(self.session.models[k-1],'atoms'):
                 self.model=self.session.models[k-1]
                 break
@@ -108,8 +107,9 @@ class Detectors(Hover):
             # R/=R.max()
             # R*=5# I dont understand why, but atoms.radii = R/R.min() will not work
             #TODO decide how to display which response
-            for id0,R0 in zip(ids,R):
-                atoms[id0].radii = R0
+            colors=color_calc(R,colors=[[210,180,140,255],color])
+            for id0,R0,color in zip(ids,R,colors):
+                atoms[id0].radii = 0.8+4*R0
                 atoms[id0].colors = color
         
         self.labels = []
@@ -180,3 +180,32 @@ class Detectors(Hover):
                                         R = det_responses.T[i],
                                         color=cmap(i)
                                          :set_radius(atoms, R, color))'''
+
+def color_calc(x,x0=None,colors=[[0,0,255,255],[210,180,140,255],[255,0,0,255]]):
+    """
+    Calculates color values for a list of values in x (x ranges from 0 to 1).
+    
+    These values are linear combinations of reference values provided in colors.
+    We provide a list of N colors, and a list of N x0 values (if x0 is not provided,
+    it is set to x0=np.linspace(0,1,N). If x is between the 0th and 1st values
+    of x0, then the color is somewhere in between the first and second color 
+    provided. Default colors are blue at x=0, tan at x=0.5, and red at x=1.
+    
+    color_calc(x,x0=None,colors=[[0,0,255,255],[210,180,140,255],[255,0,0,255]])
+    """
+    
+    colors=np.array(colors,dtype='uint8')
+    N=len(colors)
+    if x0 is None:x0=np.linspace(0,1,N)
+    x=np.array(x)
+    if x.min()<x0.min():
+        print('Warning: x values less than min(x0) are set to min(x0)')
+        x[x<x0.min()]=x0.min()
+    if x.max()>x0.max():
+        print('Warning: x values greater than max(x0) are set to max(x0)')
+        x[x>x0.max()]=x0.max()
+
+    i=np.digitize(x,x0)
+    i[i==len(x0)]=len(x0)-1
+    clr=(((x-x0[i-1])*colors[i].T+(x0[i]-x)*colors[i-1].T)/(x0[i]-x0[i-1])).T
+    return clr.astype('uint8')

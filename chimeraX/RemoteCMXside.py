@@ -76,7 +76,7 @@ class CMXReceiver():
             self.__isRunning=False
             if hasattr(self,'client'):self.client.close()
             print('fail')
-            # run(self.session,'exit')
+            run(self.session,'exit')
             return
 
         self.wait4command()

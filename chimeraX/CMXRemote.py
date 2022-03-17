@@ -14,7 +14,7 @@ from pyDR.chimeraX.chimeraX_funs import get_path,py_line,WrCC,chimera_path,run_c
 from threading import Thread
 from time import time,sleep
 from platform import platform
-from subprocess import Popen
+from subprocess import Popen,check_output
 
 #%% Functions to run in pyDR
 class CMXRemote():
@@ -30,6 +30,7 @@ class CMXRemote():
     #%% Open and close chimeraX instances
     @classmethod
     def launch(cls,commands=None):
+        cls.cleanup()
         if True in cls.closed:
             ID=np.argwhere(cls.closed)[0,0]
         else:
@@ -81,11 +82,17 @@ class CMXRemote():
     
     
     @classmethod
+    def cleanup(cls):
+        for k in range(len(cls.PIDs)):
+            if cls.conn[k].closed:
+                cls.kill(k)
+    
+    @classmethod
     def kill(cls,ID):
         if ID=='all':
             for k,P in enumerate(cls.PIDs):
                 os.system('kill {0}'.format(P))
-        elif cls.PIDs[ID]!=0:
+        elif cls.PIDs[ID]!=0 and cls.PIDs[ID] is not None:
             os.system('kill {0}'.format(cls.PIDs[ID]))
             if len(cls.closed)>ID and cls.closed[ID] is not None:
                 cls.closed[ID]=True
@@ -157,7 +164,8 @@ class CMXRemote():
 
         """
         string=string.replace(' ','+')
-        return os.system('curl http://127.0.0.1:{0}/run?command={1}'.format(cls.rc_port0+ID,string))
+        return check_output('curl http://127.0.0.1:{0}/run?command={1}'.format(cls.rc_port0+ID,string),shell=True)
+        # return os.system('curl http://127.0.0.1:{0}/run?command={1}'.format(cls.rc_port0+ID,string))
     
     @classmethod
     def py_command(cls,ID:int,string:str) -> None:
