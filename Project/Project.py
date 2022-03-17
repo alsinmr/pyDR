@@ -747,7 +747,56 @@ class Project():
         assert not(self._subproject),"Sub-projects cannot be saved"
         self.data.save()
         self.write_proj()
-    
+
+    #%% Project operations (+/-)
+    def __add__(self,obj):
+        
+        proj=copy(self)
+        proj._subproject=True
+        proj.chimera=copy(self.chimera)
+        proj.chimera.project=proj
+        
+        if str(clsDict['Data'])==str(obj.__class__):
+            if obj in self.data.data_objs:
+                i=self.data.data_objs.index(obj)
+                if i not in proj._index:
+                    proj._index=np.concatenate((proj._index,[i]))
+                else:
+                    print('Warning: Data object {} already in subproject'.format(obj.title))
+                return proj
+            else:
+                print('Warning: Addition only defined withing subprojects of the same main project')
+        assert str(self.__class__)==str(obj.__class__),"Operation not defined"
+        
+        for i in obj._index:
+            if i not in proj._index:
+                proj._index=np.concatenate((proj._index,[i]))
+        return proj
+        
+    def __sub__(self,obj):
+        proj=copy(self)
+        proj._subproject=True
+        proj.chimera=copy(self.chimera)
+        proj.chimera.project=proj
+        
+        if str(clsDict['Data'])==str(obj.__class__):
+            if obj in self.data.data_objs:
+                i=self.data.data_objs.index(obj)
+                if i in proj._index:
+                    proj._index=proj._index[proj._index!=i]
+                else:
+                    print('Warning: Data object {} not in subproject'.format(obj.title))
+                return proj
+            else:
+                print('Warning: Addition only defined withing subprojects of the same main project')
+        assert str(self.__class__)==str(obj.__class__),"Operation not defined"
+        
+        for i in obj._index:
+            if i in proj._index:
+                proj._index=proj._index[proj._index!=i]
+        return proj
+        
+        
     
     #%% Plotting functions
     @property
