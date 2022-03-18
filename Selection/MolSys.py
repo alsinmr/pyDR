@@ -52,7 +52,6 @@ class MolSys():
     @property
     def traj(self):
         return self._traj
-    
     @property
     def topo(self):
         return self.uni.filename
@@ -60,10 +59,10 @@ class MolSys():
 
 
 class Trajectory():
-    def __init__(self,mda_traj,t0=0,tf=-1,step=1,dt=None):
+    def __init__(self,mda_traj,t0=0,tf=None,step=1,dt=None):
         self.t0=t0
         self.__tf=len(mda_traj)
-        self.tf=tf
+        self.tf=tf if tf is not None else self.__tf
         self.step=step
         self.__dt=dt if dt else mda_traj.dt
         self.mda_traj=mda_traj
