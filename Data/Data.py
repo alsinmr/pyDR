@@ -258,7 +258,7 @@ class Data():
         index=np.arange(self.R.shape[0]) if index is None else np.array(index)
         if rho_index is None:rho_index=np.arange(self.R.shape[1])
         R=self.R[index]
-        R*=1/R.T[rho_index].max() if scaling is None else scaling
+        R*=1/R[index].T[rho_index].max() if scaling is None else scaling
         
         # R*=5
         R[R<0]=0

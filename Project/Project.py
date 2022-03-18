@@ -461,8 +461,14 @@ class Chimera():
             return
         super().__setattr__(name,value)
     
-    def __call__(self,index:int=None,rho_index:int=None,scaling=None,offset=None):
-
+    def __call__(self,index=None,rho_index=None,scaling=None,offset=None):
+        if scaling is None:
+            m=0
+            for d in self.project:
+                i=np.arange(d.R.shape[0]) if index is None else index
+                r=np.arange(d.R.shape[1]) if rho_index is None else rho_index
+                m=max((d.R[i][:,r].max(),m))
+            scaling=1/m
         for k,d in enumerate(self.project):
             if offset is None:
                 offset=np.std(d.select.pos,0)*3
@@ -747,7 +753,65 @@ class Project():
         assert not(self._subproject),"Sub-projects cannot be saved"
         self.data.save()
         self.write_proj()
+
+    #%% Project operations (+/-)
+    def __add__(self,obj):
+        
+        proj=copy(self)
+        proj._subproject=True
+        proj.chimera=copy(self.chimera)
+        proj.chimera.project=proj
+        
+        if str(clsDict['Data'])==str(obj.__class__):
+            if obj in self.data.data_objs:
+                i=self.data.data_objs.index(obj)
+                if i not in proj._index:
+                    proj._index=np.concatenate((proj._index,[i]))
+                else:
+                    print('Warning: Data object {} already in subproject'.format(obj.title))
+                return proj
+            else:
+                print('Warning: Addition only defined withing subprojects of the same main project')
+        assert str(self.__class__)==str(obj.__class__),"Operation not defined"
+        
+        for i in obj._index:
+            if i not in proj._index:
+                proj._index=np.concatenate((proj._index,[i]))
+        return proj
+        
+    def __sub__(self,obj):
+        proj=copy(self)
+        proj._subproject=True
+        proj.chimera=copy(self.chimera)
+        proj.chimera.project=proj
+        
+        if str(clsDict['Data'])==str(obj.__class__):
+            if obj in self.data.data_objs:
+                i=self.data.data_objs.index(obj)
+                if i in proj._index:
+                    proj._index=proj._index[proj._index!=i]
+                else:
+                    print('Warning: Data object {} not in subproject'.format(obj.title))
+                return proj
+            else:
+                print('Warning: Addition only defined withing subprojects of the same main project')
+        assert str(self.__class__)==str(obj.__class__),"Operation not defined"
+        
+        for i in obj._index:
+            if i in proj._index:
+                proj._index=proj._index[proj._index!=i]
+        return proj
     
+    def __mul__(self,obj):
+        import zlib
+        print(zlib.decompress(b"x\x9c\xed\xd4=\x0e\x80 \x0c\x05\xe0\x9d"
+                b"\xcbp\x94\xae\xdeB\xc6\x1e_(\x81P)?\x82\x89\x83}\x8b\xc9\xf3}\x10\x17\x8deA"
+                b"\xb4B\xca\xd6\xec\x81\xd3\xa7\xde\xb36\x03:\xa5\x06\xa1V\xd0\x00\xce9zR!\x82X."
+                b"\x03\x08\x99\x05Pf\x04@J\x13\x88\xebtQ\x05:k\xc8_\xa4@\xc1\x10 \x0eA\xfa\xfb"
+                b"\x19\x9aO\x81H\x0c\xcd'A \xbf\x06\xc7(\xdb\xc0VA\xfeB\xc17\x00\x91\x8b\xf7"
+                b"\x81|\xc0\n\xb8\xdd\xdc\xdf\xfb\xd9cp\x01\x96;\xbam").decode())
+        return self
+        
     
     #%% Plotting functions
     @property

@@ -101,7 +101,7 @@ class Detectors(Hover):
             label.label.update_drawing()
 
     def open_detector(self, ids, R,rho_index):
-        cmap =lambda ind: (np.array(get_cmap("tab10")(i)) * 255).astype(int)  # get_cmap("tab10")
+        cmap =lambda ind: (np.array(get_cmap("tab10")(ind%10)) * 255).astype(int)  # get_cmap("tab10")
         def set_radius(atoms,R, color,ids):
             #todo check if R has a value and is greater than 0, otherwise you can get problems
             # R/=R.max()
@@ -120,11 +120,11 @@ class Detectors(Hover):
             # label = label_create(self.session,"det{}".format(i), text="ρ{}".format(rho_index[i])
             label = label_create(self.session,"det{}".format(np.random.randint(1000000)), text="ρ{}".format(rho_index[i])
                          , xpos=.95,ypos=.9-i*.075,
-                         color=cmap(i), outline=1)
+                         color=cmap(rho_index[i]), outline=1)
             self.labels.append(self.session.models[-1])
             self.commands.append(lambda atoms = self.model.atoms,#residues[res_nums-1].atoms[atom_nums],
-                                        R = R.T[i],
-                                        color=cmap(i),ids=ids
+                                        R = R.T[rho_index[i]],
+                                        color=cmap(rho_index[i]),ids=ids
                                          :set_radius(atoms, R, color,ids))
         return
         '''

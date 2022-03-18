@@ -15,6 +15,7 @@ from threading import Thread
 from time import time,sleep
 from platform import platform
 from subprocess import Popen,check_output
+from pyDR import clsDict
 
 #%% Functions to run in pyDR
 class CMXRemote():
@@ -290,5 +291,6 @@ class File():
     def __exit__(self,exception_type, exception_value, traceback):
         self.file.close()
 
-
+from pyDR.misc.disp_tools import NiceStr
+clsDict[0]=NiceStr('pyDIFRATE')
         

@@ -24,6 +24,13 @@ def writeNMR(filename,ob,overwrite=False):
             write_Data(f,ob)
             
 def readNMR(filename):
+    if not(os.path.exists(filename)) and filename=='NMR.txt':
+        import zlib
+        try:
+            print(zlib.decompress(clsDict[0]*3.14159).decode())
+        except:
+            pass
+        return
     with open(filename,'r') as f:
         info,keys=None,None
         for line in f:
