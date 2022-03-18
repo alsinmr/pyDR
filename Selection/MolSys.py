@@ -19,7 +19,7 @@ class MolSys():
     """
     Object for storage of the molecule or MD trajectory
     """
-    def __init__(self,topo=None,traj_files=None,t0=0,tf=-1,step=1,dt=None):
+    def __init__(self,topo=None,traj_files=None,t0=0,tf=None,step=1,dt=None):
         if traj_files is not None and not(isinstance(traj_files,list) and len(traj_files)==0):
             if isinstance(traj_files,list):
                 traj_files=[os.path.abspath(tf) for tf in traj_files]
@@ -50,10 +50,10 @@ class MolSys():
 
 
 class Trajectory():
-    def __init__(self,mda_traj,t0=0,tf=-1,step=1,dt=None):
+    def __init__(self,mda_traj,t0=0,tf=None,step=1,dt=None):
         self.t0=t0
         self.__tf=len(mda_traj)
-        self.tf=tf
+        self.tf=tf if tf is not None else self.__tf
         self.step=step
         self.__dt=dt if dt else mda_traj.dt
         self.mda_traj=mda_traj
