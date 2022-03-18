@@ -9,6 +9,7 @@ from pyDR.Defaults import Defaults
 
 from pyDR import Selection
 from pyDR.Selection.MolSys import MolSys,MolSelect
+from pyDR.iRED.iRED import iRED
 #from pyDR import FRET
 from pyDR.Data import Data,Plotting
 from pyDR import Fitting

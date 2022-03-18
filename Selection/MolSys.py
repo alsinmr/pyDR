@@ -20,6 +20,15 @@ class MolSys():
     Object for storage of the molecule or MD trajectory
     """
     def __init__(self,topo=None,traj_files=None,t0=0,tf=-1,step=1,dt=None):
+        """
+
+        :param topo:        insert path for pdb file here
+        :param traj_files:  insert path (or list of paths) for xtc file(s) here
+        :param t0:          timepoint to start?
+        :param tf:          last timepoint
+        :param step:        stepsize to iterate over trajectory
+        :param dt:
+        """
         if traj_files is not None and not(isinstance(traj_files,list) and len(traj_files)==0):
             if isinstance(traj_files,list):
                 traj_files=[os.path.abspath(tf) for tf in traj_files]
@@ -43,6 +52,7 @@ class MolSys():
     @property
     def traj(self):
         return self._traj
+    
     @property
     def topo(self):
         return self.uni.filename

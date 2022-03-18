@@ -1,15 +1,31 @@
 
 import pyDR.Data.Data as Data
 import numpy as np
-
-
+import matplotlib.pyplot as plt
+import warnings
 
 class iRED():
-    def __init__(self,**kwargs):
-        self.molsys = None
-        self.sel1 = None
-        self.sel2 = None
-        self.rank = None
+    def __init__(self, molsel = None, vecs = None):
+        """
+
+        :param molsel: pyDR.Selction.MolSelect object
+        """
+        if molsel:
+            assert hasattr(molsel,"select_bond") or (hasattr(molsel, "sel1") and hasattr(molsel, "sel2")), "this is not " \
+               "the right object for initialisation, please use pyDR.Selection.MolSelect"
+            self.molsel = molsel
+            assert molsel.sel1 and molsel.sel2, f"please use select_bond() on {molsel.__class__.__name__} first"
+        else:
+            self.molsel = None
+        if vecs:
+            self.vecs = vecs
+        else:
+            self.vecs = None
+
+        if molsel and vecs:
+            warnings.warn("You assigned the iRED with a molsel AND a set of vectors. So be sure the vectors are fitting "+
+                          "for the Selection or run get_vecs() manually")
+
 
     def full_analysis(self):
         # iRed fast line 45
@@ -24,14 +40,11 @@ class iRED():
         ired=iRED_full(mol,rank=2,n=100,nr=10,align_iRED='n',refVecs='n',**kwargs)
 
         """
-
-        if 'nt' in kwargs:
-            nt = np.min([mol.mda_object.trajectory.n_frames, kwargs.get('nt')])
-        else:
-            nt = mol.mda_object.trajectory.n_frames
-        index = trunc_t_axis(nt, n, nr)
-        vec = get_trunc_vec(mol, index, **kwargs)
-
+        if self.vecs is None:
+            self.get_vecs()
+        nt = len(self.molsel.traj)
+        vec = self.vecs# get_trunc_vec(mol, index, **kwargs)
+        '''
         if align_iRED:
             if refVecs is not None:
                 vec0 = refVecs
@@ -54,23 +67,36 @@ class iRED():
                 vec0 = vec
         else:
             vec0 = None
+        '''
 
-        ired = vec2iRED(vec, rank, align_iRED, refVecs=vec0, molecule=mol, **kwargs)
+        rank = 2
+        ired = self.vecs2iRED(vec, rank)#, align_iRED, refVecs=vec0, molecule=mol, **kwargs)
 
         return ired
 
-    def vecs2iRED(self):
-        # line 93
-        pass
+    def vecs2iRED(self, vec, rank):
+        M = Mmat(vec, rank)#['M']
+        print(M)
+        plt.imshow(M['M'])
+        Yl = Ylm(vec, rank)
+        aqt = Aqt(Yl, M)
+        print("Aqt",aqt)
+
+        plt.show()
+
+        #todo calculate correlation function
+        cqt = Cqt(aqt)
+        ct = Ct(cqt)
+
 
     def get_vecs(self):
-        #todo maybe this is a functionality that could be shared between different objects, could this be an md child?
-        assert self.molsys, ""
-        assert self.sel1 and self.sel2, ""
+        traj = self.molsel.molsys.traj
+        self.vecs = np.zeros((len(self.molsel.sel1),3,len(traj)))
+        for i,_ in enumerate(traj):
+            if i%10000==0:
+                print(i)
+            self.vecs[:,:,i] = self.molsel.v
 
-        # todo create np array for vectors
-        #  iterate over trajectory
-        #
 
     def to_data(self) -> Data:
         assert 0, "implement!"
@@ -78,17 +104,27 @@ class iRED():
         return data
 
 
-def Mmat(vec, rank):
-    nb = vec.get('X').shape[0]
+def calc_M(M, vec, rank):
+    #todo njit this function
+    # not working right now because of np.repeat
+    # if it will not run, move it back to Mmat
 
-    M = np.eye(nb)
 
-    for k in range(0, nb - 1):
-        x0 = np.repeat([vec.get('X')[k, :]], nb - k - 1, axis=0)
-        y0 = np.repeat([vec.get('Y')[k, :]], nb - k - 1, axis=0)
-        z0 = np.repeat([vec.get('Z')[k, :]], nb - k - 1, axis=0)
+    #todo this approach works very fast, but gives different results than the commented out below
+    # one will have to evaluate which result is better
+    nb = M.shape[0]
+    print(vec.shape)
+    for dim in range(3):
+        for j in range(dim,3):
+            M+=(vec[:,dim]@vec[:,j].T)*(1 if dim==j else 2)
+    M*=3/2/vec.shape[-1]
+    M-=1/2
 
-        dot = x0 * vec.get('X')[k + 1:, :] + y0 * vec.get('Y')[k + 1:, :] + z0 * vec.get('Z')[k + 1:, :]
+    """for k in range(0, nb - 1):
+        x0 = np.repeat([vec[k, 0, :]], nb - k - 1, axis=0)
+        y0 = np.repeat([vec[k, 1, :]], nb - k - 1, axis=0)
+        z0 = np.repeat([vec[k, 2, :]], nb - k - 1, axis=0)
+        dot = x0 * vec[k + 1:, 0, :] + y0 * vec[k + 1:, 1, :] + z0 * vec[k + 1:, 2, :]
 
         if rank == 1:
             val = np.mean(dot, axis=1)
@@ -96,40 +132,19 @@ def Mmat(vec, rank):
             val = np.mean((3 * dot ** 2 - 1) / 2, axis=1)
 
         M[k, k + 1:] = val
-        M[k + 1:, k] = val
+        M[k + 1:, k] = val"""
 
+
+def Mmat(vec, rank):
+    M = np.eye(vec[:,0,:].shape[0])
+    calc_M(M, vec, 2)
     a = np.linalg.eigh(M)
     return {'M': M, 'lambda': a[0], 'm': a[1], 'rank': rank}
 
-
-def Mt(vec, rank, tstep):
-    nb = vec.get('X').shape[0]
-
-    M = np.eye(nb)
-    for k in range(0, nb):
-        x0 = np.repeat([vec.get('X')[k, tstep:]], nb, axis=0)
-        y0 = np.repeat([vec.get('Y')[k, tstep:]], nb, axis=0)
-        z0 = np.repeat([vec.get('Z')[k, tstep:]], nb, axis=0)
-
-        if tstep != 0:
-            dot = x0 * vec.get('X')[:, 0:-tstep] + y0 * vec.get('Y')[:, 0:-tstep] + z0 * vec.get('Z')[:, 0:-tstep]
-        else:
-            dot = x0 * vec.get('X') + y0 * vec.get('Y') + z0 * vec.get('Z')
-
-        if rank == 1:
-            val = np.mean(dot, axis=2)
-        elif rank == 2:
-            val = np.mean((3 * dot ** 2 - 1) / 2, axis=1)
-
-        M[k, :] = val
-
-    return M
-
-
 def Ylm(vec, rank):
-    X = vec.get('X')
-    Y = vec.get('Y')
-    Z = vec.get('Z')
+    X = vec[:,0,:]
+    Y = vec[:,1,:]
+    Z = vec[:,2,:]
 
     Yl = dict()
     if rank == 1:
@@ -151,7 +166,7 @@ def Ylm(vec, rank):
         Yl['2,+2'] = c * b * a
         Yl['2,-2'] = c * b * a.conjugate()
 
-    Yl['t'] = vec.get('t')
+    Yl['t'] = vec.shape[-1]
 
     return Yl
 
@@ -166,6 +181,8 @@ def Aqt(Yl, M):
     aqt['t'] = Yl.get('t')
 
     return aqt
+
+
 
 
 def Cqt(aqt):
@@ -193,67 +210,6 @@ def Cqt(aqt):
     cqt['t'] = aqt['t']
 
     return cqt
-
-
-def Cqt_par(aqt, **kwargs):
-    "Performs same operation as Cqt, but using parallel processing"
-    X = list()
-
-    nc = mp.cpu_count()
-    if 'n_cores' in kwargs:
-        nc = np.min([kwargs.get('n_cores'), nc])
-
-    for k in range(0, nc):
-        X.append((aqt, k, nc))
-
-    with mp.Pool(processes=nc) as pool:
-        X = pool.map(Cqt_parfun, X)
-
-    cqt = dict()
-
-    for k in aqt.keys():
-        if k != 't':
-            nt = aqt.get(k).shape[1]
-            nb = aqt.get(k).shape[0]
-            cqt[k] = np.zeros([nb, nt]) + 0 * 1j
-
-    for cqt0 in X:
-        for k in cqt0.keys():
-            cqt[k] += cqt0[k]
-
-    for k in cqt.keys():
-        cqt[k] = cqt[k] / np.repeat([np.arange(nt, 0, -1)], nb, axis=0)
-
-    cqt['t'] = aqt['t']
-
-    return cqt
-
-
-def Cqt_parfun(X):
-    "Function to be run by Cqt_par in parallel"
-    aqt = X[0]
-    index = X[1]
-    nc = X[2]
-
-    cqt0 = dict()
-    for k in aqt.keys():
-        if k != 't':
-            "Loop over each component"
-            nt = aqt.get(k).shape[1]
-            nb = aqt.get(k).shape[0]
-            c0 = np.zeros([nb, nt]) + 0 * 1j
-            for l, m in enumerate(range(index, nt, nc)):
-                "Correlate the mth time point with all other time points"
-                a0 = np.repeat(np.conj(np.transpose([aqt.get(k)[:, m]])), nt - m, axis=1)
-                if m == 0:
-                    c0 = a0 * aqt.get(k) + 0 * 1j  # Make c0 complex
-                else:
-                    c0[:, 0:-m] += a0 * aqt.get(k)[:, m:]
-
-            cqt0[k] = c0
-
-    return cqt0
-
 
 def Ct(cqt):
     "Sum up all components to get the overall correlation function"
@@ -283,7 +239,7 @@ def CtInf(aqt):
 
     return ctinf
 
-
+'''
 def DelCt(ct, ctinf):
     "Get a normalized version of the correlation function (starts at 1, decays to 0)"
     t = ct.get('t')
@@ -296,181 +252,7 @@ def DelCt(ct, ctinf):
     return delCt
 
 
-def printProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█'):
-    """
-    Call in a loop to create terminal progress bar
-    @params:
-        iteration   - Required  : current iteration (Int)
-        total       - Required  : total iterations (Int)
-        prefix      - Optional  : prefix string (Str)
-        suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent complete (Int)
-        length      - Optional  : character length of bar (Int)
-        fill        - Optional  : bar fill character (Str)
-    """
-    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
-    filledLength = int(length * iteration // total)
-    bar = fill * filledLength + '-' * (length - filledLength)
-    print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end='\r')
-    # Print New Line on Complete
-    if iteration == total:
-        print()
-
-
 #### from iRED fast
-
-def Mmat(vec, rank=2):
-    """Calculates the iRED M-matrix, yielding correlation of vectors at time t=0
-    M = Mmat(vec,rank=2)
-    M is returned as dictionary object, including the matrix itself, and also
-    the
-    """
-
-    X = vec['X'].T
-    Y = vec['Y'].T
-    Z = vec['Z'].T
-
-    nb = X.shape[0]
-
-    M = np.eye(nb)
-
-    for k in range(0, nb - 1):
-        "These are the x,y,z positions for one bond"
-        x0 = np.repeat([X[k, :]], nb - k - 1, axis=0)
-        y0 = np.repeat([Y[k, :]], nb - k - 1, axis=0)
-        z0 = np.repeat([Z[k, :]], nb - k - 1, axis=0)
-
-        "We correlate those positions with all bonds having a larger index (symmetry of matrix allows this)"
-        dot = x0 * X[k + 1:, :] + y0 * Y[k + 1:, :] + z0 * Z[k + 1:, :]
-
-        if rank == 1:
-            val = np.mean(dot, axis=1)
-        elif rank == 2:
-            val = np.mean((3 * dot ** 2 - 1) / 2, axis=1)
-
-        M[k, k + 1:] = val
-        M[k + 1:, k] = val
-
-    Lambda, m = np.linalg.eigh(M)
-    return {'M': M, 'lambda': Lambda, 'm': m, 'rank': rank}
-
-
-def Mlagged(vec, lag, rank=2):
-    """Calculates the iRED M-matrix, with a lag time, which is provided by an
-    index or range of indices (corresponding to the separation in time points)
-    M = Mlagged(vec,rank=2,lag)
-
-    lag=10
-    or
-    lag=[10,20]
-
-    The first instance calculates M using time points separated by exactly the
-    lag index. The second takes all time points separated by the first argument,
-    up to one less the last argument (here, separated by 10 up to 19)
-
-    """
-
-    X = vec['X'].T
-    Y = vec['Y'].T
-    Z = vec['Z'].T
-
-    index0 = vec['index']
-
-    if np.size(lag) == 1:
-        lag = np.atleast_1d(lag)
-    elif np.size(lag) == 2:
-        lag = np.arange(lag[0], lag[1])
-
-    "Calculate indices for pairing time points separated within the range given in lag"
-    index1 = np.zeros(0, dtype=int)
-    index2 = np.zeros(0, dtype=int)
-    for k in lag:
-        i = np.isin(index0 + k, index0)
-        j = np.isin(index0, index0 + k)
-        index1 = np.concatenate((index1, np.where(i)[0]))
-        index2 = np.concatenate((index2, np.where(j)[0]))
-
-    nb = X.shape[0]
-    M = np.eye(nb)
-
-    for k in range(0, nb):
-        "We correlate all times that have a second time within the lag range"
-        x0 = np.repeat([X[k, index1]], nb, axis=0)
-        y0 = np.repeat([Y[k, index1]], nb, axis=0)
-        z0 = np.repeat([Z[k, index1]], nb, axis=0)
-
-        dot = x0 * X[:, index2] + y0 * Y[:, index2] + z0 * Z[:, index2]
-
-        if rank == 1:
-            val = np.mean(dot, axis=1)
-        elif rank == 2:
-            val = np.mean((3 * dot ** 2 - 1) / 2, axis=1)
-
-        M[k, :] = val
-
-    return M
-
-
-
-# %% Calculates the spherical tensor components for the individual bonds
-def Ylm(vec, rank=2):
-    """
-    Calculates the values of the rank-2 spherical components of a set of vectors
-    Yl=Ylm(vec,rank)
-    """
-    X = vec.get('X')
-    Y = vec.get('Y')
-    Z = vec.get('Z')
-
-    Yl = dict()
-    if rank == 1:
-        c = np.sqrt(3 / (2 * np.pi))
-        Yl['1,0'] = c / np.sqrt(2) * Z
-        a = (X + Y * 1j)
-        #        b=np.sqrt(X**2+Y**2)
-        #        Yl['1,+1']=-c/2*b*a  #a was supposed to equal exp(i*phi), but wasn't normalized (should be normalized by b)
-        #        Yl['1,-1']=c/2*b*a.conjugate()  #Correction below
-        Yl['1,+1'] = -c / 2 * a
-        Yl['1,-1'] = c / 2 * a.conjugate()
-    elif rank == 2:
-        c = np.sqrt(15 / (32 * np.pi))
-        Yl['2,0'] = c * np.sqrt(2 / 3) * (3 * Z ** 2 - 1)
-        a = (X + Y * 1j)
-        #        b=np.sqrt(X**2+Y**2)
-        #        b2=b**2
-        #        b[b==0]=1
-        #        Yl['2,+1']=2*c*Z*b*a
-        #        Yl['2,-1']=2*c*Z*b*a.conjugate()
-        Yl['2,+1'] = 2 * c * Z * a
-        Yl['2,-1'] = 2 * c * Z * a.conjugate()
-        #        a=np.exp(2*np.log(X+Y*1j))
-        #        b=b**2
-        #        Yl['2,+2']=c*b*a
-        #        Yl['2,-2']=c*b*a.conjugate()
-        a2 = a ** 2
-        #        a2[a!=0]=np.exp(2*np.log(a[a!=0]/b[a!=0]))
-        Yl['2,+2'] = c * a2
-        Yl['2,-2'] = c * a2.conjugate()
-
-    Yl['t'] = vec['t']
-    Yl['index'] = vec['index']
-    return Yl
-
-
-def Aqt(Yl, M):
-    """
-    Project the Ylm onto the eigenmodes
-    aqt=Aqt(Yl,M)
-    """
-    aqt = dict()
-    for k, y in Yl.items():
-        if k != 't' and k != 'index':
-            aqt[k] = np.dot(M['m'].T, y.T).T
-        else:
-            aqt[k] = y
-
-    return aqt
-
 
 def Cqt(aqt, **kwargs):
     "Get number of cores"
@@ -1309,3 +1091,24 @@ def get_count(index):
         N[index[k:] - index[k]] += 1
 
     return N
+'''
+
+def printProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█'):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end='\r')
+    # Print New Line on Complete
+    if iteration == total:
+        print()

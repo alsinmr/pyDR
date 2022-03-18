@@ -80,7 +80,9 @@ def create_Figure_canvas(layout: PyQt5.QtWidgets.QVBoxLayout):
         fig = plt.figure()
         canvas = FigureCanvasQTAgg(fig)
     else:
-        canvas = FigureCanvasQTAgg()
+        fig = plt.figure()
+        # working computer hat 3.4.3
+        canvas = FigureCanvasQTAgg(fig)
     # todo add arguments to function to create a figure with multiple plots
     #  in that case, make ax a list to return
     canvas.figure.add_subplot()
