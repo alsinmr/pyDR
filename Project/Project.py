@@ -497,7 +497,9 @@ class Chimera():
 
         """
         CMXid=self._CMXid[ID] if ID is not None else self.CMXid
-        assert CMXid is not None,"No active sessions, exiting command_line"
+        if CMXid is None:
+            print("No active sessions, exiting command_line")
+            return
         
         if cmds is not None:
             if isinstance(cmds,str):cmds=[cmds]
@@ -510,7 +512,44 @@ class Chimera():
                 cmd=input('ChimeraX>')
                 if cmd.strip()=='exit':break
                 self.CMX.send_command(CMXid,cmd)
+                
+    def savefig(self,filename:str,options:str='',ID:int=None)-> None:
+        """
+        Saves the current chimera window to a figure. If a relative path is
+        provided, this will save within the project figure folder. One may
+        pass options to the save in chimera via a string. 
 
+        Parameters
+        ----------
+        filename : str
+            Save location. Relative locations will be stored in the project 
+            figure folder
+        options : str, optional
+            String contain options for saving in chimeraX. Multiple options can
+            be included in the string, as if they were being entered withing
+            chimera. The default is None.
+        ID : int, optional
+            Specify which chimeraX session to save. The default is None, which 
+            saves the active session.
+
+        Returns
+        -------
+        None
+            DESCRIPTION.
+
+        """
+        CMXid=self._CMXid[ID] if ID is not None else self.CMXid
+        assert CMXid is not None,"No active sessions, save not completed"
+        
+        if not(os.path.exists(os.path.join(self.project.directory,'figures'))):
+            os.mkdir(os.path.join(self.project.directory,'figures'))
+        
+        filename=os.path.join(os.path.join(self.project.directory,'figures'),filename)
+        if len(filename.split('.'))<2:filename+='.png'
+        
+        
+        self.command_line('save "{0}" {1}'.format(filename,options))
+        
 #%% Project class
 class Project():
     """
@@ -593,6 +632,7 @@ class Project():
                 
         for k,file in enumerate(self.data.saved_files):
             if file not in info['filename']:   #Also include data that might be missing from the project file
+                print(file)    
                 src=self.data[k].source
                 dct={f:getattr(src,f) for f in flds}
                 dct['filename']=file
@@ -627,7 +667,7 @@ class Project():
                 
     def update_info(self)->None:
         """
-        Changes to identifying information in sourc (Type, status, short_file, 
+        Changes to identifying information in source (Type, status, short_file, 
         etc.) will not be automatically reflected in a project's indexing. 
         Run update_info on the project (or subproject) where changes have been
         made to obtain the updated parameters
@@ -640,7 +680,10 @@ class Project():
         for i in self._index:
             if self.data.data_objs[i] is not None:
                 for k in self.info.keys:
-                    self.info[k,i]=getattr(self.data.data_objs[i].source,k)
+                    if k=='filename':
+                        self.info[k,i]=os.path.split(self.data.save_name[i])[1]
+                    else:
+                        self.info[k,i]=getattr(self.data.data_objs[i].source,k)
             
 
     #%%Indexing/subprojects
@@ -749,14 +792,21 @@ class Project():
     def additional_info(self):
         return self.info['additional_info'][self._index]
     
+    @property
+    def filenames(self):
+        return self.info['filename'][self._index]
+    
     def save(self):
         assert not(self._subproject),"Sub-projects cannot be saved"
         self.data.save()
         self.write_proj()
 
-    #%% Project operations (+/-)
+    #%% Project operations (|,&,-, i.e. Union, Intersection, and Difference)
     def __add__(self,obj):
-        
+        "Can't make up my mind about this...the | operation is sort of like adding two sets"
+        return self.__or__(obj)
+    
+    def __or__(self,obj):    
         proj=copy(self)
         proj._subproject=True
         proj.chimera=copy(self.chimera)
@@ -771,7 +821,8 @@ class Project():
                     print('Warning: Data object {} already in subproject'.format(obj.title))
                 return proj
             else:
-                print('Warning: Addition only defined withing subprojects of the same main project')
+                print('Warning: Union only defined withing subprojects of the same main project')
+                return
         assert str(self.__class__)==str(obj.__class__),"Operation not defined"
         
         for i in obj._index:
@@ -794,7 +845,8 @@ class Project():
                     print('Warning: Data object {} not in subproject'.format(obj.title))
                 return proj
             else:
-                print('Warning: Addition only defined withing subprojects of the same main project')
+                print('Warning: Exclusion only defined withing subprojects of the same main project')
+                return
         assert str(self.__class__)==str(obj.__class__),"Operation not defined"
         
         for i in obj._index:
@@ -802,15 +854,25 @@ class Project():
                 proj._index=proj._index[proj._index!=i]
         return proj
     
-    def __mul__(self,obj):
-        import zlib
-        print(zlib.decompress(b"x\x9c\xed\xd4=\x0e\x80 \x0c\x05\xe0\x9d"
-                b"\xcbp\x94\xae\xdeB\xc6\x1e_(\x81P)?\x82\x89\x83}\x8b\xc9\xf3}\x10\x17\x8deA"
-                b"\xb4B\xca\xd6\xec\x81\xd3\xa7\xde\xb36\x03:\xa5\x06\xa1V\xd0\x00\xce9zR!\x82X."
-                b"\x03\x08\x99\x05Pf\x04@J\x13\x88\xebtQ\x05:k\xc8_\xa4@\xc1\x10 \x0eA\xfa\xfb"
-                b"\x19\x9aO\x81H\x0c\xcd'A \xbf\x06\xc7(\xdb\xc0VA\xfeB\xc17\x00\x91\x8b\xf7"
-                b"\x81|\xc0\n\xb8\xdd\xdc\xdf\xfb\xd9cp\x01\x96;\xbam").decode())
-        return self
+    def __and__(self,obj):
+        proj=copy(self)
+        proj._subproject=True
+        proj.chimera=copy(self.chimera)
+        proj.chimera.project=proj
+        
+        if str(clsDict['Data'])==str(obj.__class__):
+            if obj in self.data.data_objs:
+                i=self.data.data_objs.index(obj)
+                proj._index=np.array([i] if i in self._index else [],dtype=int)
+                return proj
+            else:
+                print('Warning: Intersection only defined withing subprojects of the same main project')
+                return
+        else:
+            proj._index=np.intersect1d(self._index,obj._index)
+            return proj
+        
+        
         
     
     #%% Plotting functions
@@ -841,7 +903,7 @@ class Project():
         if self.current_plot:
             return self.plot_obj.fig
     
-    def savefig(self,fignum:int=None,filename:str=None,filetype:str='png',overwrite:bool=False) -> None:
+    def savefig(self,filename:str=None,fignum:int=None,filetype:str='png',overwrite:bool=False) -> None:
         """
         Saves a figure from the project into the project's figure folder.
         
@@ -868,8 +930,10 @@ class Project():
             
         if fignum is None:fignum=self.current_plot
         assert self.plots[fignum-1] is not None,"Selected figure ({}) does not exist".format(fignum)
-        if filename is None:filename=self.plots[fignum-1].fig.canvas.get_window_title()
-        for s in [' ','.','%','&','{','}','/','<','>','*','?','/','$','!',"'",'"',':','@','+','`','|','=']:
+        if filename is None:
+            filename=self.plots[fignum-1].fig.canvas.get_window_title()
+            for s in ['/','.']:filename=filename.replace(s,'_')
+        for s in [' ','%','&','{','}','<','>','*','?','$','!',"'",'"',':','@','+','`','|','=']:
             # filename=filename.replace(s,'' if s in [',','.','"',"'"] else '_')
             filename=filename.replace(s,'_')
             while '__' in filename:filename=filename.replace('__','_')

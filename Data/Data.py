@@ -257,6 +257,7 @@ class Data():
         CMXRemote=clsDict['CMXRemote']
         index=np.arange(self.R.shape[0]) if index is None else np.array(index)
         if rho_index is None:rho_index=np.arange(self.R.shape[1])
+        if not(hasattr(rho_index,'__len__')):rho_index=np.array([rho_index],dtype=int)
         R=self.R[index]
         R*=1/R[index].T[rho_index].max() if scaling is None else scaling
         
@@ -278,12 +279,16 @@ class Data():
         
         # CMXRemote.send_command(ID,'close')
         CMXRemote.send_command(ID,'open {0}'.format(self.select.molsys.topo))
-        CMXRemote.send_command(ID,'style ball')
-        CMXRemote.send_command(ID,'size stickRadius 0.2')
-        CMXRemote.send_command(ID,'size atomRadius 0.8')
+        nm=CMXRemote.how_many_models(ID)
+        # CMXRemote.send_command(ID,'sel #{0}'.format(nm))
+        CMXRemote.command_line(ID,'sel #{0}'.format(nm))
+        CMXRemote.send_command(ID,'style sel ball')
+        CMXRemote.send_command(ID,'size sel stickRadius 0.2')
+        CMXRemote.send_command(ID,'size sel atomRadius 0.8')
         CMXRemote.send_command(ID,'~ribbon')
-        CMXRemote.send_command(ID,'show')
-        CMXRemote.send_command(ID,'color all tan')
+        CMXRemote.send_command(ID,'show sel')
+        CMXRemote.send_command(ID,'color sel tan')
+        CMXRemote.send_command(ID,'~sel')
         
         out=dict(R=R,rho_index=rho_index,ids=ids)
         # CMXRemote.remove_event(ID,'Detectors')

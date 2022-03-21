@@ -116,16 +116,20 @@ class Detectors(Hover):
         self.commands = []
         from chimerax.label.label2d import label_create
         #todo one can set the label text to the correlation time
-        for i in range(R.T[rho_index].shape[0]):
-            # label = label_create(self.session,"det{}".format(i), text="ρ{}".format(rho_index[i])
-            label = label_create(self.session,"det{}".format(np.random.randint(1000000)), text="ρ{}".format(rho_index[i])
-                         , xpos=.95,ypos=.9-i*.075,
-                         color=cmap(rho_index[i]), outline=1)
-            self.labels.append(self.session.models[-1])
-            self.commands.append(lambda atoms = self.model.atoms,#residues[res_nums-1].atoms[atom_nums],
-                                        R = R.T[rho_index[i]],
-                                        color=cmap(rho_index[i]),ids=ids
-                                         :set_radius(atoms, R, color,ids))
+        if len(rho_index)==1:
+            "If only one rho_index, then just set the radii initially (no label)"
+            set_radius(self.model.atoms,R.T[rho_index[0]],cmap(rho_index[0]),ids)
+        else:
+            for i in range(R.T[rho_index].shape[0]):
+                # label = label_create(self.session,"det{}".format(i), text="ρ{}".format(rho_index[i])
+                label = label_create(self.session,"det{}".format(np.random.randint(1000000)), text="ρ{}".format(rho_index[i])
+                             , xpos=.95,ypos=.9-i*.075,
+                             color=cmap(rho_index[i]), outline=1)
+                self.labels.append(self.session.models[-1])
+                self.commands.append(lambda atoms = self.model.atoms,#residues[res_nums-1].atoms[atom_nums],
+                                            R = R.T[rho_index[i]],
+                                            color=cmap(rho_index[i]),ids=ids
+                                             :set_radius(atoms, R, color,ids))
         return
         '''
         def get_index(residue, atom):

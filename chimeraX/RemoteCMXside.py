@@ -178,6 +178,17 @@ class CMXReceiver():
                 sel[-1]['b1'] = b1.coord_indices
                 sel[-1]['a'] = mdl.atoms[mdl.atoms.selected].coord_indices
         self.client.send(sel)
+        
+    def how_many_models(self):
+        """
+        Tells pyDR how many models are open in ChimeraX
+
+        Returns
+        -------
+        None.
+
+        """
+        self.client.send(len(self.session.models))
 
 
     def send_command(self,string):

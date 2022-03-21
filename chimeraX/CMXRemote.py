@@ -265,6 +265,21 @@ class CMXRemote():
         while time()-t0<1:
             if tr.response:
                 return tr.response
+#%% Various queries    
+    @classmethod
+    def how_many_models(cls,ID):
+        try:
+            cls.conn[ID].send(('how_many_models',))
+        except:
+            print('Connection failed')
+            return None
+        tr=Listen(cls.conn[ID])
+        tr.start()
+        t0=time()
+        while time()-t0<1:
+            if tr.response:
+                return tr.response
+    
 #%% Thread handling        
 class Listen(Thread):
     def __init__(self,conn):
