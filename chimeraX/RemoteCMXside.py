@@ -161,6 +161,31 @@ class CMXReceiver():
             return
         self.get_atoms()[index].coords+=np.array(shift)
         
+    def play_traj(self,topo:str,traj:str):
+        """
+        Opens a trajecory in chimeraX and sets up the play settings
+
+        Parameters
+        ----------
+        topo : str
+            Topology file.
+        traj : str
+            Trajectory file.
+
+        Returns
+        -------
+        None.
+
+        """
+        print("open '{0}' coordset true".format(topo))
+        
+        run(self.session,"open 2kj3")
+        # run(self.session,"open '{0}' coordset true".format(topo))
+        n=len(self.get_atoms())
+        print("open '{0}' structureModel #{1}".format(traj,n))
+        # run(self.session,"open '{0}' structureModel #{1}".format(traj,n))
+        # run(self.session,"coordset slider #{0}".format(n))
+        
     def Exit(self):
         try:
             self.client.close()

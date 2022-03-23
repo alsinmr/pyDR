@@ -63,6 +63,10 @@ class Trajectory():
     def dt(self):
         return self.__dt*self.step
     
+    @property
+    def time(self):
+        return self.mda_traj.time
+    
     def __setattr__(self,name,value):
         "Make sure t0, tf, step are integers"
         if name in ['t0','tf','step']:
