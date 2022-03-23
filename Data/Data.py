@@ -183,6 +183,32 @@ class Data():
         for f in ['R','Rstd','_Rc','S2','_S2c','label','source']:
             setattr(out,f,copy(getattr(self,f)))
         return out
+    
+    def __add__(self,obj):
+        """
+        Add a data object to another data object or subproject to generate a 
+        subproject. 
+
+        Parameters
+        ----------
+        obj : Data or Project
+            Data object or Project object to add to this data object.
+
+        Returns
+        -------
+        Project
+            Subproject containing this data object plus the added data or project.
+
+        """
+        assert self.source.project is not None,"Addition (+) only defined for data in a project"
+        if str(obj.__class__)==str(clsDict['Project']):
+            return obj+self
+        proj=copy(self.source.project)
+        proj._subproject=True
+        proj._index=np.array([],dtype=int)  #Make an empty subproject
+        proj=proj+obj           #
+        return proj+self
+        
             
     
     def plot(self, errorbars=False, style='canvas', fig=None, index=None, rho_index=None, plot_sens=True, split=True,**kwargs):
