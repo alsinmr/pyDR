@@ -30,9 +30,9 @@ class Movies():
         self.chimera=project.chimera
         self._xtcs=list()
         self._info=None
-        self.update()
         if not(os.path.exists(os.path.join(self.project.directory,'movies'))):
             os.mkdir(os.path.join(self.project.directory,'movies'))
+        self.update()
     
     @property
     def current(self):
