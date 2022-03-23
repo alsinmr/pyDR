@@ -10,6 +10,7 @@ from PyQt5.QtCore import Qt
 from PyQt5 import QtGui
 import numpy as np
 from matplotlib.pyplot import get_cmap
+from RemoteChimeraFuns import set_color_radius
 
 class Hover():
     def __init__(self, cmx):
@@ -102,30 +103,36 @@ class Detectors(Hover):
 
     def open_detector(self, ids, R,rho_index):
         cmap =lambda ind: (np.array(get_cmap("tab10")(ind%10)) * 255).astype(int)  # get_cmap("tab10")
-        def set_radius(atoms,R, color,ids):
-            #todo check if R has a value and is greater than 0, otherwise you can get problems
-            # R/=R.max()
-            # R*=5# I dont understand why, but atoms.radii = R/R.min() will not work
-            #TODO decide how to display which response
-            colors=color_calc(R,colors=[[210,180,140,255],color])
-            for id0,R0,color in zip(ids,R,colors):
-                atoms[id0].radii = 0.8+4*R0
-                atoms[id0].colors = color
+        # def set_color_radius(atoms,R, color,ids):
+        #     #todo check if R has a value and is greater than 0, otherwise you can get problems
+        #     # R/=R.max()
+        #     # R*=5# I dont understand why, but atoms.radii = R/R.min() will not work
+        #     #TODO decide how to display which response
+        #     colors=color_calc(R,colors=[[210,180,140,255],color])
+        #     for id0,R0,color in zip(ids,R,colors):
+        #         atoms[id0].radii = 0.8+4*R0
+        #         atoms[id0].colors = color
+        
         
         self.labels = []
         self.commands = []
         from chimerax.label.label2d import label_create
         #todo one can set the label text to the correlation time
-        for i in range(R.T[rho_index].shape[0]):
-            # label = label_create(self.session,"det{}".format(i), text="ρ{}".format(rho_index[i])
-            label = label_create(self.session,"det{}".format(np.random.randint(1000000)), text="ρ{}".format(rho_index[i])
-                         , xpos=.95,ypos=.9-i*.075,
-                         color=cmap(rho_index[i]), outline=1)
-            self.labels.append(self.session.models[-1])
-            self.commands.append(lambda atoms = self.model.atoms,#residues[res_nums-1].atoms[atom_nums],
-                                        R = R.T[rho_index[i]],
-                                        color=cmap(rho_index[i]),ids=ids
-                                         :set_radius(atoms, R, color,ids))
+        if len(rho_index)==1:
+            "If only one rho_index, then just set the radii initially (no label)"
+            set_color_radius(self.model.atoms,R.T[rho_index[0]],cmap(rho_index[0]),ids)
+        else:
+            for i in range(R.T[rho_index].shape[0]):
+                # label = label_create(self.session,"det{}".format(i), text="ρ{}".format(rho_index[i])
+                label = label_create(self.session,"det{}".format(np.random.randint(1000000)), text="ρ{}".format(rho_index[i])
+                             , xpos=.95,ypos=.9-i*.075,
+                             color=cmap(rho_index[i]),bg_color=np.array([255,255,255,0],dtype=int))
+                # label.background=[0,0,0,0] #Clear background
+                self.labels.append(self.session.models[-1])
+                self.commands.append(lambda atoms = self.model.atoms,#residues[res_nums-1].atoms[atom_nums],
+                                            R = R.T[rho_index[i]],
+                                            color=cmap(rho_index[i]),ids=ids
+                                             :set_color_radius(atoms, R, color,ids))
         return
         '''
         def get_index(residue, atom):

@@ -19,7 +19,7 @@ class MolSys():
     """
     Object for storage of the molecule or MD trajectory
     """
-    def __init__(self,topo=None,traj_files=None,t0=0,tf=-1,step=1,dt=None):
+    def __init__(self,topo=None,traj_files=None,t0=0,tf=None,step=1,dt=None):
         if traj_files is not None and not(isinstance(traj_files,list) and len(traj_files)==0):
             if isinstance(traj_files,list):
                 traj_files=[os.path.abspath(tf) for tf in traj_files]
@@ -50,10 +50,10 @@ class MolSys():
 
 
 class Trajectory():
-    def __init__(self,mda_traj,t0=0,tf=-1,step=1,dt=None):
+    def __init__(self,mda_traj,t0=0,tf=None,step=1,dt=None):
         self.t0=t0
         self.__tf=len(mda_traj)
-        self.tf=tf
+        self.tf=tf if tf is not None else self.__tf
         self.step=step
         self.__dt=dt if dt else mda_traj.dt
         self.mda_traj=mda_traj
@@ -62,6 +62,10 @@ class Trajectory():
     @property
     def dt(self):
         return self.__dt*self.step
+    
+    @property
+    def time(self):
+        return self.mda_traj.time
     
     def __setattr__(self,name,value):
         "Make sure t0, tf, step are integers"
@@ -409,14 +413,13 @@ class MolSelect():
                         id0.append((s1.segid,s1.resid,s1.name))
             if mode=='a3':
                 id1,id2=[[x[1:] for x in id0] for id0 in [id1,id2]]
-        
 
         in12=list()
         for i in id1:
-            in12.append(np.any([np.array_equal(i,i1) for i1 in id2]))
+            in12.append(np.any([np.array_equal(np.sort(i),np.sort(i1)) for i1 in id2]))
         in12=np.argwhere(in12)[:,0]
         
-        in21=np.array([(np.argwhere([np.array_equal(id1[k],i2) for i2 in id2])[0,0]) for k in in12])
+        in21=np.array([(np.argwhere([np.array_equal(np.sort(id1[k]),np.sort(i2)) for i2 in id2])[0,0]) for k in in12])
             
             
         # in21=np.array([np.argwhere([id1[k]==i2 for i2 in id2])[0,0] for k in in12])

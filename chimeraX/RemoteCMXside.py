@@ -161,6 +161,31 @@ class CMXReceiver():
             return
         self.get_atoms()[index].coords+=np.array(shift)
         
+    def play_traj(self,topo:str,traj:str):
+        """
+        Opens a trajecory in chimeraX and sets up the play settings
+
+        Parameters
+        ----------
+        topo : str
+            Topology file.
+        traj : str
+            Trajectory file.
+
+        Returns
+        -------
+        None.
+
+        """
+        print("open '{0}' coordset true".format(topo))
+        
+        run(self.session,"open 2kj3")
+        # run(self.session,"open '{0}' coordset true".format(topo))
+        n=len(self.get_atoms())
+        print("open '{0}' structureModel #{1}".format(traj,n))
+        # run(self.session,"open '{0}' structureModel #{1}".format(traj,n))
+        # run(self.session,"coordset slider #{0}".format(n))
+        
     def Exit(self):
         try:
             self.client.close()
@@ -178,6 +203,17 @@ class CMXReceiver():
                 sel[-1]['b1'] = b1.coord_indices
                 sel[-1]['a'] = mdl.atoms[mdl.atoms.selected].coord_indices
         self.client.send(sel)
+        
+    def how_many_models(self):
+        """
+        Tells pyDR how many models are open in ChimeraX
+
+        Returns
+        -------
+        None.
+
+        """
+        self.client.send(len(self.session.models))
 
 
     def send_command(self,string):
