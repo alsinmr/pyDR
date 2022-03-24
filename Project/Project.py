@@ -14,7 +14,6 @@ from pyDR import clsDict
 import re
 from copy import copy
 from matplotlib.figure import Figure
-from pyDR.chimeraX.Movies import Movies
 ME=Defaults['max_elements']
 decode=bytes.decode
 
@@ -589,7 +588,6 @@ class Project():
         
         self.read_proj()
         self.chimera=Chimera(self)
-        self.movies=Movies(self)
     
     @property
     def directory(self):
@@ -745,7 +743,6 @@ class Project():
         proj._subproject=True
         proj.chimera=copy(self.chimera)
         proj.chimera.project=proj
-        proj.movies.project=proj
         if isinstance(index,str):
             flds=['Types','statuses','additional_info','titles','short_files']
             for f in flds:

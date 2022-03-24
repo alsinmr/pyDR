@@ -254,28 +254,6 @@ class CMXRemote():
         cls.send_command(ID,'open {0}'.format(cls.full_path(ID)))
 #        cls.conn[ID].send(('command_line','open {}'.format(cls.full_path(ID))))
 
-    @classmethod
-    def play_traj(cls,ID:int,topo:str,traj:str):
-        """
-        Opens a trajecory in chimeraX and sets up the play settings
-
-        Parameters
-        ----------
-        ID : int
-            ID of the chimeraX instance.
-        topo : str
-            Topology file.
-        traj : str
-            Trajectory file.
-
-        Returns
-        -------
-        None.
-
-        """
-        print(ID)
-        print(cls.conn)
-        cls.conn[ID].send(('play_traj',topo,traj))
     
 #%% Event handling
     @classmethod

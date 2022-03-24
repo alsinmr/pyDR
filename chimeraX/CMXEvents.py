@@ -10,7 +10,18 @@ from PyQt5.QtCore import Qt
 from PyQt5 import QtGui
 import numpy as np
 from matplotlib.pyplot import get_cmap
-from RemoteChimeraFuns import set_color_radius
+from RemoteChimeraFuns import set_color_radius,DetFader
+
+class DetectorFader():
+    def __init__(self,cmx,*args):
+        self.cmx=cmx
+        self.session=cmx.session
+        self.fader=DetFader(self.session.models[-1],*args)
+        
+    def __call__(self):
+        self.fader.set_color_radius()
+        
+        
 
 class Hover():
     def __init__(self, cmx):
@@ -127,8 +138,8 @@ class Detectors(Hover):
                 label = label_create(self.session,"det{}".format(np.random.randint(1000000)), text="ρ{}".format(rho_index[i])
                              , xpos=.95,ypos=.9-i*.075,
                              color=cmap(rho_index[i]),bg_color=np.array([255,255,255,0],dtype=int))
-                # label.background=[0,0,0,0] #Clear background
                 self.labels.append(self.session.models[-1])
+                #TODO It seems that a pdb with multiple structures not loaded as a coordset might not have model.atoms ??
                 self.commands.append(lambda atoms = self.model.atoms,#residues[res_nums-1].atoms[atom_nums],
                                             R = R.T[rho_index[i]],
                                             color=cmap(rho_index[i]),ids=ids

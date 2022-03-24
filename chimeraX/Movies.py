@@ -10,26 +10,32 @@ import numpy as np
 import MDAnalysis as mda
 import os
 from pyDR import clsDict
+from pyDR.IO import write_file,read_file
 
 class Movies():
-    def __init__(self,project) -> None:
+    def __init__(self,data) -> None:
         """
         
 
         Parameters
         ----------
-        project : pyDR project
-            Project from pyDR.
+        data : pyDR.Data
+            Data object from pyDR, where data is stored in a project
+            (movies works from within the project folder, so this is required)
 
         Returns
         -------
         None.
 
         """
-        self.project=project
-        self.chimera=project.chimera
+        assert data.select is not None and data.select.sel1 is not None,"Selection must be defined to use movies"
+        self.data=data
+        self.project=data.source.project
+        self.CMX=self.project.chimera.CMX
+        self.chimera=self.project.chimera
         self._xtcs=list()
         self._info=None
+        self._select=None
         if not(os.path.exists(os.path.join(self.project.directory,'movies'))):
             os.mkdir(os.path.join(self.project.directory,'movies'))
         self.update()
@@ -37,6 +43,10 @@ class Movies():
     @property
     def current(self):
         return self.chimera.current
+    
+    @property
+    def CMXid(self):
+        return self.chimera.CMXid
     
     def __setattr__(self, name, value):
         if name=='current':
@@ -46,67 +56,224 @@ class Movies():
     
     @property
     def xtcs(self):
+        self.update()
         return self._xtcs
     
     def update(self):
+
         #Update the xtc list
-        self._xtcs=list()
-        for fname in os.listdir(self.directory):
-            if fname[-4:]=='.xtc':
-                self._xtcs.append(fname)
-                if not(os.path.exists(os.path.join(self.directory,fname[:-4]+'.txt'))):
-                    print('Warning: Descriptor file for {0} is missing. Cannot play trajectory.'.format(fname))
+        if len(self._xtcs)<sum(['.xtc' in file for file in os.listdir(self.directory)]):                
+            self._xtcs=list()
+            for fname in os.listdir(self.directory):
+                if fname[-4:]=='.xtc':
+                    self._xtcs.append(fname)
+                    if not(os.path.exists(os.path.join(self.directory,fname[:-4]+'.txt'))):
+                        print('Warning: Descriptor file for {0} is missing. Cannot play trajectory.'.format(fname))
         
         
-        #Update the info field
-        flds=['Topo','Trajectory','Spacing','nt','Initial Rate (ns/s)','Final Rate (ns/s)','Frame rate (frames/s)']
-        info=clsDict['Info']()
-        for f in flds:info.new_parameter(f)
-        for file in self.xtcs:
-            dct={f:None for f in flds}
-            if os.path.exists(os.path.join(self.directory,file[:-4]+'.txt')):
-                with open(os.path.join(self.directory,file[:-4]+'.txt'),'r') as f:
-                    for line in f:
-                        key=line.strip().split(':')[0]
-                        value=line.strip().split(':')[1]
-                        if key in ['Topo','Spacing']:
-                            dct[key]=value.strip()
-                        elif key=='Trajectory':
-                            dct[key]=value.strip().split('\t')
-                        elif key in ['nt','Frame rate (frames/s)']:
-                            dct[key]=int(value.strip())
-                        else:
-                            dct[key]=float(value.strip())
-            info.new_exper(**dct)
-        self._info=info
+            #Update the info field
+            info=clsDict['Info']()
+            flds=['Topo','Trajectory','Spacing','No. Frames','Initial Rate (ns/s)',
+              'Final Rate (ns/s)','dt (ns)','Frame rate (frames/s)','No. Atoms']
+            for f in flds:info.new_parameter(f)
+            for file in self._xtcs:
+                dct={f:None for f in flds}
+                if os.path.exists(os.path.join(self.directory,file[:-4]+'.txt')):
+                    with open(os.path.join(self.directory,file[:-4]+'.txt'),'r') as f:
+                        for line in f:
+                            key=line.strip().split(':')[0]
+                            value=line.strip().split(':')[1]
+                            if key in ['Topo','Spacing']:
+                                dct[key]=value.strip()
+                            elif key=='Trajectory':
+                                dct[key]=value.strip().split('\t')
+                            elif key in ['No. Frames','Frame rate (frames/s)']:
+                                dct[key]=int(value.strip())
+                            elif key in info.keys:
+                                dct[key]=float(value.strip())
+                info.new_exper(**dct)
+            self._info=info
     
     @property
     def directory(self):
         return os.path.join(self.project.directory,'movies')
 
-    #%% Play options
-    def play_traj(self,i:int=0,ID:int=None):
-        if self.current is None:self.current=0
-        ID=self.current
-        nm=self.chimera.CMX.how_many_models(ID)+1
-        cmds=list()
-        xtc=os.path.join(self.directory,self.xtcs[i])
-        cmds.append("open '{0}' coordset true".format(xtc[:-4]+'.pdb'))
-        cmds.append("open '{0}' structureModel #{1}".format(xtc,nm))
-        cmds.append("coordset slider #{0}".format(nm))
-        print(cmds)
-        self.chimera.command_line(cmds,ID=ID)
-        
-           
     #%% Load trajectory info
     @property
     def info(self):
+        self.update()
         return self._info
+
+    @property
+    def valid_xtcs(self):
+        out=list()
+        for k,xtc in enumerate(self.xtcs):
+            if self.data.select.molsys.topo==self.info['Topo'][k]:
+                out.append(xtc)
+        return out
+
+    #%% Functions for making selections to show in movie
+    def get_sel(self,select=None) -> mda.AtomGroup:
+        """
+        Returns the default selection for writing a trajectory. User may provide
+        a string to filter for the desired selection (MDAnalysis formatting) or 
+        an atomgroup directly.
+        
+        If no selection provided, then default behavior is applied, as defined
+        below:
+            1) If All atoms in the data object's selection are in the same 
+                    residue, then only that residue will be written out.
+            2) Otherwise, all segments in occuring in the data object's 
+                selection are written out.
+                
+        Note that after the first run of get_sel, the result is saved and recycled.
+        If the default behavior has been overridden via a previous call, set
+        select='reset' to restore the defaults.
+
+        Parameters
+        ----------
+        select : selection, optional
+            Selection of atoms to write out. Can be a string, in which case it
+            is applied to the MDAnalysis universe to filter atoms. May alternatively
+            be an MDAnalysis atom group. To select all atoms in the universe,
+            set select=''.
+                
+
+        Returns
+        -------
+        mda.AtomGroup.
+
+        """
+        
+        if isinstance(select,str) and select=='reset':
+            self._select=None
+            select=None
+        
+        if self._select is None:
+            "Atom group provided directly"
+            if select is not None and str(select.__class__)==str(mda.AtomGroup):
+                self._select=select
+            elif isinstance(select,str): #Selection string provided
+                if select=='': #Select all atoms in universe
+                    self._select=self.data.select.sel0.uni.atoms
+                else:
+                    self._select=self.data.select.uni.select_atoms(select)
+            else:
+                sel0=self.data.select
+                "Get all residues/segments"
+                resids=list()
+                segids=list()
+                for s in sel0.sel1:
+                    if hasattr(s,'__len__'):
+                        resids.extend(s.residues.resids)
+                        segids.extend(s.segments.segids)
+                    else:
+                        resids.append(s.residue.resid)
+                        segids.append(s.segment.segid)
+                if sel0.sel2 is not None:
+                    for s in sel0.sel2:
+                        if hasattr(s,'__len__'):
+                            resids.extend(s.residues.resids)
+                            segids.extend(s.segments.segids)
+                        else:
+                            resids.append(s.residue.resid)
+                            segids.append(s.segment.segid)
+                if len(np.unique(resids))==1:
+                    if hasattr(self.sel1[0],'__len__'):
+                        self._select=sel0.sel1[0].residues[0].atoms         
+                    else:
+                        self._select=sel0.sel1.residues[0].atoms
+                else:
+                    i=np.array([s in segids for s in sel0.uni.segments.segids])
+                    self._select=sel0.uni.segments[i].atoms
+        return self._select
+            
+
+    def det_x_id(self,i:int=0):
+        """
+        Get the correct indices for the given xtc/pdb and also filter out any
+        data values that do not have corresponding selections in the pdb.
+
+        Parameters
+        ----------
+        i : int, optional
+            Determine which xtc to use. Selected from the list returned by
+            movies.valid_xtcs. The default is 0.
+
+        Returns
+        -------
+        x,ids
+
+        """
+        sel0=read_file(os.path.join(self.directory,self.valid_xtcs[i][:-4]+'.sel'))
+        ids=list()
+        for sel in self.data.select.repr_sel:
+            ids.append(list())
+            for id0 in sel.ids:
+                if id0 in sel0.sel1.ids:
+                    ids[-1].append(np.argwhere(sel0.sel1.ids==id0)[0,0])     #This is the location of id0 in the truncated pdb
+            ids[-1]=np.array(ids[-1])
+        
+        x=self.data.R
+        x=x[np.array([True if len(id0) else False for id0 in ids],dtype=bool)]
+                
+        return x,ids
+
+    #%% Play options
+    def play_traj(self,i:int=0,ID:int=None):
+        if ID is None:
+            if self.current is None:self.current=0
+            ID=self.current
+        else:
+            self.current=ID
+        CMXid=self.chimera.CMXid
+        nm=self.chimera.CMX.how_many_models(CMXid)+1
+        cmds=list()
+        xtc=os.path.join(self.directory,self.valid_xtcs[i])
+        cmds.append("open '{0}' coordset true".format(xtc[:-4]+'.pdb'))
+        cmds.append("open '{0}' structureModel #{1}".format(xtc,nm))
+        cmds.append("~ribbon #{0}".format(nm))
+        cmds.append("show #{0}".format(nm))
+        cmds.append("coordset slider #{0}".format(nm))
+        self.chimera.command_line(cmds,ID=ID)
+        
+    def det_fader(self,rho_index=None,i:int=0,ID:int=None,scaling=None):
+        rho_index=np.arange(self.data.sens.rhoz.shape[0]) if rho_index is None else np.array(rho_index,dtype=int)
+        self.play_traj(i=i,ID=ID)
+        x,ids=self.det_x_id(i)
+        x=x[:,rho_index]
+        x[x<0]=0
+        if scaling is None:scaling=1/x.max()
+        x*=scaling
+        info=self.info[self.xtcs.index(self.valid_xtcs[i])]
+        keys=['Spacing','Initial Rate (ns/s)','Final Rate (ns/s)','dt (ns)','Frame rate (frames/s)','No. Frames']
+        Spacing,nss0,nssf,dt,fr,nt=[info[k] for k in keys]
+        
+        if Spacing=='log':
+            tau=log_axis(int(1e12),nt=nt,nss0=nss0,nssf=nssf,dt=dt,fr=fr,mode='step')
+        else:
+            tau=lin_axis(int(1e12),nt=nt,nss=nss0,dt=dt,fr=fr,mode='step')
+        rhoz=self.data.sens.rhoz[rho_index]
+        tc=self.data.sens.tc
+        
+        nm=self.chimera.CMX.how_many_models(self.chimera.CMXid)
+        # nm=1
+        cmds=['set bgColor gray','lighting simple','lighting shadows false','sel #{0}'.format(nm),
+              'color sel 82,71,55','style sel ball','size sel stickRadius 0.2',
+              'size sel atomRadius 0.8','~sel']
+        
+        self.chimera.command_line(ID=self.current,cmds=cmds)
+        self.CMX.add_event(self.CMXid,'DetectorFader',x,ids,tau,rhoz,tc,4)
+        
+        
+        
+           
+
         
     
     
     #%% Write trajectories
-    def write_traj(self,i:int=0,select=None,spacing:str='log',t0:int=0,nt:int=450,nss0:float=0.02,nssf:float=200,fr:int=15):
+    def write_traj(self,select=None,spacing:str='log',t0:int=0,nt:int=450,nss0:float=0.02,nssf:float=2000,fr:int=15):
         """
         
 
@@ -149,8 +316,8 @@ class Movies():
 
         """
         
-        atoms=self.get_sel(i=i,select=select)
-        traj=self.project[i].select.traj
+        atoms=self.get_sel(select=select)
+        traj=self.data.select.traj
         dt0=traj._Trajectory__dt/1000
         nt0=traj.mda_traj.__len__()
         
@@ -167,91 +334,30 @@ class Movies():
         file0=os.path.split(traj.files[0])[1].rsplit('.',1)[0]
         filename='{0}_{1}_{2}'.format(file0,spacing,len(index))
         write_traj(atoms=atoms,traj=traj.mda_traj,filename=os.path.join(self.directory,filename+'.xtc'),index=index)
+    
         with open(os.path.join(self.directory,filename+'.txt'),'w') as f:
-            f.write('Topo: {0}\n'.format(self.project[i].select.molsys.topo))
+            f.write('Topo: {0}\n'.format(self.data.select.molsys.topo))
             f.write('Trajectory: ')
             for file in traj.files:f.write('{0}\t'.format(file))
             f.write('\n')
             f.write('Spacing: {0}\n'.format(spacing))
             f.write('nt: {0}\n'.format(len(index)))
-            f.write('Initial Rate (ns/s): {0}\n'.format(Dt[1]*fr))
+            f.write('Initial Rate (ns/s): {0}\n'.format(Dt[1]*fr if len(Dt)>1 else 0))
             f.write('Final Rate (ns/s): {0}\n'.format(Dt[-1]*fr))
+            f.write('dt (ns): {0}\n'.format(dt0))
             f.write('Frame rate (frames/s): {0}\n'.format(fr))
+            f.write('No. Atoms: {0}\n'.format(len(atoms)))
+            f.write('No. Frames: {0}\n'.format(filename.split('_')[-1].split('.')[0]))
         
         atoms.write(os.path.join(self.directory,filename+'.pdb'))
+        sel=clsDict['MolSelect'](self.data.select.molsys)
+        sel.sel1=atoms
+        sel.sel2=atoms #Pretty hack-y should fix the need to do this
+        write_file(os.path.join(self.directory,filename+'.sel'),sel,overwrite=True)
         self.update()
             
         
-            
-    def get_sel(self,i:int=0,select=None) -> mda.AtomGroup:
-        """
-        Returns the default selection for writing a trajectory. User may provide
-        an integer to specify the data object and either a string to filter for
-        the desired selection (MDAnalysis formatting) or an atomgroup directly.
         
-        If no selection provided, then default behavior is applied
-
-        Parameters
-        ----------
-        i : int, optional
-            Index of the data set from which to create the movie. Data set needs
-            to include an MD trajectory. Note that one may first index the project
-            to create a subproject with only the desired trajectory and then
-            call write_traj without i, since this will just take the first
-            data object and its associated trajectory. The default is 0.
-        select : selection, optional
-            Selection of atoms to write out. Can be a string, in which case it
-            is applied to the MDAnalysis universe to filter atoms. May alternatively
-            be an MDAnalysis atom group. If not specified, select will undergo
-            the following default behavior:
-                1) All atoms in the data object's selection are in the same residue,
-                    then only that residue will be written out.
-                2) Otherwise, all segments in occuring in the data object's 
-                    selection are written out.
-
-        Returns
-        -------
-        mda.AtomGroup.
-
-        """
-        
-        if select is not None and str(select.__class__)==str(mda.AtomGroup):
-            return select
-
-        
-        sel0=self.project[i].select
-        if sel0.sel1 is None and sel0.sel2 is None:
-            return sel0.uni.atoms
-        
-        if isinstance(select,str):
-            if select=='':return sel0
-        
-        #%% Get all residues/segments
-        resids=list()
-        segids=list()
-        for s in sel0.sel1:
-            if hasattr(s,'__len__'):
-                resids.extend(s.residues.resids)
-                segids.extend(s.segments.segids)
-            else:
-                resids.append(s.residue.resid)
-                segids.append(s.segment.segid)
-        if sel0.sel2 is not None:
-            for s in sel0.sel2:
-                if hasattr(s,'__len__'):
-                    resids.extend(s.residues.resids)
-                    segids.extend(s.segments.segids)
-                else:
-                    resids.append(s.residue.resid)
-                    segids.append(s.segment.segid)
-        if len(np.unique(resids))==1:
-            if hasattr(self.sel1[0],'__len__'):
-                return sel0.sel1[0].residues[0].atoms
-            else:
-                return sel0.sel1.residues[0].atoms
-        
-        i=np.array([s in segids for s in sel0.uni.segments.segids])
-        return sel0.uni.segments[i].atoms
 
 
 def lin_axis(nt0:int,nt:int=450,nss:float=0.02,dt:float=0.005,fr:int=15,mode='time') -> np.array:
@@ -294,7 +400,7 @@ def lin_axis(nt0:int,nt:int=450,nss:float=0.02,dt:float=0.005,fr:int=15,mode='ti
     return np.round(t/dt).astype(int)
     
 
-def log_axis(nt0:int,nt:int=450,nss0:float=0.02,nssf:float=200,dt:float=0.005,fr:int=15,mode='time') -> np.array:
+def log_axis(nt0:int,nt:int=450,nss0:float=0.02,nssf:float=2000,dt:float=0.005,fr:int=15,mode='time') -> np.array:
     """
     Calculates time axes and corresponding indices for log-spaced trajectory
     construction. 

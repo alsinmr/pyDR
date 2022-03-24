@@ -12,6 +12,7 @@ from .Plotting import plot_fit,DataPlots
 from ..Fitting import fit,opt2dist
 from matplotlib.figure import Figure
 from copy import copy
+from pyDR.chimeraX.Movies import Movies
 
 dtype=Defaults['dtype']
 
@@ -54,6 +55,8 @@ class Data():
         self.source=clsDict['Source'](src_data=src_data,select=select,Type=Type)
 #        self.select=select #Stores the molecule selection for this data object
         self.vars=dict() #Storage for miscellaneous variable
+        self._movies=None
+        
         
     @property
     def Rc(self):
@@ -319,6 +322,17 @@ class Data():
         out=dict(R=R,rho_index=rho_index,ids=ids)
         # CMXRemote.remove_event(ID,'Detectors')
         CMXRemote.add_event(ID,'Detectors',out)
+        
+    @property
+    def movies(self):
+        if self.source.project is None:
+            print('movies only available within projects')
+            return
+
+        if self._movies is None:
+            self._movies=Movies(self)
+        return self._movies
+            
         
         
         

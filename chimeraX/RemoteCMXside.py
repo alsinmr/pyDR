@@ -100,7 +100,7 @@ class CMXReceiver():
     def wait4command(self):
         if self.LE and self.LE.args:
             fun, *args = self.LE.args
-            if hasattr(self, fun):
+            if hasattr(self, fun): #If fun is in this class, then we run it with the provided args
                 try:
                     getattr(self, fun)(*args)
                 except:
@@ -112,7 +112,7 @@ class CMXReceiver():
             self.LE = ListenExec(self)
 #        self.LE.isDaemon=True
         self.LE.start()
-        print(self.LE_1.is_alive())
+        # print(self.LE_1.is_alive())
     
     def command_line(self, string):
         '''running this from inside an event will cause a crash of chimerax'''
