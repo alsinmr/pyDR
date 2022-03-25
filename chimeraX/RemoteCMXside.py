@@ -47,7 +47,7 @@ class EventManager(Thread):
     def run(self):
         print('Event manager started')
         while self.is_session_alive:
-            sleep(.1)
+            sleep(.03)
             if self.cmx.session.ui.main_window.isActiveWindow(): #This checks if chimera is terminated (chimera hangs on close without this)
                 for name,f in self.cmx._events.copy().items():
                     try:

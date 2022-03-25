@@ -90,7 +90,7 @@ def color_calc(x,x0=None,colors=[[0,0,255,255],[210,180,140,255],[255,0,0,255]])
 
 
 class DetFader():
-    def __init__(self,model,x:np.array,ids:list,tau:np.array,rhoz:np.array,tc:np.array,sc:float=4):
+    def __init__(self,model,x:np.array,ids:list,tau:np.array,rhoz:np.array,tc:np.array,sc:float=3):
         """
         Calculates and sets color and radii for fading through multiple detector
         sensitivities in chimeraX. 
@@ -155,13 +155,13 @@ class DetFader():
         
         for t in tau:
             itc=np.argmin(np.abs(tc*1e9-t))  #Index for sensitivity
-            print(itc)
             r.append(0.8+(x@rhoz[:,itc])*sc)
             clr.append([(c*(x*rhoz[:,itc])).sum(-1)+c0*(1-(x*rhoz[:,itc]).sum(-1)) for c,c0 in zip(cmap,clr0)])
         
         self.r=np.array(r)    
         self.clr=np.array(clr,dtype=int).swapaxes(1,2)
         self.clr[self.clr>255]=255
+        self.clr[self.clr<0]=0
         
         self.i=-1
         print('Detector Fader initialized')

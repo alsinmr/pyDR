@@ -35,7 +35,9 @@ class Movies():
         self.chimera=self.project.chimera
         self._xtcs=list()
         self._info=None
-        self._select=None
+        self._select=None       
+        self._settings={} #Save setting that we might need for recording.
+        
         if not(os.path.exists(os.path.join(self.project.directory,'movies'))):
             os.mkdir(os.path.join(self.project.directory,'movies'))
         self.update()
@@ -47,6 +49,31 @@ class Movies():
     @property
     def CMXid(self):
         return self.chimera.CMXid
+    
+    def defaultID(self,ID:int=None)-> int:
+        """
+        Returns a default ID for accessing a chimera instance, and ensures that
+        the returned chimera ID corresponds to an active session. Note that this
+        ID should be used for interacting with movies.chimera and the CMXid should
+        be used for interacting with movies.CMX
+
+        Parameters
+        ----------
+        ID : int, optional
+            Input ID. The default is None.
+
+        Returns
+        -------
+        int.
+            ID of the chimera instance
+
+        """
+        if ID is None:
+            if self.current is None:self.current=0
+            ID=self.current
+        else:
+            self.current=ID
+        return ID
     
     def __setattr__(self, name, value):
         if name=='current':
@@ -62,7 +89,7 @@ class Movies():
     def update(self):
 
         #Update the xtc list
-        if len(self._xtcs)<sum(['.xtc' in file for file in os.listdir(self.directory)]):                
+        if len(self._xtcs)<sum(['.xtc' in file for file in os.listdir(self.directory)]) or True:                
             self._xtcs=list()
             for fname in os.listdir(self.directory):
                 if fname[-4:]=='.xtc':
@@ -97,6 +124,10 @@ class Movies():
     @property
     def directory(self):
         return os.path.join(self.project.directory,'movies')
+    
+    @property
+    def command_line(self):
+        return self.chimera.command_line
 
     #%% Load trajectory info
     @property
@@ -111,6 +142,7 @@ class Movies():
             if self.data.select.molsys.topo==self.info['Topo'][k]:
                 out.append(xtc)
         return out
+    
 
     #%% Functions for making selections to show in movie
     def get_sel(self,select=None) -> mda.AtomGroup:
@@ -221,23 +253,23 @@ class Movies():
 
     #%% Play options
     def play_traj(self,i:int=0,ID:int=None):
-        if ID is None:
-            if self.current is None:self.current=0
-            ID=self.current
-        else:
-            self.current=ID
-        CMXid=self.chimera.CMXid
+        ID=self.defaultID(ID)
+        CMXid=self.CMXid
+        
         nm=self.chimera.CMX.how_many_models(CMXid)+1
         cmds=list()
+        if not(len(self.valid_xtcs)):self.write_traj()
         xtc=os.path.join(self.directory,self.valid_xtcs[i])
         cmds.append("open '{0}' coordset true".format(xtc[:-4]+'.pdb'))
         cmds.append("open '{0}' structureModel #{1}".format(xtc,nm))
         cmds.append("~ribbon #{0}".format(nm))
         cmds.append("show #{0}".format(nm))
         cmds.append("coordset slider #{0}".format(nm))
+        self._settings=self.info[self.xtcs.index(self.valid_xtcs[i])]
         self.chimera.command_line(cmds,ID=ID)
         
     def det_fader(self,rho_index=None,i:int=0,ID:int=None,scaling=None):
+        ID=self.defaultID(ID)
         rho_index=np.arange(self.data.sens.rhoz.shape[0]) if rho_index is None else np.array(rho_index,dtype=int)
         self.play_traj(i=i,ID=ID)
         x,ids=self.det_x_id(i)
@@ -250,30 +282,88 @@ class Movies():
         Spacing,nss0,nssf,dt,fr,nt=[info[k] for k in keys]
         
         if Spacing=='log':
-            tau=log_axis(int(1e12),nt=nt,nss0=nss0,nssf=nssf,dt=dt,fr=fr,mode='step')
+            tau=log_axis(int(1e12),nt=nt,nss0=nss0,nssf=nssf,dt=dt,fr=fr,mode='step')*fr
         else:
-            tau=lin_axis(int(1e12),nt=nt,nss=nss0,dt=dt,fr=fr,mode='step')
+            tau=lin_axis(int(1e12),nt=nt,nss=nss0,dt=dt,fr=fr,mode='step')*fr
         rhoz=self.data.sens.rhoz[rho_index]
         tc=self.data.sens.tc
         
         nm=self.chimera.CMX.how_many_models(self.chimera.CMXid)
-        # nm=1
         cmds=['set bgColor gray','lighting simple','lighting shadows false','sel #{0}'.format(nm),
               'color sel 82,71,55','style sel ball','size sel stickRadius 0.2',
               'size sel atomRadius 0.8','~sel']
         
-        self.chimera.command_line(ID=self.current,cmds=cmds)
-        self.CMX.add_event(self.CMXid,'DetectorFader',x,ids,tau,rhoz,tc,4)
+        self.chimera.command_line(ID=ID,cmds=cmds)
+        self.CMX.add_event(self.CMXid,'DetectorFader',x,ids,tau,rhoz,tc,3)
         
+    def timescale_indicator(self):
+        """
+        Adds a timescale indicator to chimeraX. Applies to the last trajectory
+        loaded (currently, multiple timescale indicators are not supported)
+
+        Returns
+        -------
+        None.
+
+        """
+        info=self._settings
+        keys=['Spacing','Initial Rate (ns/s)','Final Rate (ns/s)','dt (ns)','Frame rate (frames/s)','No. Frames']
+        Spacing,nss0,nssf,dt,fr,nt=[info[k] for k in keys]
         
+        if Spacing=='log':
+            tau=log_axis(int(1e12),nt=nt,nss0=nss0,nssf=nssf,dt=dt,fr=fr,mode='step')*fr
+        else:
+            tau=lin_axis(int(1e12),nt=nt,nss=nss0,dt=dt,fr=fr,mode='step')*fr
+            
+        CMXid=self.CMXid
         
+        self.CMX.add_event(self.CMXid,'TimescaleIndicator',tau)
+        
+    def record(self,filename:str) -> None:
+        """
+        If the last entry into chimeraX is a trajectory (with tensors, detectors,
+        etc.), then this will play that trajectory and record the results into
+        the project directory, using the provided filename. 
+
+        Parameters
+        ----------
+        filename : str
+            Name of movie file. Include ending ('.mp4','.avi', etc.) to specify
+            file type (default is mp4).
+
+        Returns
+        -------
+        None
+            DESCRIPTION.
+
+        """
+        ID=self.defaultID()
+        if filename[-4]!='.':filename=os.path.join(self.directory,filename+'.mp4')
+        fr=self._settings['Frame rate (frames/s)']
+        nt=self._settings['No. Frames']
+        nm=self.chimera.CMX.how_many_models(self.chimera.CMXid)
+        
+        # cmds=['movie stop','movie record supersample 3','coordset #{0}\n'.format(nm),
+        #       'movie encode "{0}" framerate {1}'.format(filename,fr)]
+        # self.command_line(ID=ID,cmds=cmds)
+        
+        cxc=os.path.join(self.directory,'temp.cxc')
+        with open(cxc,'w') as f:
+            f.write('movie record\n')
+            f.write('coordset #{}\n'.format(nm))
+            f.write('wait {}\n'.format(nt))
+            f.write('movie encode "{0}" framerate {1}\n'.format(filename,fr))
+        
+        self.chimera.command_line(ID=ID,cmds='open "{0}"'.format(cxc))
+        return filename
+            
            
 
         
     
     
     #%% Write trajectories
-    def write_traj(self,select=None,spacing:str='log',t0:int=0,nt:int=450,nss0:float=0.02,nssf:float=2000,fr:int=15):
+    def write_traj(self,select=None,spacing:str='log',t0:int=0,nt:int=450,nss0:float=0.005,nssf:float=500,fr:int=15):
         """
         
 
@@ -360,7 +450,7 @@ class Movies():
         
 
 
-def lin_axis(nt0:int,nt:int=450,nss:float=0.02,dt:float=0.005,fr:int=15,mode='time') -> np.array:
+def lin_axis(nt0:int,nt:int=450,nss:float=0.02,dt:float=0.001,fr:int=15,mode='time') -> np.array:
     """
     Calculates time axes and corresponding indices for linear-spaced trajectory
     construction. 
@@ -400,7 +490,7 @@ def lin_axis(nt0:int,nt:int=450,nss:float=0.02,dt:float=0.005,fr:int=15,mode='ti
     return np.round(t/dt).astype(int)
     
 
-def log_axis(nt0:int,nt:int=450,nss0:float=0.02,nssf:float=2000,dt:float=0.005,fr:int=15,mode='time') -> np.array:
+def log_axis(nt0:int,nt:int=450,nss0:float=0.005,nssf:float=500,dt:float=0.005,fr:int=15,mode='time') -> np.array:
     """
     Calculates time axes and corresponding indices for log-spaced trajectory
     construction. 

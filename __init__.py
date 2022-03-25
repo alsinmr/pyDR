@@ -19,10 +19,10 @@ from pyDR import Frames
 from pyDR import IO
 from pyDR.chimeraX.CMXRemote import CMXRemote
 
-from pyDR import Project
+from pyDR.Project import Project,Source
 
-clsDict.update({'Data':Data,'Source':Project.Source,'Info':Sens.Info,
+clsDict.update({'Data':Data,'Source':Source,'Info':Sens.Info,
          'Sens':Sens.Sens,'Detector':Sens.Detector,'NMR':Sens.NMR,'MD':Sens.MD,
-         'MolSys':MolSys,'MolSelect':MolSelect,'Project':Project.Project,
+         'MolSys':MolSys,'MolSelect':MolSelect,'Project':Project,
          'FrameObj':Frames.FrameObj,'Ctcalc':MDtools.Ctcalc,
          'DataPlots':Plotting.DataPlots,'CMXRemote':CMXRemote})

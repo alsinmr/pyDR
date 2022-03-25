@@ -11,6 +11,7 @@ from PyQt5 import QtGui
 import numpy as np
 from matplotlib.pyplot import get_cmap
 from RemoteChimeraFuns import set_color_radius,DetFader
+from chimerax.label.label2d import label_create
 
 class DetectorFader():
     def __init__(self,cmx,*args):
@@ -21,6 +22,35 @@ class DetectorFader():
     def __call__(self):
         self.fader.set_color_radius()
         
+class TimescaleIndicator():
+    def __init__(self,cmx,tau):
+        self.cmx=cmx
+        self.session=cmx.session
+        self.model=self.session.models[-1]
+        self.tau=tau
+        self.i=-1
+        self.label=label_create(self.session,'timescale',  #Create a 2d label
+                                text='1 s: {:.0f} ps'.format(self.tau[1]*1e3),
+                                xpos=0.02,ypos=.05,size=50)   
+        
+        
+    def __call__(self):
+        i=self.model.active_coordset_id-1
+        if i!=self.i:
+            tau=self.tau[i]*1e3
+            if i==0:
+                text='1 s: {:.0f} ps'.format(self.tau[1]*1e3)
+            elif tau<1e3:
+                text='1 s: {:.0f} ps'.format(tau)
+            elif tau<1e6:
+                text='1 s: {:.0f} ns'.format(tau/1e3)
+            elif tau<1e9:
+                text='1 s: {:.0f} μs'.format(tau/1e6)
+            else:
+                text='1 s: {:.0f} ms'.format(tau/1e9)
+            self.label.text=text
+            self.label.update_drawing()
+            self.i=i
         
 
 class Hover():
@@ -127,7 +157,7 @@ class Detectors(Hover):
         
         self.labels = []
         self.commands = []
-        from chimerax.label.label2d import label_create
+        
         #todo one can set the label text to the correlation time
         if len(rho_index)==1:
             "If only one rho_index, then just set the radii initially (no label)"
