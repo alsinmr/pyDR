@@ -117,7 +117,7 @@ def calc_M(M, vec, rank, method = 0):
     if method==0:
         for dim in range(3):
             for j in range(dim,3):
-                M+=(vec[:,dim]@vec[:,j].T)*(1 if dim==j else 2)
+                M+=((vec[:,j]*vec[:,dim])@(vec[:,j]*vec[:,dim]).T)*(1 if dim==j else 2)
         M*=3/2/vec.shape[-1]
         M-=1/2
 
