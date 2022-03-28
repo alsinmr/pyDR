@@ -104,7 +104,7 @@ class iRED():
         return data
 
 
-def calc_M(M, vec, rank):
+def calc_M(M, vec, rank, method = 0):
     #todo njit this function
     # not working right now because of np.repeat
     # if it will not run, move it back to Mmat
@@ -114,25 +114,27 @@ def calc_M(M, vec, rank):
     # one will have to evaluate which result is better
     nb = M.shape[0]
     print(vec.shape)
-    for dim in range(3):
-        for j in range(dim,3):
-            M+=(vec[:,dim]@vec[:,j].T)*(1 if dim==j else 2)
-    M*=3/2/vec.shape[-1]
-    M-=1/2
+    if method==0:
+        for dim in range(3):
+            for j in range(dim,3):
+                M+=(vec[:,dim]@vec[:,j].T)*(1 if dim==j else 2)
+        M*=3/2/vec.shape[-1]
+        M-=1/2
 
-    """for k in range(0, nb - 1):
-        x0 = np.repeat([vec[k, 0, :]], nb - k - 1, axis=0)
-        y0 = np.repeat([vec[k, 1, :]], nb - k - 1, axis=0)
-        z0 = np.repeat([vec[k, 2, :]], nb - k - 1, axis=0)
-        dot = x0 * vec[k + 1:, 0, :] + y0 * vec[k + 1:, 1, :] + z0 * vec[k + 1:, 2, :]
+    elif method == 1:
+        for k in range(0, nb - 1):
+            x0 = np.repeat([vec[k, 0, :]], nb - k - 1, axis=0)
+            y0 = np.repeat([vec[k, 1, :]], nb - k - 1, axis=0)
+            z0 = np.repeat([vec[k, 2, :]], nb - k - 1, axis=0)
+            dot = x0 * vec[k + 1:, 0, :] + y0 * vec[k + 1:, 1, :] + z0 * vec[k + 1:, 2, :]
 
-        if rank == 1:
-            val = np.mean(dot, axis=1)
-        elif rank == 2:
-            val = np.mean((3 * dot ** 2 - 1) / 2, axis=1)
+            if rank == 1:
+                val = np.mean(dot, axis=1)
+            elif rank == 2:
+                val = np.mean((3 * dot ** 2 - 1) / 2, axis=1)
 
-        M[k, k + 1:] = val
-        M[k + 1:, k] = val"""
+            M[k, k + 1:] = val
+            M[k + 1:, k] = val
 
 
 def Mmat(vec, rank):

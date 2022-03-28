@@ -1,4 +1,4 @@
-import pyDR.Project
+import pyDR.Project as Project
 from pyDR.GUI import QMainWindow   # this is important to import because of the get_project function! Maybe there is a
                                     # better solution
 from pyDR.GUI import MyWindow
@@ -11,6 +11,7 @@ import os.path
 if __name__ == '__main__':
     """
     Open pyDR via commandline with 'python3 -m pyDR'
+    Optional 'python3 -m pyDR PROJECTNAME' will skip the process the starting wizard
     
     This will create the GUI which will ask you to load an existing or create a new project.
     
@@ -19,7 +20,7 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         #print(sys.argv)
         if os.path.exists(sys.argv[1]):
-            project = pyDR.Project.Project(sys.argv[1])
+            project = Project(sys.argv[1])
         else:
             print("A project with this name doesn't exist")
     app = QApplication(sys.argv)
@@ -47,7 +48,7 @@ if __name__ == '__main__':
                 create = False
 
             #todo think about making a default project folder which will be scanned always
-            project = pyDR.Project.Project(project_name, create=create)
+            project = Project(project_name, create=create)
 
         elif return_value == 8192:  # this is the open button
             # todo add file dialog to open existing project
