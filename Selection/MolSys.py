@@ -72,6 +72,10 @@ class Trajectory():
     def dt(self):
         return self.__dt*self.step
     
+    @property
+    def time(self):
+        return self.mda_traj.time
+    
     def __setattr__(self,name,value):
         "Make sure t0, tf, step are integers"
         if name in ['t0','tf','step']:
@@ -418,14 +422,13 @@ class MolSelect():
                         id0.append((s1.segid,s1.resid,s1.name))
             if mode=='a3':
                 id1,id2=[[x[1:] for x in id0] for id0 in [id1,id2]]
-        
 
         in12=list()
         for i in id1:
-            in12.append(np.any([np.array_equal(i,i1) for i1 in id2]))
+            in12.append(np.any([np.array_equal(np.sort(i),np.sort(i1)) for i1 in id2]))
         in12=np.argwhere(in12)[:,0]
         
-        in21=np.array([(np.argwhere([np.array_equal(id1[k],i2) for i2 in id2])[0,0]) for k in in12])
+        in21=np.array([(np.argwhere([np.array_equal(np.sort(id1[k]),np.sort(i2)) for i2 in id2])[0,0]) for k in in12])
             
             
         # in21=np.array([np.argwhere([id1[k]==i2 for i2 in id2])[0,0] for k in in12])

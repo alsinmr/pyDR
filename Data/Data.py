@@ -12,6 +12,7 @@ from .Plotting import plot_fit,DataPlots
 from ..Fitting import fit,opt2dist
 from matplotlib.figure import Figure
 from copy import copy
+from pyDR.chimeraX.Movies import Movies
 
 dtype=Defaults['dtype']
 
@@ -54,6 +55,8 @@ class Data():
         self.source=clsDict['Source'](src_data=src_data,select=select,Type=Type)
 #        self.select=select #Stores the molecule selection for this data object
         self.vars=dict() #Storage for miscellaneous variable
+        self._movies=None
+        
         
     @property
     def Rc(self):
@@ -183,6 +186,32 @@ class Data():
         for f in ['R','Rstd','_Rc','S2','_S2c','label','source']:
             setattr(out,f,copy(getattr(self,f)))
         return out
+    
+    def __add__(self,obj):
+        """
+        Add a data object to another data object or subproject to generate a 
+        subproject. 
+
+        Parameters
+        ----------
+        obj : Data or Project
+            Data object or Project object to add to this data object.
+
+        Returns
+        -------
+        Project
+            Subproject containing this data object plus the added data or project.
+
+        """
+        assert self.source.project is not None,"Addition (+) only defined for data in a project"
+        if str(obj.__class__)==str(clsDict['Project']):
+            return obj+self
+        proj=copy(self.source.project)
+        proj._subproject=True
+        proj._index=np.array([],dtype=int)  #Make an empty subproject
+        proj=proj+obj           #
+        return proj+self
+        
             
     
     def plot(self, errorbars=False, style='canvas', fig=None, index=None, rho_index=None, plot_sens=True, split=True,**kwargs):
@@ -257,6 +286,7 @@ class Data():
         CMXRemote=clsDict['CMXRemote']
         index=np.arange(self.R.shape[0]) if index is None else np.array(index)
         if rho_index is None:rho_index=np.arange(self.R.shape[1])
+        if not(hasattr(rho_index,'__len__')):rho_index=np.array([rho_index],dtype=int)
         R=self.R[index]
         R*=1/R[index].T[rho_index].max() if scaling is None else scaling
         
@@ -278,16 +308,31 @@ class Data():
         
         # CMXRemote.send_command(ID,'close')
         CMXRemote.send_command(ID,'open {0}'.format(self.select.molsys.topo))
-        CMXRemote.send_command(ID,'style ball')
-        CMXRemote.send_command(ID,'size stickRadius 0.2')
-        CMXRemote.send_command(ID,'size atomRadius 0.8')
+        nm=CMXRemote.how_many_models(ID)
+        # CMXRemote.send_command(ID,'sel #{0}'.format(nm))
+        CMXRemote.command_line(ID,'sel #{0}'.format(nm))
+        CMXRemote.send_command(ID,'style sel ball')
+        CMXRemote.send_command(ID,'size sel stickRadius 0.2')
+        CMXRemote.send_command(ID,'size sel atomRadius 0.8')
         CMXRemote.send_command(ID,'~ribbon')
-        CMXRemote.send_command(ID,'show')
-        CMXRemote.send_command(ID,'color all tan')
+        CMXRemote.send_command(ID,'show sel')
+        CMXRemote.send_command(ID,'color sel tan')
+        CMXRemote.send_command(ID,'~sel')
         
         out=dict(R=R,rho_index=rho_index,ids=ids)
         # CMXRemote.remove_event(ID,'Detectors')
         CMXRemote.add_event(ID,'Detectors',out)
+        
+    @property
+    def movies(self):
+        if self.source.project is None:
+            print('movies only available within projects')
+            return
+
+        if self._movies is None:
+            self._movies=Movies(self)
+        return self._movies
+            
         
         
         

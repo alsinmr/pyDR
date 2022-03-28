@@ -211,15 +211,18 @@ class DataPlots():
         d0,di=self.data[0],self.data[i]
         
         if d0.select is not None and di.select is not None and len(d0.select) and len(di.select):
-            return d0.select.compare(di.select)
-        else:
-            in01=list()
-            for da,db in [(d0,di),(di,d0)]:
-                inab=list()
-                for lbl in db.label:
-                    if lbl in da.label:inab.append(np.argwhere(da.label==lbl)[0,0])
-                in01.append(np.array(inab))
-            return in01
+            out=d0.select.compare(di.select)
+            if len(out[0]):
+                return d0.select.compare(di.select)
+
+        in01=list()
+        for da,db in [(d0,di),(di,d0)]:
+            inab=list()
+            for lbl in db.label:
+                if lbl in da.label:inab.append(np.argwhere(da.label==lbl)[0,0])
+            in01.append(np.array(inab))
+        return in01
+            # return np.array(in01,dtype=int)
             
     def xindex(self,i=-1):
         """
@@ -234,7 +237,7 @@ class DataPlots():
         mode=self.mode
         
         in1=self.comparex(i=i)[1]
-            
+        
         if mode=='b_in_a':return in1
         di=self.data[i]
         index=np.ones(di.R.shape[0],dtype=bool)
@@ -281,9 +284,9 @@ class DataPlots():
         Returns the labels for the x-axis. Set update to True in order to actually
         apply those labels
         """
-        
-        if self.data[0].label.dtype.kind in ['f','i'] and self.data[i].label.dtype.kind in ['f','i']:
-            for a in self.ax[:-1]:a.set_xticklabels([])   #Only show label on last axis
+        if np.issubdtype(self.data[0].label.dtype,np.number) and np.issubdtype(self.data[0].label.dtype,np.number):
+        # if self.data[0].label.dtype.kind in ['f','i'] and self.data[i].label.dtype.kind in ['f','i']:
+            # for a in self.ax[:-1]:a.set_xticklabels([])   #Only show label on last axis
             return #Just use the automatic labels if all labels are numeric
         xpos0,xposi=self.xpos(0),self.xpos(i)
         xpos=np.union1d(xpos0,xposi)

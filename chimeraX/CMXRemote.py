@@ -14,7 +14,7 @@ from pyDR.chimeraX.chimeraX_funs import get_path,py_line,WrCC,chimera_path,run_c
 from threading import Thread
 from time import time,sleep
 from platform import platform
-from subprocess import Popen,check_output
+from subprocess import Popen,check_output,DEVNULL
 from pyDR import clsDict
 
 #%% Functions to run in pyDR
@@ -85,7 +85,7 @@ class CMXRemote():
     @classmethod
     def cleanup(cls):
         for k in range(len(cls.PIDs)):
-            if cls.conn[k].closed:
+            if cls.conn[k] is None or cls.conn[k].closed:
                 cls.kill(k)
     
     @classmethod
@@ -164,8 +164,20 @@ class CMXRemote():
             DESCRIPTION.
 
         """
-        string=string.replace(' ','+')
-        return check_output('curl http://127.0.0.1:{0}/run?command={1}'.format(cls.rc_port0+ID,string),shell=True)
+        # string=string.replace(' ','+')
+        
+        #Entries in encoding were obtained at https://meyerweb.com/eric/tools/dencoder/. 
+        #If additional symbols cause problems, please add them to the encoding dictionary
+        
+        #The % has to come first because all the other signs will introduce a %
+        encoding={'%':'%25','@':'%40','#':'%23','$':'%24','^':'5E','&':'%26',
+                  '[':'%5B',']':'%5D','{':'%7B','}':'%7D','"':'%22',"'":'%27',
+                  ' ':'+'}
+        
+        for k,v in encoding.items():string=string.replace(k,v)
+        
+        return check_output('curl http://127.0.0.1:{0}/run?command={1}'.format(cls.rc_port0+ID,string),shell=True,
+                            stderr=DEVNULL)
         # return os.system('curl http://127.0.0.1:{0}/run?command={1}'.format(cls.rc_port0+ID,string))
     
     @classmethod
@@ -195,7 +207,12 @@ class CMXRemote():
     def command_line(cls,ID:int,string:str) -> None:
         """
         Send a command to be executed on the ChimeraX command line, but via 
-        run_command in the python interface (why do we have this?)
+        run_command in the python interface.
+        
+        At the moment, this is necessary because using run() from within the
+        event loop crashes chimeraX and using curl seems not to transfer certain
+        characters correctly. Probably, the latter problem can be solved. I
+        suspect the former cannot be– A.S.
 
         Parameters
         ----------
@@ -236,6 +253,7 @@ class CMXRemote():
         """
         cls.send_command(ID,'open {0}'.format(cls.full_path(ID)))
 #        cls.conn[ID].send(('command_line','open {}'.format(cls.full_path(ID))))
+
     
 #%% Event handling
     @classmethod
@@ -265,6 +283,22 @@ class CMXRemote():
         while time()-t0<1:
             if tr.response:
                 return tr.response
+#%% Various queries    
+    @classmethod
+    def how_many_models(cls,ID):
+        try:
+            cls.conn[ID].send(('how_many_models',))
+        except:
+            print('Connection failed')
+            return None
+        tr=Listen(cls.conn[ID])
+        tr.start()
+        t0=time()
+        while time()-t0<1:
+            if tr.response:
+                return tr.response
+        return 0
+    
 #%% Thread handling        
 class Listen(Thread):
     def __init__(self,conn):
