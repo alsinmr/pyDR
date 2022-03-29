@@ -300,7 +300,7 @@ class MolSelect():
     
     @property
     def v(self):
-        assert self.sel1 is not None and self.sel2 is not None,'vec requires both sel2 and sel2 to be defined'
+        assert self.sel1 is not None and self.sel2 is not None,'vec requires both sel1 and sel2 to be defined'
         if hasattr(self.sel1[0],'__len__') and hasattr(self.sel2[0],'__len__'):
             out=np.array([s0.positions.mean(0)-s1.positions.mean(0) for s0,s1 in zip(self.sel1,self.sel2)])
         elif hasattr(self.sel1[0],'__len__'):

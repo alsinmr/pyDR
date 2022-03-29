@@ -65,6 +65,7 @@ class MyWindow(Ui_MainWindow):
         self.actionQuitProgram.triggered.connect(MainWindow.close)   # this connects the 'action' to QAction!
 
         self.actionLoad_Project.triggered.connect(self.load_project)
+        self.actionSave_Project.triggered.connect(self.save_project)
         #todo I am not sure if it might be useful to just load another project. Setting this up might be a little
         # complicated because of the hard connections to the gui
         # maybe it is just more useful to run two windows of pyDR
@@ -73,7 +74,8 @@ class MyWindow(Ui_MainWindow):
 
 
 
-
+    def save_project(self):
+        self.parent.working_project.save()
 
     def load_project(self, init=False):
         if not init:
