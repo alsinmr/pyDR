@@ -83,7 +83,7 @@ class iRED():
         print("Aqt",aqt)
 
         plt.show()
-
+        return
         #todo calculate correlation function
         cqt = Cqt(aqt)
         ct = Ct(cqt)
@@ -96,7 +96,7 @@ class iRED():
             if i%10000==0:
                 print(i)
             self.vecs[:,:,i] = self.molsel.v
-
+            ### aware these are not normalized
 
     def to_data(self) -> Data:
         assert 0, "implement!"
@@ -104,42 +104,25 @@ class iRED():
         return data
 
 
-def calc_M(M, vec, rank, method = 0):
-    #todo njit this function
-    # not working right now because of np.repeat
-    # if it will not run, move it back to Mmat
 
-
-    #todo this approach works very fast, but gives different results than the commented out below
-    # one will have to evaluate which result is better
-    nb = M.shape[0]
-    print(vec.shape)
-    if method==0:
-        for dim in range(3):
-            for j in range(dim,3):
-                M+=((vec[:,j]*vec[:,dim])@(vec[:,j]*vec[:,dim]).T)*(1 if dim==j else 2)
-        M*=3/2/vec.shape[-1]
-        M-=1/2
-
-    elif method == 1:
-        for k in range(0, nb - 1):
-            x0 = np.repeat([vec[k, 0, :]], nb - k - 1, axis=0)
-            y0 = np.repeat([vec[k, 1, :]], nb - k - 1, axis=0)
-            z0 = np.repeat([vec[k, 2, :]], nb - k - 1, axis=0)
-            dot = x0 * vec[k + 1:, 0, :] + y0 * vec[k + 1:, 1, :] + z0 * vec[k + 1:, 2, :]
-
-            if rank == 1:
-                val = np.mean(dot, axis=1)
-            elif rank == 2:
-                val = np.mean((3 * dot ** 2 - 1) / 2, axis=1)
-
-            M[k, k + 1:] = val
-            M[k + 1:, k] = val
 
 
 def Mmat(vec, rank):
-    M = np.eye(vec[:,0,:].shape[0])
-    calc_M(M, vec, 2)
+    M = np.eye(vec[:,0,:].shape[0])*0
+    if rank == 2:
+        for dim in range(3):
+            for j in range(dim,3):
+                M += ((vec[:, j] * vec[:, dim])@(vec[:, j] * vec[:, dim]).T)*(1 if dim == j else 2)
+        M *= 3/2/vec.shape[-1]
+        M -= 1/2
+    elif rank == 1:
+        #todo
+        # test if this is correct
+        for k in range(3):
+            for j in range(k, 3):
+                M += vec[k]@vec[j].T
+    else:
+        assert 0, "rank should be 1 or 2"
     a = np.linalg.eigh(M)
     return {'M': M, 'lambda': a[0], 'm': a[1], 'rank': rank}
 

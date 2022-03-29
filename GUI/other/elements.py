@@ -25,6 +25,11 @@ def get_workingproject(widget: QWidget):
             assert 0, "No Project!"
     return widget.get_project()
 
+#def fill_combobox_with_items(box, listofitems: list):
+#    for item in listofitems:
+#        if not item in box:
+#            box.add
+
 def openFileNameDialog(**kwargs) -> str:
     """
     :param kwargs:
