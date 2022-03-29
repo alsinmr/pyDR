@@ -104,6 +104,9 @@ class Data():
         elif name in ['Rc','S2c']:
             setattr(self,'_'+name,value)
             return
+        elif name == 'details':
+            self.source.details=value
+            return
         super().__setattr__(name, value)
         
 
@@ -118,6 +121,10 @@ class Data():
     @property
     def src_data(self):
         return self.source.src_data
+    
+    @property
+    def details(self):
+        return self.source.details
     
     @property
     def n_data_pts(self):

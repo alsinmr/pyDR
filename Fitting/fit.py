@@ -70,6 +70,15 @@ def fit(data,bounds=True,parallel=False):
         out.R2,out.R=out.R[:,-1],out.R[:,:-1]
         out.R2std,out.Rstd=out.Rstd[:,-1],out.Rstd[:,:-1]
     
+    
+    
+    out.details=data.details.copy()
+    op=data.detect.opt_pars
+    out.details.append('Fitted with {0} detectors'.format(op['n']))
+    out.details.append('Detector optimization type: {0}'.format(op['Type']))
+    out.details.append('Normalizaton: {0}, NegAllow: {1}, Options:'.format(op['Normalization'],op['NegAllow'])+\
+                       ', '.join(op['options']))
+        
     if data.source.project is not None:data.source.project.append_data(out)
     
     return out
@@ -175,8 +184,9 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
         rhoz_clean=np.array(rhoz_clean)
         out.sens._Sens__rho=rhoz_clean
         out.R=np.array(dist)@rhoz_clean.T
-            
-        in0,in1=np.argwhere(rhoz<threshold*rhoz.max())[[0,-1],0]
+        
+        # in0,in1=np.argwhere(rhoz<threshold*rhoz.max())[[0,-1],0]
+        out.detect=clsDict['Detector'](out.sens)
 
     # Rc=list()
     # if 'inclS2' in sens.opt_pars['options']:
@@ -192,6 +202,9 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
         out.S2c=np.array([d.sum() for d in dist])
         
         
+    out.details=data.details.copy()
+    out.details.append('Data fit optimized with opt2dist (rhoz_cleanup:{0})'.format(rhoz_cleanup))
     
     if data.source.project is not None:data.source.project.append_data(out)
+    
     return out

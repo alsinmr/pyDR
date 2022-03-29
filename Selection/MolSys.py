@@ -55,6 +55,12 @@ class MolSys():
     @property
     def topo(self):
         return self.uni.filename
+    
+    @property
+    def details(self):
+        out=['Topology: {}'.format(self.topo)]
+        out.extend(self.traj.details)
+        return out
         
 
 
@@ -75,6 +81,12 @@ class Trajectory():
     @property
     def time(self):
         return self.mda_traj.time
+    
+    @property
+    def details(self):
+        out=['Trajectory:'+', '.join(self.files)]
+        out.append('t0={0}, tf={1}, step={2}, dt={3} ps, original length={4}'.format(self.t0,self.tf,self.step,self.dt,self.__tf))
+        return out
     
     def __setattr__(self,name,value):
         "Make sure t0, tf, step are integers"
@@ -124,7 +136,7 @@ class Trajectory():
     @property
     def files(self):
         if hasattr(self.mda_traj,'filenames'):
-            return self.mda_traj.filenames
+            return [f for f in self.mda_traj.filenames] #Always return a list
         else:
             return [self.mda_traj.filename] #Always return a list
     
@@ -220,6 +232,16 @@ class MolSelect():
             else:
                 self.repr_sel=[s0 for s0 in self.sel1]
         return self._repr_sel
+    
+    @property
+    def details(self):
+        out=self.molsys.details
+        if len(self):
+            out.append('Selection with {0} elements'.format(len(self)))
+            out.append('Selection labels: '+', '.join([str(l) for l in self.label]))
+        return out
+        
+        
     
     def set_selection(self,i,sel=None,resids=None,segids=None,fitler_str=None):
         """

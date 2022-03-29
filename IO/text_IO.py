@@ -51,6 +51,9 @@ def readNMR(filename):
             data.source.Type='NMR'
             data.sens.info['med_val']=np.median(data.R,0)
             data.sens.info['stdev']=np.median(data.Rstd,0)
+            data.details=['NMR data loaded from {0}'.format(os.path.abspath(filename)),
+                          '{0} resonances, {1} experiments'.format(*data.R.shape)+\
+                              (' + S2' if data.S2 is not None else '')]
             return data
         
 #%% Info read and write (intended only for NMR sensitivities)

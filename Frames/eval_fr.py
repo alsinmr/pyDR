@@ -201,6 +201,14 @@ class FrameObj():
         print(out)
     
     
+    @property
+    def details(self):
+        out=self.molecule.details
+        tf,n,nr=(self.sampling_info[k] for k in ['tf','n','nr'])
+        out.append('Processed data sampling: tf={0}, n={1}, nr={2}'.format(tf,n,nr))
+        out.append('Frame processing mode is {0}'.format(self.mode))
+        return out
+    
     def new_frame(self,Type=None,frame_index=None,**kwargs):
         """
         Create a new frame, where possible frame types are found in vec_funs.
@@ -293,6 +301,59 @@ class FrameObj():
         self.__frames_loaded=True
         self.include=None   #If new frames loaded, we should re-set what frames used for correlation functions
         
+    
+    def select_frames(self,include:list=None):
+        """
+        Allows excluding some frames from the analysis, by specifying which frames
+        to include based on a list of logicals
+
+        Parameters
+        ----------
+        include : list, optional
+            List of True/False the same length as the number of frames included.
+            The default is None, which will include all frames.
+
+        Returns
+        -------
+        dict.
+            Dictionary containing the truncated set of vectors.
+
+        """
+        if include is None:return self.vecs
+        vecs=self.vecs.copy()
+        vecs['frame_index']=self.vecs['frame_index'].copy()
+        vecs['v']=self.vecs['v'].copy()
+        for k,v in zip(range(len(include)-1,-1,-1),include[::-1]):
+            if not(v):
+                vecs['frame_index'].pop(k)
+                vecs['v'].pop(k)
+        vecs['n_frames']=len(vecs['v'])
+        return vecs
+    
+    def frame_names(self,include:list=None)->list:
+        """
+        Returns a list of strings which describing what motion each output data
+        set corresponds to (ex. PAS>methylCC)
+
+        Parameters
+        ----------
+        include : list, optional
+            List of True/False the same length as the number of frames included.
+            The default is None, which will include all frames.
+
+        Returns
+        -------
+        list
+            List of strings describing what motion is described by each output
+            data set.
+
+        """
+        frame_names=[vf.__str__().split(' ')[1].split('.')[0] for vf in self.vf]
+        out=list()
+        for fr0,fr1 in zip(['PAS',*frame_names],[*frame_names,'LF']):
+            out.append('{0}>{1}'.format(fr0,fr1))
+        return out
+    
     def frames2ct(self,mode='auto',return_index=None,include=None):
         """
         Converts vectors loaded by load_frames into correlation functions and
@@ -323,13 +384,7 @@ class FrameObj():
         if run:
             self.__return_index=return_index.copy()
             "Here, we take out frames that aren't used"
-            vecs=self.vecs.copy()
-            vecs['frame_index']=self.vecs['frame_index'].copy()
-            vecs['v']=self.vecs['v'].copy()
-            for k,v in zip(range(len(include)-1,-1,-1),include[::-1]):
-                if not(v):
-                    vecs['frame_index'].pop(k)
-                    vecs['v'].pop(k)
+            vecs=self.select_frames(include)
 
             out=frames2ct(v=vecs,return_index=return_index,mode=mode)
             self.mode=mode
@@ -353,11 +408,19 @@ class FrameObj():
         Transfers the frames results to a list of data objects
         """
         self.frames2ct(mode=mode,return_index=return_index,include=include)
-        out=ct2data(self.ct_out,self.molecule)        
-        frame_names=[vf.__str__().split(' ')[1].split('.')[0] for vf in self.vf]
-                        
-        for o,fr0,fr1 in zip(out[2:],['PAS',*frame_names],[*frame_names,'LF']):
-            o.source.additional_info='{0}>{1}'.format(fr0,fr1)
+        out=ct2data(self.ct_out,self.molecule)  
+        for o in out:o.details=self.details.copy()
+        out[0].source.additional_info='Direct'        
+        out[0].details.append('Direct analysis of the correlation function')
+        
+        if len(out)>1:
+            out[1].source.additional_info='Product'
+            out[1].details.append('Product of correlation functions from frame analysis')
+                
+        for o,fn in zip(out[2:],self.frame_names):
+            o.source.additional_info=fn
+            o.details=self.details.copy()
+            o.details.append('Rotation between frames '+' and '.join(fn.split('>')))
         
         out[0].sens.sampling_info=self.sampling_info
                 
@@ -377,7 +440,96 @@ class FrameObj():
         out=self.frames2data(mode='direct')[0]
         out.source.Type='MD'
         out.source.additional_info=None
+        out.sens.sampling_info=self.sampling_info
         return out
+    
+    def frames2iRED(self,include:list=None)->list:
+        """
+        Sets the frames mode to symmetric and extracts vectors for each frame
+        required to perform iRED analysis.
+
+        Parameters
+        ----------
+        include : list, optional
+            List of logicals the same length as the number of loaded frames, 
+            used to determine whether or not to include each frame.
+            The default is None, which will include all frames
+
+        Returns
+        -------
+        list
+            Contains a list of the vectors for further analysis with iRED, as
+            well as information about sampling of the time axis – each list
+            element is a dictionary
+
+        """
+        if not(self.__frames_loaded):self.load_frames() #Load the frames if not already done
+        self.return_index.set2sym() #Set to symmetric mode
+        include=np.ones(len(self.vf),dtype=bool) if include is None else np.array(include,dtype=bool)
+        assert len(include)==len(self.vf),\
+        "include index must have the same length ({0}) as the number of frames({1})".format(len(include),len(self.vf))
+    
+        v=self.select_frames(include)
+        index=v['index']
+        
+        if len(v['v']):
+            vZ,vXZ,nuZ,nuXZ,_=apply_fr_index(v)
+            nf=len(nuZ)
+        else:
+            nf=0
+            vZ=v['vT'][0] if v['vT'].shape[0]==2 else v['vT']
+            details=self.details.copy()
+            details.append('Direct analysis of the correlation function')
+            out=[{'v':vZ,'t':v['t'],'index':index,'details':details}]
+            return out
+        
+    
+        
+        nr,nt=vZ.shape[1:]
+    
+        A_0m_PASinf=list()
+        for k in range(nf):
+            vZ_inf=vft.applyFrame(vft.norm(vZ),nuZ_F=nuZ[k],nuXZ_F=nuXZ[k])
+            A_0m_PASinf.append(vft.D2vec(vZ_inf).mean(axis=-1))
+        
+        details=self.details.copy()
+        details.append('Direct analysis of the correlation function')
+        out=[{'v':vZ,'t':v['t'],'index':index,'details':details}]
+        for k,fn in zip(range(nf+1),self.frame_names(include)):
+            if k==0:
+                A0=np.zeros([5,nr])
+                A0[2]=1
+                nuZ_f,nuXZ_f,nuZ_F,nuXZ_F=None,None,nuZ[k],nuXZ[k]
+            elif k==nf:
+                A0,nuZ_f,nuXZ_f,nuZ_F,nuXZ_F=A_0m_PASinf[k-1],nuZ[k],nuXZ[k],None,None
+            else:
+                A0,nuZ_f,nuXZ_f,nuZ_F,nuXZ_F=A_0m_PASinf[k-1],nuZ[k-1],nuXZ[k-1],nuZ[k],nuXZ[k] 
+        
+        
+            v0=sym_nuZ_f(A_0m_PASinf=A_0m_PASinf,nuZ_f=nuZ_f,nuXZ_f=nuXZ_f,nuZ_F=nuZ_F,nuXZ_F=nuXZ_F)
+            details=self.details.copy()
+            details.append('Rotation between frames '+' and '.join(fn.split('>')))
+            out.append({'v':v0,'t':v['t'],'index':index,'details':details})
+            
+    def md2iRED(self)->dict:
+        """
+        Extracts vectors describing only the full motion for use in the iRED 
+        analysis
+
+        Returns
+        -------
+        dict
+            Contains a list of the vectors for further analysis with iRED, as
+            well as information about sampling of the time axis.
+
+        """
+        include=[False for _ in range(len(self.vf))]
+        return self.frames2iRED(include)[0]
+            
+        
+        
+        
+        
 
     #TODO add back in some version of draw tensors        
     # def draw_tensors(self,fr_num,tensor_name='A_0m_PASinF',sc=2.09,tstep=0,disp_mode=None,index=None,scene=None,\
