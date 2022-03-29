@@ -137,7 +137,12 @@ class ReturnIndex():
         if self.ct_0m_finF or self.ct_0m_PASinF or self.A_m0_finF or self.A_m0_finF:
             print('Warning: Individual components of the correlation functions or tensors will not be returned in auto or sym mode')
         self.flags.update({'ct_0m_finF':False,'ct_0m_PASinF':False,\
-                           'A_m0_finF':False,'A_0m_finF':False})           
+                           'A_m0_finF':False,'A_0m_finF':False})
+    def set2direct(self):
+        "De-activates all calculations except the direct calculation of ct"
+        for k in self.flags:
+            self.flags[k]=False
+        self.flags['ct']=True
         
         
 
@@ -299,6 +304,7 @@ class FrameObj():
         
         if mode=='auto':self.return_index.set2auto()
         if mode=='sym':self.return_index.set2sym()
+        if mode=='direct':self.return_index.set2direct()
         
         assert include is  None or len(include)==len(self.vf),\
         "include index must have the same length ({0}) as the number of frames({1})".format(len(include),len(self.vf))
@@ -355,6 +361,22 @@ class FrameObj():
         
         out[0].sens.sampling_info=self.sampling_info
                 
+        return out
+    
+    def md2data(self):
+        """
+        Calculates only the direct correlation function and returns this as a
+        data object
+
+        Returns
+        -------
+        None.
+
+        """
+        if self.vft is None:self.tensor_frame(Type='bond',sel1=1,sel2=2)
+        out=self.frames2data(mode='direct')[0]
+        out.source.Type='MD'
+        out.source.additional_info=None
         return out
 
     #TODO add back in some version of draw tensors        
