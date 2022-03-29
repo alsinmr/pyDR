@@ -465,6 +465,7 @@ class FrameObj():
         """
         if not(self.__frames_loaded):self.load_frames() #Load the frames if not already done
         self.return_index.set2sym() #Set to symmetric mode
+        self.mode='sym'
         include=np.ones(len(self.vf),dtype=bool) if include is None else np.array(include,dtype=bool)
         assert len(include)==len(self.vf),\
         "include index must have the same length ({0}) as the number of frames({1})".format(len(include),len(self.vf))
@@ -496,20 +497,21 @@ class FrameObj():
         details.append('Direct analysis of the correlation function')
         out=[{'v':vZ,'t':v['t'],'index':index,'details':details}]
         for k,fn in zip(range(nf+1),self.frame_names(include)):
+            print(k)
             if k==0:
-                A0=np.zeros([5,nr])
-                A0[2]=1
-                nuZ_f,nuXZ_f,nuZ_F,nuXZ_F=None,None,nuZ[k],nuXZ[k]
+                v0=vft.applyFrame(vft.norm(vZ),nuZ_F=nuZ[k],nuXZ_F=nuXZ[k])
             elif k==nf:
-                A0,nuZ_f,nuXZ_f,nuZ_F,nuXZ_F=A_0m_PASinf[k-1],nuZ[k],nuXZ[k],None,None
+                A0,nuZ_f,nuXZ_f,nuZ_F,nuXZ_F=A_0m_PASinf[k-1],nuZ[k-1],nuXZ[k-1],None,None
+                v0=sym_nuZ_f(A_0m_PASinf=A0,nuZ_f=nuZ_f,nuXZ_f=nuXZ_f,nuZ_F=nuZ_F,nuXZ_F=nuXZ_F)
             else:
                 A0,nuZ_f,nuXZ_f,nuZ_F,nuXZ_F=A_0m_PASinf[k-1],nuZ[k-1],nuXZ[k-1],nuZ[k],nuXZ[k] 
+                v0=sym_nuZ_f(A_0m_PASinf=A0,nuZ_f=nuZ_f,nuXZ_f=nuXZ_f,nuZ_F=nuZ_F,nuXZ_F=nuXZ_F)
         
-        
-            v0=sym_nuZ_f(A_0m_PASinf=A_0m_PASinf,nuZ_f=nuZ_f,nuXZ_f=nuXZ_f,nuZ_F=nuZ_F,nuXZ_F=nuXZ_F)
+            
             details=self.details.copy()
             details.append('Rotation between frames '+' and '.join(fn.split('>')))
             out.append({'v':v0,'t':v['t'],'index':index,'details':details})
+        return out
             
     def md2iRED(self)->dict:
         """
@@ -526,10 +528,6 @@ class FrameObj():
         include=[False for _ in range(len(self.vf))]
         return self.frames2iRED(include)[0]
             
-        
-        
-        
-        
 
     #TODO add back in some version of draw tensors        
     # def draw_tensors(self,fr_num,tensor_name='A_0m_PASinF',sc=2.09,tstep=0,disp_mode=None,index=None,scene=None,\
