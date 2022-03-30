@@ -126,8 +126,11 @@ class Sens():
         
     @property
     def _hash(self):
+        return hash(self)
+
+    def __hash__(self):
         if hasattr(self,'opt_pars') and 'n' not in self.opt_pars:   #Unoptimized set of detectors (hash not defined)
-            return self.sens._hash
+            return hash(self.sens)
         return hash(self.rhoz.data.tobytes())
         
 

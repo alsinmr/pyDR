@@ -140,12 +140,19 @@ class Data():
     
     @property
     def _hash(self) -> int:
-        flds = ['R', 'Rstd', 'S2', 'S2std', 'sens']
+        #todo remove later
+        return hash(self)
+
+    def __hash__(self):
+        flds = ['R', 'Rstd', 'S2', 'S2std', 'sens', "select"]
         out = 0
         for f in flds:
             if hasattr(self, f) and getattr(self, f) is not None:
                 x = getattr(self, f)
-                out += x._hash if hasattr(x, '_hash') else hash(x.data.tobytes())
+                if hasattr(x,"tobytes"):
+                    out += hash(x.tobytes())
+                else:
+                    out += hash(x)
         return out
     
     def __len__(self):

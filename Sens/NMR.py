@@ -5,6 +5,7 @@ Created on Thu Nov 11 10:28:55 2021
 
 @author: albertsmith
 """
+import warnings
 
 import numpy as np
 import os
@@ -39,6 +40,10 @@ class NMR(Sens):
         
         self.new_exper(info,**kwargs)
 
+    def __hash__(self):
+        x = 0
+        warnings.warn("not implemented yet, please implement")
+        return 0
         
     def new_exper(self,info=None,**kwargs):
         """

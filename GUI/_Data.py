@@ -51,27 +51,28 @@ class Ui_Data_final(Ui_Data):
 
     def load_from_working_project(self) -> None:
         self.working_project = get_workingproject(self.parent)
-        #if self.working_project.titles:
-            #TODO the indexing of project and info gives very weird errors, when I try to use hasattr
-            # the solution right here is a little uncomfortable for me -K
+
         for title in self.working_project.titles:
             self.listWidget_dataobjects.addItem(title)
-            print(self.working_project[title][0].select)
+            print(self.working_project[title][0].select.molsys.topo)
+            self.comboBox_selectpdb.addItem(self.working_project[title][0].select.molsys.topo)
         #todo load pdbs and add to combobox
         #todo load selection for pdb and add a combobox
 
+
+
     def open_chimerax(self) -> None:
         pdb = self.comboBox_selectpdb.currentText()
-        pdb = "2kj3"
+        #pdb = "2kj3"
         #assert len(pdb), "select a valid pdb file"
         # todo change this if you have data for the combobox
         id = CMXRemote.launch([f"open {pdb}",
-                               "del ~#1.1",
                                "show",
                                "style ball",
                                "hide H",
                                "~ribbon"])
 
         sleep(3) # chimera needs a little time to launch before initialising the detectors
-        CMXRemote.add_event(id,"Detectors", {"ids" : np.arange(10), "R" : np.random.random((10, 3))})
+
+        #CMXRemote.add_event(id,"Detectors", {"ids" : np.arange(10), "R" : np.random.random((10, 3))})
 

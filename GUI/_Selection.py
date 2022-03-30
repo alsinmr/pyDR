@@ -202,6 +202,12 @@ class Ui_Selection_final(Ui_Selection):
         self.pushButton_select.clicked.connect(lambda a: self.collect_selection())
 
     def collect_selection(self):
+        """when clicking the select button, reading out all comboboxes for all signals and extract the atomnumbers of
+        the corresponding bond
+        if the dataset is already connected to a a MolSelect object, sel1, sel2 and label of this object will be over-
+        written. If no dataset is provided, a new one will be created and attached"""
+        #todo make a checkbox if it shall take original labels from nmr or create new ones form pdb
+        dataset = self.working_project[self.comboBox_dataset.currentText()][0]
         sel1_list = []
         sel2_list = []
         signal_list= []
@@ -224,16 +230,19 @@ class Ui_Selection_final(Ui_Selection):
             sel1_list.append(sel1)
             sel2_list.append(sel2)
             signal_list.append(signal_name)
-            print(signal_name, sel1.id, sel2.id)
 
         sel1 = mda.AtomGroup(sel1_list)
         sel2 = mda.AtomGroup(sel2_list)
-        sys = pyDR.MolSys(self.comboBox_pdb.currentText())
-        sel = pyDR.MolSelect(sys)
+        if not hasattr(dataset,"select") or getattr(dataset,"select") is None:
+            sys = pyDR.MolSys(self.comboBox_pdb.currentText())
+            sel = pyDR.MolSelect(sys)
+            dataset.select = sel
+        else:
+            sel = dataset.select
+
         sel.sel1 =sel1
         sel.sel2 = sel2
         sel.label = signal_list
-        self.working_project[self.comboBox_dataset.currentText()].select =  sel
 
     def update_pdb_combobox(self):
         # I am not sure, should we provide the possibility to have more than one pdb on a single dataset?
@@ -245,6 +254,7 @@ class Ui_Selection_final(Ui_Selection):
 
     def load_from_working_project(self):
         self.working_project = get_workingproject(self.parent)
+        self.comboBox_dataset.addItem("")
         for title in self.working_project.titles:
             print(title)
             self.comboBox_dataset.addItem(title)
