@@ -301,15 +301,7 @@ class Data():
         """
         CMXRemote=clsDict['CMXRemote']
 
-        sel = self.select
-        if index is None:
-            #todo i rewrote the indexing depending on the values I get out of the selection with the gui
-            # I am not sure if this will cause complications -K
-            if sel.label is not None:
-                index = np.array([np.where(self.label == sel.label[i])[0][0]
-                                              for i in range(len(sel.label))])
-        else:
-            index=np.arange(self.R.shape[0]) if index is None else np.array(index)
+        index=np.arange(self.R.shape[0]) if index is None else np.array(index)
 
         if rho_index is None:rho_index=np.arange(self.R.shape[1])
         if not(hasattr(rho_index, '__len__')):

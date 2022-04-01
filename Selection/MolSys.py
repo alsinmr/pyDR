@@ -176,7 +176,9 @@ class MolSelect():
         if name in ['sel1','sel2','repr_sel'] and value is not None:
             if name=='repr_sel':name='_repr_sel'
             if isinstance(value,AtomGroup):
-                super().__setattr__(name,value)
+                sel=np.zeros(len(value),dtype=object)
+                for k in range(len(value)):sel[k]=value[k:k+1]
+                super().__setattr__(name,sel)
             elif isinstance(value,str):
                 super().__setattr__(name,self.uni.select_atoms(value))
             else:
@@ -212,13 +214,13 @@ class MolSelect():
         repr_sel=list()        
         if Nuc.lower() in ['15n','n15','n','co','13co','co13','ca','13ca','ca13']:
             for s in self.sel1:
-                repr_sel.append(s.residue.atoms.select_atoms('name H HN N CA'))
-                resi=s.residue.resindex-1
-                if resi>=0 and self.uni.residues[resi].segid==s.segid:
+                repr_sel.append(s.residues[0].atoms.select_atoms('name H HN N CA'))
+                resi=s.residues[0].resindex-1
+                if resi>=0 and self.uni.residues[resi].segid==s[0].segid:
                     repr_sel[-1]+=self.uni.residues[resi].atoms.select_atoms('name C CA')
         elif Nuc.lower()[:3] in ['ivl','ch3'] and '1' in Nuc:
             for s in self.sel1:
-                repr_sel.append(s+s.residue.atoms.select_atoms('name H* and around 1.4 name {}'.format(s.name)))
+                repr_sel.append(s+s.residues[0].atoms.select_atoms('name H* and around 1.4 name {}'.format(s.name)))
         else:
             for s1,s2 in zip(self.sel1,self.sel2):
                 repr_sel.append(s1+s2)
