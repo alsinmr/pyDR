@@ -6,7 +6,7 @@ Created on Mon Dec  6 13:34:36 2021
 @author: albertsmith
 """
 import numpy as np
-from MDAnalysis import Universe,AtomGroup
+from MDAnalysis import Universe, AtomGroup
 from pyDR.misc.ProgressBar import ProgressBar
 from pyDR.Selection import select_tools as selt
 from pyDR.MDtools.vft import pbc_corr
@@ -55,14 +55,20 @@ class MolSys():
     @property
     def topo(self):
         return self.uni.filename
-    
+
     @property
     def details(self):
         out=['Topology: {}'.format(self.topo)]
         out.extend(self.traj.details)
         return out
-        
 
+
+    @property
+    def _hash(self):
+        return hash(self.topo)
+
+    def __hash__(self):
+        return hash(self.topo) + hash(self.traj)
 
 class Trajectory():
     def __init__(self,mda_traj,t0=0,tf=None,step=1,dt=None):
@@ -73,7 +79,10 @@ class Trajectory():
         self.__dt=dt if dt else mda_traj.dt
         self.mda_traj=mda_traj
         self.ProgressBar=False
-            
+
+    def __hash__(self):
+        return hash(self.t0) + hash(self.tf) + hash(self.step) + hash(self.dt)
+
     @property
     def dt(self):
         return self.__dt*self.step
@@ -87,7 +96,7 @@ class Trajectory():
         out=['Trajectory:'+', '.join(self.files)]
         out.append('t0={0}, tf={1}, step={2}, dt={3} ps, original length={4}'.format(self.t0,self.tf,self.step,self.dt,self.__tf))
         return out
-    
+
     def __setattr__(self,name,value):
         "Make sure t0, tf, step are integers"
         if name in ['t0','tf','step']:
@@ -240,9 +249,9 @@ class MolSelect():
             out.append('Selection with {0} elements'.format(len(self)))
             out.append('Selection labels: '+', '.join([str(l) for l in self.label]))
         return out
-        
-        
-    
+
+
+
     def set_selection(self,i,sel=None,resids=None,segids=None,fitler_str=None):
         """
         Define sel2 and sel2 separately. The first argument is 0 or 1, depending on
@@ -324,11 +333,17 @@ class MolSelect():
     def set_label(self,label=None):
         "We attempt to generate a unique label for this selection, while having labels of minimum length"
         if label is None:
-            "An attempt to generate a unique label under various conditions"
+          "An attempt to generate a unique label under various conditions"
+          if hasattr(self, "sel1") and getattr(self,"sel1") is not None\
+             and hasattr(self, "sel2") and getattr(self, "sel2") is not None: #QUICKFIX
             if hasattr(self.sel1[0],'__len__'):
+                #todo this here is causing the saving to crash when sel1 or sel2 is None, i make a quick fix to avoid it,
+                #  but i think it needs a more detailed view
                 label=list()
                 for s in self.sel1:     #See if each atom group corresponds to a single residue
-                    if np.unique(s.resids).__len__()==1:
+                    if s is None:
+                        continue
+                    elif np.unique(s.resids).__len__()==1:
                         label.append(s.resids[0])
                     else:               #If more than residue, then
                         break
@@ -340,7 +355,9 @@ class MolSelect():
                 
                 label=list()
                 for s in self.sel1:     #See if each atom group corresponds to a single segment
-                    if np.unique(s.segids).__len__()==1:
+                    if s is None:
+                        continue
+                    elif np.unique(s.segids).__len__()==1:
                         label.append(s.segids[0])
                     else:               #If more than residue, then
                         break
@@ -461,6 +478,23 @@ class MolSelect():
         if sel is self:return True
         in21=self.compare(sel,mode='auto')[1]
         return len(in21)==len(self) and np.all(in21==np.sort(in21))
-                
+
+    @property
+    def _hash(self):
+        #todo remove this someday
+        return hash(self)
+
+    def __hash__(self):
+        x = 0
+        fields = ["sel1", "sel2", "label"]
+        for field in fields:
+            if hasattr(self, field) and getattr(self, field) is not None:
+                f = getattr(self, field)
+                if hasattr(f,"ids"):
+                    x += hash(f) #<atomgroup hashing
+                elif hasattr(f, "__iter__"):
+                    for i,y in enumerate(f):
+                        x += hash(y)*(i+1)
+        return x + self.molsys._hash
         
         

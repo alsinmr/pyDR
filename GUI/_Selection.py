@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import QLabel, QSpacerItem, QSizePolicy, QPushButton, QComb
 from PyQt5.QtCore import Qt, QRect
 import pyDR
 import re
+import numpy as np
 
 
 class Ui_Selection_final(Ui_Selection):
@@ -35,16 +36,19 @@ class Ui_Selection_final(Ui_Selection):
                 entry["residue_box"].addItem(f"{res.resname}-{res.resid}")
             if not len(entry["segment_box"].currentText()):
                 return
+            get_atoms_of_residue(entry)
+            detect_residue(entry)
+
+        def detect_residue(entry):
             ### assuming the residue number is somewhere written in the label of the signal, we try to extract the
             # number and search for it in the available residues of the segment
             resnum = re.sub('[^0-9]','',entry["label"].text())
+            seg = self.universe.segments[self.universe.segments.segids==entry["segment_box"].currentText()]
             if len(resnum):
                 resnum = int(resnum)
                 for index, res in enumerate(seg.residues):
                     if resnum == res.resid:
                         entry["residue_box"].setCurrentIndex(index+1)
-
-            get_atoms_of_residue(entry)
 
         def get_atoms_of_residue(entry):
             if not len(entry["residue_box"].currentText()):
@@ -63,16 +67,57 @@ class Ui_Selection_final(Ui_Selection):
                 entry["atom2_box"].addItem(atom.name)
             #todo add function that adds the atom numbers to the dicitonary
 
-        def load_pdb():
+        def load_signals_from_data():
+            """
+            accessing the selected data object and extracting the labels in order to create the selection table
+            """
+            title = self.comboBox_dataset.currentText()
+            for label in self.working_project[title][0].label:
+                add_entry(label)
+
+        def load_pdb_and_selection():
+            """
+            loading the universe from the pdb in the pdb-combobox (consider changing it to a label since a dataset might
+            only be connected with a single pdb)
+            furthermore, checking if the label already has a MolSelect object attached and reading out atomnumbers and
+            filling the seleciton table with the values for easier editing
+
+            if no selection object is attached, read out all labels from the dataset and create a new selection table
+            :return:
+            """
             pdbpath = self.comboBox_pdb.currentText()#openFileNameDialog(filetypes="*.pdb")
-            print(pdbpath)
+            clear_entries()
             self.universe = mda.Universe(pdbpath)
+            load_signals_from_data()
             get_segments_of_pdb(*self.entries)
+            dataset = self.working_project[self.comboBox_dataset.currentText()][0]
+            if hasattr(dataset,"select"):
+                print("select", dataset.select.sel1)
+                id = 1
+                for label, sel1,sel2 in zip(dataset.label, dataset.select.sel1, dataset.select.sel2):
+                    print(label, sel1, sel2)
+                    if len(sel1) == 0:
+                        id+=1
+                        continue
+                    else:
+                        for i, atom in enumerate(sel1):
+                            if i:
+                                add_entry(self.entries[id-1], insert=True)
+                            segbox = self.entries[id]["segment_box"]  # index +1 because we have the zero_entry
+                            segbox.setCurrentIndex(segbox.findText(atom.segment.segid))
+                            resbox = self.entries[id]["residue_box"]
+                            res = atom.residue
+                            resbox.setCurrentIndex(resbox.findText(f"{res.resname}-{res.resid}"))
+                            atom1_box = self.entries[id]["atom1_box"]
+                            atom1_box.setCurrentIndex(atom1_box.findText(atom.name))
+                            atom2_box = self.entries[id]["atom2_box"]
+                            atom2_box.setCurrentIndex(atom2_box.findText(sel2[i].name))
+                            id += 1
 
         super().retranslateUi(Selection)
         self.parent = Selection.parent()
         self.load_from_working_project()
-        self.pushButton_loadpdb.clicked.connect(lambda: load_pdb())
+        self.pushButton_loadpdb.clicked.connect(lambda: load_pdb_and_selection())
 
         zero_entry = {"label":QLabel(""),
             "segment_box":self.comboBox,
@@ -110,73 +155,65 @@ class Ui_Selection_final(Ui_Selection):
             while len(self.entries)>1:
                 self.entries.pop()
 
-        def add_entry(label, insert=False):
+        def add_entry(labelstr, insert=False):
             """
 
-            :param label:   is either an already existing entry, if insert=True, or a string
+            :param labelstr:   is either an already existing entry, if insert=True, or a string
             :param insert:  bool
             :return:        none
             """
             new_entry = {}  # todo refactor new_entry
             if insert:
-                index  = self.entries.index(label)
-                new_entry["label"] = QLabel(parent=Selection, text=label["label"].text())
-                new_entry["label"].setToolTip(label["label"].text())
-                new_entry["add_button"] = QLabel(parent=Selection, text="")
+                index  = self.entries.index(labelstr)
+                # in this case, labelstr is acutally not a string, but a dictionary
+                new_entry["label"] = label = QLabel(parent=Selection, text=labelstr["label"].text())
+                label.setToolTip(labelstr["label"].text())
+                new_entry["add_button"] = button =  QLabel(parent=Selection, text="")
             else:
                 index = len(self.entries)
-                new_entry["label"] = QLabel(parent=Selection, text=label)
-                new_entry["add_button"] = QPushButton(parent=Selection, text ="+")
-                new_entry["add_button"].clicked.connect(lambda e, r_entry=new_entry: add_entry(r_entry, insert=True))
+                new_entry["label"] = label = QLabel(parent=Selection, text=labelstr)
+                new_entry["add_button"] = button = QPushButton(parent=Selection, text ="+")
+                button.clicked.connect(lambda e, r_entry=new_entry: add_entry(r_entry, insert=True))
+                label.setToolTip(labelstr)
 
-                new_entry["label"].setToolTip(label)
-            new_entry["label"].setContentsMargins(0,0,0,0)
+            #new_entry["label"].setContentsMargins(0,0,0,0)
             #self.comboBox_dataset.setToolTip(_translate("Selection", "tesst"))
 
-            new_entry["widget"] = QWidget()
-            new_entry["widget"].setContentsMargins(0,0,0,0)
-            new_entry["layout"] = QHBoxLayout(new_entry["widget"])
-            new_entry["layout"].addWidget(new_entry["label"])
-            new_entry["label"].setFixedWidth(60)
+            new_entry["widget"] = widget = QWidget()
+            widget.setContentsMargins(0,0,0,0)
+            new_entry["layout"] = layout = QHBoxLayout(widget)
+            layout.setContentsMargins(0,0,0,0)
+            layout.addWidget(label)
+            label.setFixedWidth(90)
 
-            new_entry["segment_box"] = QComboBox(parent=Selection)
+            new_entry["segment_box"] = seg_box = QComboBox(parent=Selection)
             #self.verticalLayout_assignsegment.insertWidget(index + 1, new_entry["segment_box"])
-            new_entry["layout"].addWidget(new_entry["segment_box"])
-            new_entry["segment_box"].setFixedWidth(40)
-            new_entry["segment_box"].currentIndexChanged.connect(lambda a, e=new_entry: get_residues_of_segment(e))
+            layout.addWidget(seg_box)
+            seg_box.setFixedWidth(50)
+            seg_box.currentIndexChanged.connect(lambda a, e=new_entry: get_residues_of_segment(e))
 
-            new_entry["residue_box"] = QComboBox(parent=Selection)
-            #self.verticalLayout_assignresidue.insertWidget(index + 1, new_entry["residue_box"])
-            new_entry["layout"].addWidget(new_entry["residue_box"])
-            new_entry["residue_box"].setFixedWidth(90)
-            new_entry["residue_box"].currentIndexChanged.connect(lambda a, e=new_entry: get_atoms_of_residue(e))
-            new_entry["residue_box"].setMaxVisibleItems(15)
-            new_entry["residue_box"].setStyleSheet("combobox-popup: 0;")
+            new_entry["residue_box"] = res_box = QComboBox(parent=Selection)
+            layout.addWidget(res_box)
+            res_box.setFixedWidth(90)
+            res_box.currentIndexChanged.connect(lambda a, e=new_entry: get_atoms_of_residue(e))
+            res_box.setMaxVisibleItems(15)
+            res_box.setStyleSheet("combobox-popup: 0;")
             # this stylesheet is a little ugly inbetween, but the only possibility I see to limit the number of items
 
-            new_entry["atom1_box"] = QComboBox(parent=Selection)
-            #self.verticalLayout_assignatom1.insertWidget(index + 1, new_entry["atom1_box"])
-            new_entry["layout"].addWidget(new_entry["atom1_box"])
-            new_entry["atom1_box"].setFixedWidth(70)
+            new_entry["atom1_box"] = atom1_box = QComboBox(parent=Selection)
+            layout.addWidget(atom1_box)
+            atom1_box.setFixedWidth(70)
 
-            new_entry["atom2_box"] = QComboBox(parent=Selection)
+            new_entry["atom2_box"] = atom2_box = QComboBox(parent=Selection)
             #self.verticalLayout_assignatom2.insertWidget(index + 1, new_entry["atom2_box"])
-            new_entry["layout"].addWidget(new_entry["atom2_box"])
-            new_entry["atom2_box"].setFixedWidth(70)
+            layout.addWidget(atom2_box)
+            atom2_box.setFixedWidth(70)
 
+            button.setFixedWidth(30)
+            button.setFixedHeight(label.size().height())
+            layout.addWidget(button)
 
-
-            new_entry["add_button"].setFixedWidth(20)
-            new_entry["add_button"].setFixedHeight(new_entry["label"].size().height())
-            #self.verticalLayout_copysignal.insertWidget(index + 1, new_entry["add_button"])
-            new_entry["layout"].addWidget(new_entry["add_button"])
-
-            new_entry["layout"].setContentsMargins(0,0,0,0)
-            new_entry["layout"].setSpacing(0)   #todo the spacing is not applied properly
-                                                #  find out why and fix -K
-
-
-            self.verticalLayout.insertWidget(index+insert,new_entry["widget"])
+            self.verticalLayout.insertWidget(index+insert, widget)
 
             self.entries.insert(index+1, new_entry)
             if self.universe:
@@ -188,25 +225,30 @@ class Ui_Selection_final(Ui_Selection):
         self.verticalLayout.addItem(QSpacerItem(20, 40, QSizePolicy.MinimumExpanding,QSizePolicy.Expanding))
         #functinality for dataset selection and pdb selection
 
-        def load_signals_from_data():
-            clear_entries()
-            title = self.comboBox_dataset.currentText()
-            for label in self.working_project[title][0].label:
-                add_entry(label)
-            load_pdb()
+
 
         self.comboBox_dataset.currentIndexChanged.connect(lambda a: self.update_pdb_combobox())
-        self.comboBox_dataset.currentIndexChanged.connect(lambda a: load_signals_from_data())
+        self.comboBox_dataset.currentIndexChanged.connect(lambda a: load_pdb_and_selection())
         #self.comboBox_pdb.currentIndexChanged.connect(lambda a: load_pdb())
 
         self.pushButton_select.clicked.connect(lambda a: self.collect_selection())
 
     def collect_selection(self):
-        sel1_list = []
-        sel2_list = []
-        signal_list= []
+        """when clicking the select button, reading out all comboboxes for all signals and extract the atomnumbers of
+        the corresponding bond
+        if the dataset is already connected to a a MolSelect object, sel1, sel2 and label of this object will be over-
+        written. If no dataset is provided, a new one will be created and attached"""
+        #todo make a checkbox if it shall take original labels from nmr or create new ones form pdb
+        dataset = self.working_project[self.comboBox_dataset.currentText()][0]
+        sel1_list = np.zeros(dataset.R.shape[0],dtype=object)
+        sel2_list = np.zeros(dataset.R.shape[0], dtype=object)
+        for i in range(dataset.R.shape[0]):
+            sel1_list[i] = self.universe.atoms[:0]
+            sel2_list[i] = self.universe.atoms[:0]
+        print("sel1list", sel1_list)
         for entry in self.entries[1:]: #first element is defaults
             signal_name = entry["label"].text()
+            id = np.where(dataset.label==signal_name)[0][0]
             seg = entry["segment_box"].currentText()
             if not len(seg):
                 continue
@@ -218,33 +260,36 @@ class Ui_Selection_final(Ui_Selection):
             resid = int(resid)
             res = seg.residues[seg.residues.resids==resid]
             sel1 = entry["atom1_box"].currentText()
-            sel1 = res.atoms[res.atoms.names==sel1][0]
+            sel1 = res.atoms[res.atoms.names==sel1]
             sel2 = entry["atom2_box"].currentText()
-            sel2 = res.atoms[res.atoms.names==sel2][0]
-            sel1_list.append(sel1)
-            sel2_list.append(sel2)
-            signal_list.append(signal_name)
-            print(signal_name, sel1.id, sel2.id)
+            sel2 = res.atoms[res.atoms.names==sel2]
 
-        sel1 = mda.AtomGroup(sel1_list)
-        sel2 = mda.AtomGroup(sel2_list)
-        sys = pyDR.MolSys(self.comboBox_pdb.currentText())
-        sel = pyDR.MolSelect(sys)
-        sel.sel1 =sel1
-        sel.sel2 = sel2
-        sel.label = signal_list
-        self.working_project[self.comboBox_dataset.currentText()].select =  sel
+            sel1_list[id] += sel1
+            sel2_list[id] += sel2
+
+        if not hasattr(dataset,"select") or getattr(dataset,"select") is None:
+            sys = pyDR.MolSys(self.comboBox_pdb.currentText())
+            sel = pyDR.MolSelect(sys)
+            dataset.select = sel
+        else:
+            sel = dataset.select
+
+        sel.sel1 = np.array(sel1_list, dtype=object)
+        sel.sel2 = np.array(sel2_list, dtype=object)
+        print(sel.sel1)
+        #sel.label = signal_list
 
     def update_pdb_combobox(self):
         # I am not sure, should we provide the possibility to have more than one pdb on a single dataset?
         # if yes: TODO loop over pdbs
         title = self.comboBox_dataset.currentText()
         self.comboBox_pdb.clear()
-        if self.working_project[title][0].select.molsys.topo:
+        if self.working_project[title][0].select is not None:
             self.comboBox_pdb.addItem(self.working_project[title][0].select.molsys.topo)
 
     def load_from_working_project(self):
         self.working_project = get_workingproject(self.parent)
+        self.comboBox_dataset.addItem("")
         for title in self.working_project.titles:
             print(title)
             self.comboBox_dataset.addItem(title)

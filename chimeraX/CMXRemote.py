@@ -174,10 +174,13 @@ class CMXRemote():
                   '[':'%5B',']':'%5D','{':'%7B','}':'%7D','"':'%22',"'":'%27',
                   ' ':'+'}
         
-        for k,v in encoding.items():string=string.replace(k,v)
-        
-        return check_output('curl http://127.0.0.1:{0}/run?command={1}'.format(cls.rc_port0+ID,string),shell=True,
+        for k,v in encoding.items():
+            string=string.replace(k,v)
+
+        out = check_output('curl http://127.0.0.1:{0}/run?command={1}'.format(cls.rc_port0+ID,string),shell=True,
                             stderr=DEVNULL)
+
+        return out
         # return os.system('curl http://127.0.0.1:{0}/run?command={1}'.format(cls.rc_port0+ID,string))
     
     @classmethod

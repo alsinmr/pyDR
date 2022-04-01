@@ -5,6 +5,8 @@ Created on Sun Jan 30 15:58:40 2022
 
 @author: albertsmith
 """
+import warnings
+
 import numpy as np
 from .. import Defaults,clsDict
 from ..IO import write_file
@@ -143,13 +145,17 @@ class Data():
         "We'll gradually phase these out. I didn't know __hash__ was standard..."
         return self.__hash__()
     
-    def __hash__(self) -> int:
-        flds = ['R', 'Rstd', 'S2', 'S2std', 'sens']
+
+    def __hash__(self):
+        flds = ['R', 'Rstd', 'S2', 'S2std', 'sens', "select"]
         out = 0
         for f in flds:
             if hasattr(self, f) and getattr(self, f) is not None:
                 x = getattr(self, f)
-                out += x._hash if hasattr(x, '_hash') else hash(x.data.tobytes())
+                if hasattr(x,"tobytes"):
+                    out += hash(x.tobytes())
+                else:
+                    out += hash(x)
         return out
     
     def __len__(self):
@@ -293,19 +299,26 @@ class Data():
         None.
 
         """
-        
         CMXRemote=clsDict['CMXRemote']
-        index=np.arange(self.R.shape[0]) if index is None else np.array(index)
+
+        sel = self.select
+        if index is None:
+            #todo i rewrote the indexing depending on the values I get out of the selection with the gui
+            # I am not sure if this will cause complications -K
+            if sel.label is not None:
+                index = np.array([np.where(self.label == sel.label[i])[0][0]
+                                              for i in range(len(sel.label))])
+        else:
+            index=np.arange(self.R.shape[0]) if index is None else np.array(index)
+
         if rho_index is None:rho_index=np.arange(self.R.shape[1])
-        if not(hasattr(rho_index,'__len__')):rho_index=np.array([rho_index],dtype=int)
-        R=self.R[index]
-        R*=1/R[index].T[rho_index].max() if scaling is None else scaling
+        if not(hasattr(rho_index, '__len__')):
+            rho_index = np.array([rho_index], dtype=int)
+        R = self.R[index]
+        R *= 1/R[index].T[rho_index].max() if scaling is None else scaling
         
-        # R*=5
-        R[R<0]=0
-        # R+=0.8+4*R
-        
-        
+        R[R < 0] = 0
+
         if self.source.project is not None:
             ID=self.source.project.chimera.CMXid
             if ID is None:
@@ -314,14 +327,16 @@ class Data():
                 print(ID)
         else: #Hmm....how should this work?
             ID=CMXRemote.launch()
-        
+
+
         ids=np.array([s.indices for s in self.select.repr_sel])
-        
+
         # CMXRemote.send_command(ID,'close')
         CMXRemote.send_command(ID,'open {0}'.format(self.select.molsys.topo))
         nm=CMXRemote.how_many_models(ID)
         # CMXRemote.send_command(ID,'sel #{0}'.format(nm))
         CMXRemote.command_line(ID,'sel #{0}'.format(nm))
+
         CMXRemote.send_command(ID,'style sel ball')
         CMXRemote.send_command(ID,'size sel stickRadius 0.2')
         CMXRemote.send_command(ID,'size sel atomRadius 0.8')
@@ -329,7 +344,8 @@ class Data():
         CMXRemote.send_command(ID,'show sel')
         CMXRemote.send_command(ID,'color sel tan')
         CMXRemote.send_command(ID,'~sel')
-        
+
+
         out=dict(R=R,rho_index=rho_index,ids=ids)
         # CMXRemote.remove_event(ID,'Detectors')
         CMXRemote.add_event(ID,'Detectors',out)

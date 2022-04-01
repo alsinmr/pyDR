@@ -5,6 +5,7 @@ Created on Sat Nov 13 15:32:58 2021
 
 @author: albertsmith
 """
+import warnings
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -262,7 +263,7 @@ class Detector(Sens.Sens):
         
         self.SVD(n)
         Vt=self.SVD.Vt
-
+        #todo add alternative for linux, because the scipy linalg is to slow -K
         """
         def linprog_cvxpy(Y):
             import cvxpy
@@ -538,6 +539,14 @@ class Detector(Sens.Sens):
         ax.set_ylabel(r'$\rho_n(z)$')
                
         return hdl
+
+    def _hash(self):
+        #todo get rid of that later
+        return hash(self)
+
+    def __hash__(self):
+        warnings.warn("implement hash value for Detector!")
+        return 0
 
 class SVD():
     """

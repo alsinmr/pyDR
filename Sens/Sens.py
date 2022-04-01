@@ -126,9 +126,13 @@ class Sens():
         
     @property
     def _hash(self):
+        #todo get rid of that later
+        return hash(self)
+
+    def __hash__(self):
         if hasattr(self,'opt_pars') and 'n' not in self.opt_pars:   #Unoptimized set of detectors (hash not defined)
-            return self.sens._hash
-        return hash(self.rhoz.data.tobytes())
+            return hash(self.sens)
+        return hash(self.rhoz.tobytes())
         
 
 #%% Functions dealing with sensitivities    
@@ -188,13 +192,13 @@ class Sens():
         mat[mat<threshold]=0
         for k,m in enumerate(mat):
             v,i=m.max(),np.argmax(m)
-            mat[k]=0
-            mat[k,i]=v
-        mat=mat.T
+            mat[k] = 0
+            mat[k, i] = v
+        mat = mat.T
         for k,m in enumerate(mat):
-            v,i=m.max(),np.argmax(m)
+            v, i = m.max(), np.argmax(m)
             mat[k]=0
-            mat[k,i]=v
+            mat[k, i] = v
         mat=mat.T
         if check_amp:
             for k,j in np.argwhere(mat):
@@ -203,11 +207,9 @@ class Sens():
                     mat[k,j]=False
                     
         out=np.argwhere(mat).T
-        return out[0],out[1]
+        return out[0], out[1]
         
-        
-    
-#%% Properties relating to iteration over bond-specific sensitivities        
+#%% Properties relating to iteration over bond-specific sensitivities
     def __len__(self):
         """
         1 or number of items in self.__bonds
@@ -271,13 +273,11 @@ class Sens():
         if self is ob:return True        #If same object, then equal
         if len(self)!=len(ob):return False  #If different lengths, then not equal
         
-        
         for s,o in zip(self,ob):
             if s.rhoz.shape!=o.rhoz.shape:return False #Different sizes, then not equal
             if np.max(np.abs(s.rhoz-o.rhoz))>1e-6:return False #Different sensitivities
         return True
-            
-    
+
     #%% Plot rhoz
     def plot_rhoz(self,index=None,ax=None,norm=False,**kwargs):
         """
@@ -297,9 +297,7 @@ class Sens():
             ax=fig.add_subplot(111)
 
         hdl=ax.plot(self.z,a)
-
         set_plot_attr(hdl,**kwargs)
-        
         
         ax.set_xlim(self.z[[0,-1]])
         ticks=ax.get_xticks()
@@ -308,14 +306,12 @@ class Sens():
         start=0 if step*nlbls==len(ticks) else 1
         lbl_str=NiceStr('{:q1}',unit='s')
         ticklabels=['' for _ in range(len(ticks))]
-        for k in range(start,len(ticks),step):ticklabels[k]=lbl_str.format(10**ticks[k])
+        for k in range(start, len(ticks),step):ticklabels[k]=lbl_str.format(10**ticks[k])
         
         ax.xaxis.set_major_locator(ticker.FixedLocator(ticks))
         ax.xaxis.set_major_formatter(ticker.FixedFormatter(ticklabels))
-        
 #        ax.set_xticklabels(ticklabels)
         ax.set_xlabel(r'$\tau_\mathrm{c}$')
-        
         ax.set_ylabel(r'$\rho_n(z)$')
                 
-        return hdl   
+        return hdl
