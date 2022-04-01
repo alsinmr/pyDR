@@ -443,7 +443,7 @@ class FrameObj():
         out.sens.sampling_info=self.sampling_info
         return out
     
-    def frames2iRED(self,include:list=None)->list:
+    def frames2iRED(self, include: list = None) -> list:
         """
         Sets the frames mode to symmetric and extracts vectors for each frame
         required to perform iRED analysis.

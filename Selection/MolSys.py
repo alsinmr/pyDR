@@ -341,7 +341,9 @@ class MolSelect():
                 #  but i think it needs a more detailed view
                 label=list()
                 for s in self.sel1:     #See if each atom group corresponds to a single residue
-                    if np.unique(s.resids).__len__()==1:
+                    if s is None:
+                        continue
+                    elif np.unique(s.resids).__len__()==1:
                         label.append(s.resids[0])
                     else:               #If more than residue, then
                         break
@@ -353,7 +355,9 @@ class MolSelect():
                 
                 label=list()
                 for s in self.sel1:     #See if each atom group corresponds to a single segment
-                    if np.unique(s.segids).__len__()==1:
+                    if s is None:
+                        continue
+                    elif np.unique(s.segids).__len__()==1:
                         label.append(s.segids[0])
                     else:               #If more than residue, then
                         break

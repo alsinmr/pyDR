@@ -82,7 +82,7 @@ class Ui_Selection(object):
         self.horizontalLayout.setSpacing(0)
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.label = QtWidgets.QLabel(self.widget_7)
-        self.label.setMinimumSize(QtCore.QSize(75, 0))
+        self.label.setMinimumSize(QtCore.QSize(100, 0))
         self.label.setObjectName("label")
         self.horizontalLayout.addWidget(self.label)
         self.label_2 = QtWidgets.QLabel(self.widget_7)
