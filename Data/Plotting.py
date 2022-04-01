@@ -32,10 +32,12 @@ class DataPlots():
         self.colors=plt.rcParams['axes.prop_cycle'].by_key()['color']
         self.threshold=0.7  #Overlap threshold
         self.tclabels=None
+        self._plot_sens=plot_sens
+
         assert mode in ['auto','union','b_in_a'],"mode must be 'auto','union', or 'b_in_a'"
         self._mode=mode  
         if data is not None:
-            self.append_data(data,style=style,errorbars=errorbars,index=index,rho_index=rho_index,split=split,plot_sens=plot_sens,**kwargs)
+            self.append_data(data,style=style,errorbars=errorbars,index=index,rho_index=rho_index,split=split,**kwargs)
             
     @property
     def mode(self):
@@ -66,6 +68,7 @@ class DataPlots():
         self.fig.show()
     
     def append_data(self,data,style='plot',errorbars=True,index=None,rho_index=None,split=True,plot_sens=True,**kwargs):
+        self._plot_sens=self._plot_sens if len(self.data) else plot_sens
         if len(self.data)==0:
             if index is not None:
                 data=copy(data)
@@ -92,28 +95,30 @@ class DataPlots():
         self.style+=style[0].lower() if style[0].lower() in ['p','s','b'] else 'p'
         
         if len(self.data)==1:
-            self.setup_plots(plot_sens)
+            self.setup_plots()
         for h in self.hdls:h.append(None)
         self.hdls_sens.append(None)
            
-        if plot_sens:self.plot_sens()
+        if self._plot_sens:self.plot_sens()
         self.plot_data(errorbars=errorbars,split=split,**kwargs)
         
         # self.show_tc()
     
     
-    def setup_plots(self,plot_sens=True):
+    def setup_plots(self):
         """
         Set up the subplots for this figure
         """
         rho_index=self.rho_index[0]
+        plot_sens=self._plot_sens
         if plot_sens:
             self.ax_sens=self.fig.add_subplot(2*plot_sens+rho_index.size,1,1)
             bbox=self.ax_sens.get_position()
             bbox.y0-=0.5*(bbox.y1-bbox.y0)
             self.ax_sens.set_position(bbox)
         
-        self.ax=[self.fig.add_subplot(2*plot_sens+rho_index.size,1,k+3) for k in range(rho_index.size)]
+        self.ax=[self.fig.add_subplot(2*plot_sens+rho_index.size,1,k+1+2*plot_sens)\
+                 for k in range(rho_index.size)]
         self.hdls=[list() for _ in self.ax]
         for a in self.ax[1:]:a.sharex(self.ax[0])
         
@@ -143,19 +148,31 @@ class DataPlots():
         
         self.remove_tc()   
         self.tclabels=list()         
-        string=NiceStr(r'$z_{1}^0$~{0:q2}' if show_z else r'$\tau_c$~{0:q2}',unit='' if show_z else 's')
+        string=NiceStr(r'$z_{1}^0$XXX{0:q2}' if show_z else r'$\tau_c$XXX{0:q2}',unit='' if show_z else 's')
+        sym='~'
         for m,(a,k) in enumerate(zip(self.ax,self.rho_index[0])):
             xlim=a.get_xlim()
             ylim=a.get_ylim()
             
             val=self.data[0].sens.info['z0'][k]
+            rhoz=self.data[0].sens.rhoz[k]
+            if rhoz[0]>rhoz.max()*0.9:  #Detector sensitive to infinitely short tc
+                b=np.argmin(np.abs(rhoz-rhoz.max()/2))
+                val=self.data[0].sens.z[b]
+                sym='<'
+            elif rhoz[-1]>rhoz.max()*0.9: #Detector sensitive to infinitely long tc
+                b=np.argmin(np.abs(rhoz-rhoz.max()/2))
+                val=self.data[0].sens.z[b]
+                sym='>'
+            
+            
             if not(show_z):val=10**val
             
             self.tclabels.append(\
                 a.text(xlim[0]+(xlim[1]-xlim[0])*.025,ylim[0]+(ylim[1]-ylim[0])*0.95,
                    horizontalalignment='left',verticalalignment='top',
                    color=self.colors[m%len(self.colors)],fontsize='x-small',   
-                   s=string.format(val,k)))
+                   s=string.format(val,k).replace('XXX',sym)))
             
     def remove_tc(self):
         """

@@ -140,6 +140,10 @@ class Data():
     
     @property
     def _hash(self) -> int:
+        "We'll gradually phase these out. I didn't know __hash__ was standard..."
+        return self.__hash__()
+    
+    def __hash__(self) -> int:
         flds = ['R', 'Rstd', 'S2', 'S2std', 'sens']
         out = 0
         for f in flds:
