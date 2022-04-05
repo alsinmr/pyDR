@@ -749,6 +749,13 @@ class Project():
                 if index in getattr(self,f):
                     proj._index=self._index[getattr(self,f)==index]
                     return proj
+                if f=='short_files':
+                    "Also check for match without file ending"
+                    values=np.array([v.rsplit('.',1)[0] for v in getattr(self,f)],dtype=object)
+                    if index in values:
+                        proj._index=self._index[values==index]
+                        return proj
+                
             r = re.compile(index)
             i=list()
             for t in self.titles:
@@ -1132,6 +1139,11 @@ class Project():
             for v in getattr(self, k):
                 if v not in out:
                     out.append(v)
+        for v0 in self.short_files:
+            v=v0.rsplit('.',1)[0]
+            if v not in out:
+                out.append(v)
+            
         return out
  
 
