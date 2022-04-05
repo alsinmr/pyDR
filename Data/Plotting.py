@@ -149,8 +149,8 @@ class DataPlots():
         self.remove_tc()   
         self.tclabels=list()         
         string=NiceStr(r'$z_{1}^0$XXX{0:q2}' if show_z else r'$\tau_c$XXX{0:q2}',unit='' if show_z else 's')
-        sym='~'
         for m,(a,k) in enumerate(zip(self.ax,self.rho_index[0])):
+            sym='~'
             xlim=a.get_xlim()
             ylim=a.get_ylim()
             
@@ -167,7 +167,6 @@ class DataPlots():
             
             
             if not(show_z):val=10**val
-            
             self.tclabels.append(\
                 a.text(xlim[0]+(xlim[1]-xlim[0])*.025,ylim[0]+(ylim[1]-ylim[0])*0.95,
                    horizontalalignment='left',verticalalignment='top',

@@ -604,6 +604,27 @@ class Project():
                     self.plots[value-1].project=self
             return
         super().__setattr__(name,value)
+        
+    def __getattr__(self,name):
+        """
+        This allows us to access properties of the data in case a project selection
+        yields just a single data object.
+
+        Parameters
+        ----------
+        name : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
+        """
+        if len(self)==1 and hasattr(self[0],name):
+            return getattr(self[0],name)
+        return super(object).__getattr__(self,name)
+        
     #%% Detector manager
     @property
     def detect(self):
@@ -632,7 +653,7 @@ class Project():
                 
         for k,file in enumerate(self.data.saved_files):
             if file not in info['filename']:   #Also include data that might be missing from the project file
-                print(file)    
+                # print(file)    
                 src=self.data[k].source
                 dct={f:getattr(src,f) for f in flds}
                 dct['filename']=file
@@ -729,6 +750,12 @@ class Project():
     @property
     def size(self) -> int:
         return self.__len__()
+    
+    def __copy__(self):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        result.__dict__.update(self.__dict__)
+        return result
     
     def __getitem__(self, index: int):
         """
