@@ -320,8 +320,12 @@ class Data():
         else: #Hmm....how should this work?
             ID=CMXRemote.launch()
 
-
+        print(*[atom.ids for atom in self.select.sel1])
+        #print(self.select.sel2.ids)
+        print(self.select.repr_sel)
         ids=np.array([s.indices for s in self.select.repr_sel])
+        print(ids)
+
 
         # CMXRemote.send_command(ID,'close')
         CMXRemote.send_command(ID,'open {0}'.format(self.select.molsys.topo))

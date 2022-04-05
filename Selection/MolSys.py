@@ -488,7 +488,7 @@ class MolSelect():
 
     def __hash__(self):
         x = 0
-        fields = ["sel1", "sel2", "label"]
+        fields = ["sel1", "sel2", "label", "repr_sel"]
         for field in fields:
             if hasattr(self, field) and getattr(self, field) is not None:
                 f = getattr(self, field)

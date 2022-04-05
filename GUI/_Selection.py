@@ -92,10 +92,8 @@ class Ui_Selection_final(Ui_Selection):
             get_segments_of_pdb(*self.entries)
             dataset = self.working_project[self.comboBox_dataset.currentText()][0]
             if hasattr(dataset,"select"):
-                print("select", dataset.select.sel1)
                 id = 1
                 for label, sel1,sel2 in zip(dataset.label, dataset.select.sel1, dataset.select.sel2):
-                    print(label, sel1, sel2)
                     if len(sel1) == 0:
                         id+=1
                         continue
