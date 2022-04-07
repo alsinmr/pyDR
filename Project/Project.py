@@ -512,6 +512,22 @@ class Chimera():
                 cmd=input('ChimeraX>')
                 if cmd.strip()=='exit':break
                 self.CMX.send_command(CMXid,cmd)
+    def close(self,ID:int=None) -> None:
+        """
+        Closes all models in the current or specified chimeraX session.
+
+        Parameters
+        ----------
+        ID : int, optional
+            Specifies which session in which to close the models.
+            The default is None, which closes in the current chimeraX session.
+
+        Returns
+        -------
+        None
+
+        """
+        self.command_line(cmds='close',ID=ID)
                 
     def savefig(self,filename:str,options:str='',ID:int=None)-> None:
         """

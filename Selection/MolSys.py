@@ -156,7 +156,7 @@ class MolSelect():
         self._sel2=None
         self._repr_sel=None
         self._label=None
-        self._mdmode=False
+        super().__setattr__('_mdmode',False)
 
     def __setattr__(self,name,value):
         """
@@ -170,6 +170,25 @@ class MolSelect():
             super().__setattr__('_label',value)
             return
         
+        if name=='_mdmode':
+            if value==True and not(self._mdmode):
+                if (self._sel1 is not None and np.any([len(s)!=1 for s in self._sel1])) or \
+                    (self._sel2 is not None and np.any([len(s)!=1 for s in self._sel2])):
+                    print('mdmode only valid for single bond selections')
+                    return
+                for f in ['_sel1','_sel2']:
+                    sel0=getattr(self,f)
+                    if sel0 is not None:
+                        sel=sel0[0][:0]
+                        for s in sel0:
+                            sel+=s
+                            setattr(self,f,sel)
+            elif value==False and self._mdmode:
+                if self._sel1 is not None:
+                    self._sel1=np.array([self._sel1[k:k+1] for k in range(len(self._sel1))])
+                if self._sel2 is not None:
+                    self._sel2=np.array([self._sel2[k:k+1] for k in range(len(self._sel2))])
+                    
         if name=='repr_sel':
             if self.sel1 is not None and len(self.sel1)!=len(value):
                 print('Warning: length of sel1 and repr_sel are not equal. This will cause errors in ChimeraX')
@@ -192,24 +211,10 @@ class MolSelect():
     
     @property
     def sel1(self):
-        if self._mdmode and isinstance(self._sel1,np.ndarray):
-            sel1=self._sel1[0][:0]
-            for s in self._sel1:
-                sel1+=s
-            self._sel1=sel1
-        elif not(self._mdmode) and not(isinstance(self._sel1,np.ndarray)):
-            self.sel1=self._sel1 #Setting sel1 triggers assignment of sel1 to a numpy array
         return self._sel1
     
     @property
     def sel2(self):
-        if self._mdmode and isinstance(self._sel2,np.ndarray):
-            sel2=self._sel2[0][:0]
-            for s in self._sel2:
-                sel2+=s
-            self._sel2=sel2
-        elif not(self._mdmode) and not(isinstance(self._sel2,np.ndarray)):
-            self.sel2=self._sel2 #Setting sel2 triggers assignment of sel2 to a numpy array
         return self._sel2
             
     
