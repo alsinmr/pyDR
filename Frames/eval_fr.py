@@ -31,7 +31,7 @@ Created on Tue Oct  6 10:46:10 2020
 
 
 import numpy as np
-from copy import deepcopy
+from copy import copy,deepcopy
 from pyDR.MDtools import vft
 from pyDR.MDtools.Ctcalc import sparse_index,get_count,Ctcalc
 from pyDR.misc import ProgressBar
@@ -40,13 +40,10 @@ from . import FramesPostProc as FPP
 from pyDR import Defaults
 from pyDR import clsDict
 
-#Temporary inclusion of some parts of pyDIFRATE (old version)
-import sys
-sys.path.append('/Users/albertsmith/GitHub')
-# from pyDIFRATE.chimera.chimeraX_funs import draw_tensors
-#from pyfftw.interfaces.numpy_fft import fft,ifft
-#from pyfftw.interfaces.scipy_fft import fft,ifft
-#import os
+
+#%%Function for returning just the correlation function
+def md2data(select):
+    return FrameObj(select).md2data()
 
 dtype=Defaults['dtype']
 flags={'ct_finF':True,'ct_m0_finF':False,'ct_0m_finF':False,'ct_0m_PASinF':False,\
@@ -148,7 +145,8 @@ class ReturnIndex():
 
 class FrameObj():
     def __init__(self,molecule):
-        self.molecule=molecule
+        self.molecule=copy(molecule)
+        self.molecule._mdmode=True
         self.vft=None
         self.vf=list()
         self.frame_info={'frame_index':list(),'label':None,'info':list()}
@@ -417,10 +415,10 @@ class FrameObj():
             out[1].source.additional_info='Product'
             out[1].details.append('Product of correlation functions from frame analysis')
                 
-        for o,fn in zip(out[2:],self.frame_names):
-            o.source.additional_info=fn
-            o.details=self.details.copy()
-            o.details.append('Rotation between frames '+' and '.join(fn.split('>')))
+            for o,fn in zip(out[2:],self.frame_names):
+                o.source.additional_info=fn
+                o.details=self.details.copy()
+                o.details.append('Rotation between frames '+' and '.join(fn.split('>')))
         
         out[0].sens.sampling_info=self.sampling_info
                 

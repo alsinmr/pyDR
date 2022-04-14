@@ -152,11 +152,11 @@ class Trajectory():
 class MolSelect():
     def __init__(self,molsys):
         super().__setattr__('molsys',molsys)
-        self.sel1=None
-        self.sel2=None
+        self._sel1=None
+        self._sel2=None
         self._repr_sel=None
         self._label=None
-    
+        super().__setattr__('_mdmode',False)
 
     def __setattr__(self,name,value):
         """
@@ -170,11 +170,31 @@ class MolSelect():
             super().__setattr__('_label',value)
             return
         
+        if name=='_mdmode':
+            if value==True and not(self._mdmode):
+                if (self._sel1 is not None and np.any([len(s)!=1 for s in self._sel1])) or \
+                    (self._sel2 is not None and np.any([len(s)!=1 for s in self._sel2])):
+                    print('mdmode only valid for single bond selections')
+                    return
+                for f in ['_sel1','_sel2']:
+                    sel0=getattr(self,f)
+                    if sel0 is not None:
+                        sel=sel0[0][:0]
+                        for s in sel0:
+                            sel+=s
+                            setattr(self,f,sel)
+            elif value==False and self._mdmode:
+                if self._sel1 is not None:
+                    self._sel1=np.array([self._sel1[k:k+1] for k in range(len(self._sel1))])
+                if self._sel2 is not None:
+                    self._sel2=np.array([self._sel2[k:k+1] for k in range(len(self._sel2))])
+                    
         if name=='repr_sel':
             if self.sel1 is not None and len(self.sel1)!=len(value):
                 print('Warning: length of sel1 and repr_sel are not equal. This will cause errors in ChimeraX')
         if name in ['sel1','sel2','repr_sel'] and value is not None:
-            if name=='repr_sel':name='_repr_sel'
+            # if name=='repr_sel':name='_repr_sel'
+            name='_'+name
             if isinstance(value,AtomGroup):
                 sel=np.zeros(len(value),dtype=object)
                 for k in range(len(value)):sel[k]=value[k:k+1]
@@ -188,7 +208,16 @@ class MolSelect():
             return
         
         super().__setattr__(name,value)
-        
+    
+    @property
+    def sel1(self):
+        return self._sel1
+    
+    @property
+    def sel2(self):
+        return self._sel2
+            
+    
     def __copy__(self):
         cls = self.__class__
         out = cls.__new__(cls)
@@ -335,60 +364,68 @@ class MolSelect():
     def set_label(self,label=None):
         "We attempt to generate a unique label for this selection, while having labels of minimum length"
         if label is None:
-          "An attempt to generate a unique label under various conditions"
-          if hasattr(self, "sel1") and getattr(self,"sel1") is not None\
-             and hasattr(self, "sel2") and getattr(self, "sel2") is not None: #QUICKFIX
-            if hasattr(self.sel1[0],'__len__'):
-                #todo this here is causing the saving to crash when sel1 or sel2 is None, i make a quick fix to avoid it,
-                #  but i think it needs a more detailed view
-                label=list()
-                for s in self.sel1:     #See if each atom group corresponds to a single residue
-                    if s is None:
-                        continue
-                    elif np.unique(s.resids).__len__()==1:
-                        label.append(s.resids[0])
-                    else:               #If more than residue, then
-                        break
-                else:
-                    label=np.array(label)
-                    if np.unique(label).size==label.size:   #Keep this label if all labels are unique
-                        self.label=np.array(label)
-                        return
-                
-                label=list()
-                for s in self.sel1:     #See if each atom group corresponds to a single segment
-                    if s is None:
-                        continue
-                    elif np.unique(s.segids).__len__()==1:
-                        label.append(s.segids[0])
-                    else:               #If more than residue, then
-                        break
-                else:
-                    
-                    label=np.array(label)
-                    if np.unique(label).size==label.size:
-                        self.label=np.array(label)
-                        return
-                self.label=np.arange(self.sel1.__len__())
-                
-            else:
-                count,cont=0,True
-                while cont:
-                    if count==0: #One bond per residue- just take the residue number
-                        label=self.sel1.resids  
-                    elif count==1: #Multiple segments with same residue numbers
-                        label=np.array(['{0}_{1}'.format(s.segid,s.resid) for s in self.sel1])
-                    elif count==2: #Same segment, but multiple bonds on the same residue (include names)
-                        label=np.array(['{0}_{1}_{2}'.format(s1.resid,s1.name,s2.name) for s1,s2 in zip(self.sel1,self.sel2)])
-                    elif count==3: #Multiple bonds per residue, and multiple segments
-                        label=np.array(['{0}_{1}_{2}_{3}'.format(s1.segid,s1.resid,s1.name,s2.name) \
-                                        for s1,s2 in zip(self.sel1,self.sel2)])
-                    "We give up after this"
-                    count+=1
-                    if np.unique(label).size==label.size or count==4:
-                        cont=False
-                    
-                self.label=label
+            try: #TODO kinda hack-y. Not too pleased with this.
+                mdmode=self._mdmode
+                self._mdmode=True
+                return self.label
+            except:
+                pass
+            finally:
+                self._mdmode=mdmode
+            "An attempt to generate a unique label under various conditions"
+            if hasattr(self, "sel1") and getattr(self,"sel1") is not None\
+               and hasattr(self, "sel2") and getattr(self, "sel2") is not None: #QUICKFIX
+              if hasattr(self.sel1[0],'__len__'):
+                  #todo this here is causing the saving to crash when sel1 or sel2 is None, i make a quick fix to avoid it,
+                  #  but i think it needs a more detailed view
+                  label=list()
+                  for s in self.sel1:     #See if each atom group corresponds to a single residue
+                      if s is None:
+                          continue
+                      elif np.unique(s.resids).__len__()==1:
+                          label.append(s.resids[0])
+                      else:               #If more than residue, then
+                          break
+                  else:
+                      label=np.array(label)
+                      if np.unique(label).size==label.size:   #Keep this label if all labels are unique
+                          self.label=np.array(label)
+                          return
+                  
+                  label=list()
+                  for s in self.sel1:     #See if each atom group corresponds to a single segment
+                      if s is None:
+                          continue
+                      elif np.unique(s.segids).__len__()==1:
+                          label.append(s.segids[0])
+                      else:               #If more than residue, then
+                          break
+                  else:
+                      
+                      label=np.array(label)
+                      if np.unique(label).size==label.size:
+                          self.label=np.array(label)
+                          return
+                  self.label=np.arange(self.sel1.__len__())
+                  
+              else:
+                  count,cont=0,True
+                  while cont:
+                      if count==0: #One bond per residue- just take the residue number
+                          label=self.sel1.resids  
+                      elif count==1: #Multiple segments with same residue numbers
+                          label=np.array(['{0}_{1}'.format(s.segid,s.resid) for s in self.sel1])
+                      elif count==2: #Same segment, but multiple bonds on the same residue (include names)
+                          label=np.array(['{0}_{1}_{2}'.format(s1.resid,s1.name,s2.name) for s1,s2 in zip(self.sel1,self.sel2)])
+                      elif count==3: #Multiple bonds per residue, and multiple segments
+                          label=np.array(['{0}_{1}_{2}_{3}'.format(s1.segid,s1.resid,s1.name,s2.name) \
+                                          for s1,s2 in zip(self.sel1,self.sel2)])
+                      "We give up after this"
+                      count+=1
+                      if np.unique(label).size==label.size or count==4:
+                          cont=False
+                      
+                  self.label=label
         
     def copy(self):
         return copy.copy(self)

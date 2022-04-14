@@ -462,6 +462,8 @@ class Detector(Sens.Sens):
         pars={'z0':np.nan,'zmax':self.z[np.argmax(self.rhoz[0])],'Del_z':np.nan,
                     'stdev':((np.linalg.pinv(self.__r)[0,:-1]**2)@self.sens.info['stdev']**2)**0.5}
         self.info.new_exper(**pars)
+        ne=len(self.info)
+        self.info._Info__values=self.info._Info__values.T[np.concatenate(([-1],np.arange(ne-1)))].T
     
     def removeS2(self):
         if self._islocked:return

@@ -512,6 +512,22 @@ class Chimera():
                 cmd=input('ChimeraX>')
                 if cmd.strip()=='exit':break
                 self.CMX.send_command(CMXid,cmd)
+    def close(self,ID:int=None) -> None:
+        """
+        Closes all models in the current or specified chimeraX session.
+
+        Parameters
+        ----------
+        ID : int, optional
+            Specifies which session in which to close the models.
+            The default is None, which closes in the current chimeraX session.
+
+        Returns
+        -------
+        None
+
+        """
+        self.command_line(cmds='close',ID=ID)
                 
     def savefig(self,filename:str,options:str='',ID:int=None)-> None:
         """
@@ -604,6 +620,27 @@ class Project():
                     self.plots[value-1].project=self
             return
         super().__setattr__(name,value)
+        
+    def __getattr__(self,name):
+        """
+        This allows us to access properties of the data in case a project selection
+        yields just a single data object.
+
+        Parameters
+        ----------
+        name : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
+        """
+        if len(self)==1 and hasattr(self[0],name):
+            return getattr(self[0],name)
+        return super(object).__getattr__(self,name)
+        
     #%% Detector manager
     @property
     def detect(self):
@@ -632,7 +669,7 @@ class Project():
                 
         for k,file in enumerate(self.data.saved_files):
             if file not in info['filename']:   #Also include data that might be missing from the project file
-                print(file)    
+                # print(file)    
                 src=self.data[k].source
                 dct={f:getattr(src,f) for f in flds}
                 dct['filename']=file
@@ -730,6 +767,12 @@ class Project():
     def size(self) -> int:
         return self.__len__()
     
+    def __copy__(self):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        result.__dict__.update(self.__dict__)
+        return result
+    
     def __getitem__(self, index: int):
         """
         Extract a data object or objects by index or title (returns one item) or
@@ -749,6 +792,13 @@ class Project():
                 if index in getattr(self,f):
                     proj._index=self._index[getattr(self,f)==index]
                     return proj
+                if f=='short_files':
+                    "Also check for match without file ending"
+                    values=np.array([v.rsplit('.',1)[0] for v in getattr(self,f)],dtype=object)
+                    if index in values:
+                        proj._index=self._index[values==index]
+                        return proj
+                
             r = re.compile(index)
             i=list()
             for t in self.titles:
@@ -1132,6 +1182,11 @@ class Project():
             for v in getattr(self, k):
                 if v not in out:
                     out.append(v)
+        for v0 in self.short_files:
+            v=v0.rsplit('.',1)[0]
+            if v not in out:
+                out.append(v)
+            
         return out
  
 
