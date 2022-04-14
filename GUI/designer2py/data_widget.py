@@ -81,6 +81,7 @@ class Ui_Data(object):
         self.loadfileButton.setObjectName("loadfileButton")
         self.gridLayout.addWidget(self.loadfileButton, 0, 3, 1, 1)
         self.horizontalLayout = QtWidgets.QHBoxLayout()
+        self.horizontalLayout.setContentsMargins(0, -1, -1, -1)
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.label = QtWidgets.QLabel(Data)
         self.label.setObjectName("label")

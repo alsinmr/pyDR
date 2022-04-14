@@ -345,7 +345,7 @@ plt.show()
 from pyDIFRATE.chimera.chimeraX_funs import draw_tensors,get_path,set_chimera_path,chimera_path
 import os
 #set_chimera_path('your path to chimeraX executable here')  #uncomment and fill in path
-if os.path.exists(os.path.join(get_path(),'ChimeraX_program_path.txt')) and os.path.exists(chimera_path()):
+if os.path.exists(os.path.join(get_path(),'ChimeraX_program_path.txt.txt')) and os.path.exists(chimera_path()):
     text0='Residual tensor for {} motion at {0} ps'
     t0=[50,200,100000]  #Times in ps to show the tensor (we'll show t=0 simultaneously for comparison)
     titles=['Fast wobbling','Three-site hopping','Two-site hopping','Tumbling']
