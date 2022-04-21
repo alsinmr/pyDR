@@ -74,7 +74,7 @@ def fit(data,bounds=True,parallel=False):
     
     out.details=data.details.copy()
     op=data.detect.opt_pars
-    out.details.append('Fitted with {0} detectors'.format(op['n']))
+    out.details.append('Fitted with {0} detectors (bounds={1})'.format(op['n'],str(bounds)))
     out.details.append('Detector optimization type: {0}'.format(op['Type']))
     out.details.append('Normalizaton: {0}, NegAllow: {1}, Options:'.format(op['Normalization'],op['NegAllow'])+\
                        ', '.join(op['options']))

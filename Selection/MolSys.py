@@ -185,9 +185,13 @@ class MolSelect():
                             setattr(self,f,sel)
             elif value==False and self._mdmode:
                 if self._sel1 is not None:
-                    self._sel1=np.array([self._sel1[k:k+1] for k in range(len(self._sel1))])
+                    sel1=np.zeros(len(self._sel1),dtype=object)
+                    for k in range(len(self._sel1)):sel1[k]=self._sel1[k:k+1]
+                    self._sel1=sel1
                 if self._sel2 is not None:
-                    self._sel2=np.array([self._sel2[k:k+1] for k in range(len(self._sel2))])
+                    sel2=np.zeros(len(self._sel2),dtype=object)
+                    for k in range(len(self._sel2)):sel2[k]=self._sel2[k:k+1]
+                    self._sel2=sel2
                     
         if name=='repr_sel':
             if self.sel1 is not None and len(self.sel1)!=len(value):
@@ -254,7 +258,6 @@ class MolSelect():
             for s1,s2 in zip(self.sel1,self.sel2):
                 repr_sel.append(s1+s2)
         self.repr_sel=repr_sel
-            
         self.set_label(label)
 
     @property
@@ -369,7 +372,7 @@ class MolSelect():
                 self._mdmode=True
                 return self.label
             except:
-                pass
+                self.label=np.arange(len(self.sel1))
             finally:
                 self._mdmode=mdmode
             "An attempt to generate a unique label under various conditions"

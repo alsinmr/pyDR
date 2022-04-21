@@ -698,9 +698,10 @@ class Project():
         self.update_info()
         with open(os.path.join(self.directory,'project.txt'),'w') as f:
             for i in self._index:
-                f.write('DATA\n')
-                for k,v in self.info[i].items():f.write('{0}:\t{1}\n'.format(k,v))
-                f.write('END:DATA\n')
+                if os.path.exists(os.path.join(self.directory,self.info[i]['filename'])):
+                    f.write('DATA\n')
+                    for k,v in self.info[i].items():f.write('{0}:\t{1}\n'.format(k,v))
+                    f.write('END:DATA\n')
                 
     def update_info(self)->None:
         """

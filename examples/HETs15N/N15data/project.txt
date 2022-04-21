@@ -1,0 +1,24 @@
+DATA
+Type:	NMR
+status:	raw
+short_file:	HETs_15N.txt
+title:	r:NMR:HETs_15N
+additional_info:	None
+filename:	r_NMR_HETs_15N.data
+END:DATA
+DATA
+Type:	NMR
+status:	proc
+short_file:	HETs_15N.txt
+title:	p5:NMR:HETs_15N
+additional_info:	None
+filename:	p5_NMR_HETs_15N.data
+END:DATA
+DATA
+Type:	MD
+status:	no_opt
+short_file:	backboneB.xtc
+title:	n15:MD:backboneB
+additional_info:	None
+filename:	n15_MD_backboneB.data
+END:DATA
