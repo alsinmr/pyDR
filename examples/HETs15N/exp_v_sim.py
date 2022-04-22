@@ -120,6 +120,9 @@ print(proj) #See that the processed data is in the project
 
 proj['proc'].plot(style='bar') #plot all processed data to single plot (here just one data set)
 
+"We have to tell pyDR where chimera is located (uncomment and edit path. Run just once)"
+# pyDR.chimeraX.chimeraX_funs.set_chimera_path('/Applications/ChimeraX-1.2.5.app/Contents/MacOS/ChimeraX') #Uncomment and add your chimera path
+
 proj[1].chimera(scaling=20) #Launch a chimeraX session and plot detector responses
 proj.chimera.command_line('~show ~/B@N,C,CA,O,H') #Message to pass to chimera command line (also accepts list of messages)
 """Mouse over the detector labels to display a given detector.
@@ -170,7 +173,7 @@ sub=proj['NMR']['proc']+proj['MD'][1:3]
 mdsel=pyDR.MolSelect(molsys) #A separate selection object for the MDdata
 mdsel.select_bond(Nuc='15N',segids='B') #Process all residues in segment B (no resids specified)
 
-# molsys.step=10 #Uncomment to get faster results (lower resolution at shorter correlation times!)
+molsys.traj.step=10 #Uncomment to get faster results (lower resolution at shorter correlation times!)
 from time import time
 t0=time()
 proj.append_data(pyDR.md2data(mdsel)) #Calculate correlation functions for HN motion. Append result to project

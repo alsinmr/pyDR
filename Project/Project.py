@@ -14,7 +14,6 @@ from pyDR import clsDict
 import re
 from copy import copy
 from matplotlib.figure import Figure
-ME=Defaults['max_elements']
 decode=bytes.decode
 
 
@@ -184,6 +183,7 @@ class DataMngr():
         To save to a specific file, use data.save(filename='desired_name') instead
         of saving from the project.
         """
+        ME=Defaults['max_elements']
         if i=='all':
             for i in range(len(self)):
                 if not(self.saved[i]):
@@ -698,7 +698,7 @@ class Project():
         self.update_info()
         with open(os.path.join(self.directory,'project.txt'),'w') as f:
             for i in self._index:
-                if os.path.exists(os.path.join(self.directory,self.info[i]['filename'])):
+                if self.data.saved[i]:
                     f.write('DATA\n')
                     for k,v in self.info[i].items():f.write('{0}:\t{1}\n'.format(k,v))
                     f.write('END:DATA\n')

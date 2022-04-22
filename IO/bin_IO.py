@@ -273,6 +273,9 @@ def write_Source(f,source):
     flds=['Type','filename','saved_filename','_title','status','n_det','additional_info']
     for fld in flds:
         f.write(bytes('{0}:{1}\n'.format(fld,getattr(source,fld)),'utf-8'))
+    f.write(b'Details\n')
+    for l in source.details:
+        f.write(bytes(l+'\n','utf-8'))
     if source._src_data is not None:    #Check _src_data, not src_data, because src_data will re-load the data object!!
         f.write(b'src_data\n')
         if isinstance(source._src_data,str):
@@ -295,7 +298,14 @@ def read_Source(f,directory:str=''):
         if fld=='filename' and v[0]=='[' and v[-1]==']':
             v=v[2:-2].split(',')
         setattr(source,fld,int(v) if fld=='n_det' else v)
-    line=decode(f.readline())[:-1]
+    line=decode(f.readline()).strip()
+    if line=='Details':
+        details=list()
+        line=decode(f.readline()).strip()
+        while line not in ['src_data','OBJECT:MOLSELECT']:
+            details.append(line)
+            line=decode(f.readline()).strip()
+        source.details=details
     if line=='src_data':
         line=decode(f.readline())[:-1]
         if line=='OBJECT:DATA':
