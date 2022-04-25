@@ -68,18 +68,19 @@ class DataMngr():
             print("Data already in project (index={})".format(self.data_objs.index(data)))
             return
             
+
         self.data_objs.append(data)
         self._hashes.append(None)   #We only add the hash value if data is saved
         self._saved_files.append(None)
         self.data_objs[-1].source.project=self.project
-        
+
         if self.project is not None:
             flds=['Type','status','short_file','title','additional_info']
             dct={f:getattr(self.data_objs[-1].source,f) for f in flds}
             dct['filename']=None
             self.project.info.new_exper(**dct)
             self.project._index=np.append(self.project._index,len(self.data_objs)-1)
-        
+
         if data.src_data is not None:
             if data.src_data in self.data_objs:
                 data.src_data=self[self.data_objs.index(data.src_data)]
@@ -738,12 +739,16 @@ class Project():
     def remove_data(self,index,delete=False):
         #TODO implement this the right way
         assert not(self._subproject),"Data cannot be removed from subprojects"
-        proj=self[index]
         
-        if hasattr(proj,'R'):#Single index given, thus self[index] returns a data object
-            index=[self.data.data_objs.index(proj)]
-        else:
-            index=np.sort(proj._index)[::-1]
+        if not(hasattr(index,'__len__')):index=[index]
+        index=np.sort([self._index[i] for i in index])[::-1] #Convert to data index
+        
+        # proj=self[index]
+        
+        # if hasattr(proj,'R'):#Single index given, thus self[index] returns a data object
+        #     index=[self.data.data_objs.index(proj)]
+        # else:
+        #     index=np.sort(proj._index)[::-1]
         
         # if delete and len(index)>1:
         #     print('Delete data sets permanently by full title or index (no multi-delete of saved data allowed)')

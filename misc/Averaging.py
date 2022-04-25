@@ -49,6 +49,9 @@ def avg2sel(data:Data,sel:MolSelect) -> Data:
         for d in data:avg2sel(d,sel)
         return
     
+    _mdmode=data.select._mdmode
+    data.select._mdmode=True
+    
     out=clsDict['Data'](sens=data.sens) #Create output data with sensitivity as input detectors
     out.source=copy(data.source)
     out.src_data=None   #We get some values from data for source, but it is not "fit"  data in the usual sense
@@ -121,6 +124,8 @@ def avg2sel(data:Data,sel:MolSelect) -> Data:
     out.details.append('Original data had length {0} and new data has length {1}'.format(len(data),len(out)))
     
     if data.source.project is not None:data.source.project.append_data(out)
+    
+    data.select._mdmode=_mdmode
     
     return out
         

@@ -421,7 +421,12 @@ class FrameObj():
                 o.details.append('Rotation between frames '+' and '.join(fn.split('>')))
         
         out[0].sens.sampling_info=self.sampling_info
-                
+        
+        "This allows us to turn _mdmode back off for the returned data objects"
+        out[0].select=copy(out[0].select)
+        out[0].select._mdmode=False
+        for o in out:o.select=out[0].select
+        
         return out
     
     def md2data(self):

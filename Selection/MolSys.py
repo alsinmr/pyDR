@@ -198,6 +198,8 @@ class MolSelect():
                 print('Warning: length of sel1 and repr_sel are not equal. This will cause errors in ChimeraX')
         if name in ['sel1','sel2','repr_sel'] and value is not None:
             # if name=='repr_sel':name='_repr_sel'
+            _mdmode=self._mdmode
+            self._mdmode=False
             name='_'+name
             if isinstance(value,AtomGroup):
                 sel=np.zeros(len(value),dtype=object)
@@ -209,6 +211,7 @@ class MolSelect():
                 out=np.zeros(len(value),dtype=object)
                 for k,v in enumerate(value):out[k]=v
                 super().__setattr__(name,out)
+            self._mdmode=_mdmode
             return
         
         super().__setattr__(name,value)
@@ -242,6 +245,7 @@ class MolSelect():
                 (e.g. ivl1: only take one bond per methyl group)
                 (e.g. ivlr,ivll: Only take the left or right methyl group)
         """
+        
         self.sel1,self.sel2=selt.protein_defaults(Nuc=Nuc,mol=self,resids=resids,segids=segids,filter_str=filter_str)
         
         repr_sel=list()        
@@ -370,15 +374,15 @@ class MolSelect():
             try: #TODO kinda hack-y. Not too pleased with this.
                 mdmode=self._mdmode
                 self._mdmode=True
-                return self.label
             except:
                 self.label=np.arange(len(self.sel1))
-            finally:
                 self._mdmode=mdmode
+                
             "An attempt to generate a unique label under various conditions"
             if hasattr(self, "sel1") and getattr(self,"sel1") is not None\
                and hasattr(self, "sel2") and getattr(self, "sel2") is not None: #QUICKFIX
-              if hasattr(self.sel1[0],'__len__'):
+              
+               if hasattr(self.sel1[0],'__len__'):
                   #todo this here is causing the saving to crash when sel1 or sel2 is None, i make a quick fix to avoid it,
                   #  but i think it needs a more detailed view
                   label=list()
@@ -411,7 +415,7 @@ class MolSelect():
                           return
                   self.label=np.arange(self.sel1.__len__())
                   
-              else:
+               else:
                   count,cont=0,True
                   while cont:
                       if count==0: #One bond per residue- just take the residue number
@@ -429,6 +433,7 @@ class MolSelect():
                           cont=False
                       
                   self.label=label
+            self._mdmode=mdmode
         
     def copy(self):
         return copy.copy(self)
@@ -528,7 +533,7 @@ class MolSelect():
 
     def __hash__(self):
         x = 0
-        fields = ["sel1", "sel2", "label", "repr_sel"]
+        fields = ["sel1", "sel2"]
         for field in fields:
             if hasattr(self, field) and getattr(self, field) is not None:
                 f = getattr(self, field)
