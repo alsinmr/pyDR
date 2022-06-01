@@ -37,13 +37,16 @@ from pyDR.MDtools.Ctcalc import sparse_index,get_count,Ctcalc
 from pyDR.misc import ProgressBar
 from .vec_funs import new_fun,print_frame_info
 from . import FramesPostProc as FPP
-from pyDR import Defaults
-from pyDR import clsDict
+from pyDR.iRED.iRED2 import iRED
+from pyDR import Defaults,clsDict
 
 
-#%%Function for returning just the correlation function
+#%%Functions for returning just the correlation function (to ct or to ired)
 def md2data(select):
     return FrameObj(select).md2data()
+
+def md2iRED(select):
+    return FrameObj(select).md2iRED()
 
 dtype=Defaults['dtype']
 flags={'ct_finF':True,'ct_m0_finF':False,'ct_0m_finF':False,'ct_0m_PASinF':False,\
@@ -446,13 +449,15 @@ class FrameObj():
         out.sens.sampling_info=self.sampling_info
         return out
     
-    def frames2iRED(self, include: list = None) -> list:
+    def frames2iRED(self, rank=2, include: list = None) -> list:
         """
         Sets the frames mode to symmetric and extracts vectors for each frame
         required to perform iRED analysis.
 
         Parameters
         ----------
+        rank : int, optional
+            1 or 2, giving the rank of the iRED analysis
         include : list, optional
             List of logicals the same length as the number of loaded frames, 
             used to determine whether or not to include each frame.
@@ -475,16 +480,21 @@ class FrameObj():
     
         v=self.select_frames(include)
         index=v['index']
+        source=clsDict['Source'](Type='Fr2iREDmode',select=copy(self.molecule),filename=self.molecule.molsys.traj.files,
+                      status='raw')
+        source.select._mdmode=False #Turn off md mode for export!
+        source.details=self.details.copy()
         
         if len(v['v']):
             vZ,vXZ,nuZ,nuXZ,_=apply_fr_index(v)
             nf=len(nuZ)
         else:
-            nf=0
             vZ=v['vT'][0] if v['vT'].shape[0]==2 else v['vT']
-            details=self.details.copy()
-            details.append('Direct analysis of the correlation function')
-            out=[{'v':vZ,'t':v['t'],'index':index,'details':details}]
+            vZ/=np.sqrt((vZ**2).sum(0))
+            
+            source.details.append('Direct analysis of the correlation function')
+            source.details.append('Analyzed with iRED')
+            out=[iRED({'v':vZ,'t':v['t'],'index':index,'source':source,'sampling_info':self.sampling_info})]
             return out
         
     
@@ -496,11 +506,9 @@ class FrameObj():
             vZ_inf=vft.applyFrame(vft.norm(vZ),nuZ_F=nuZ[k],nuXZ_F=nuXZ[k])
             A_0m_PASinf.append(vft.D2vec(vZ_inf).mean(axis=-1))
         
-        details=self.details.copy()
-        details.append('Direct analysis of the correlation function')
-        out=[{'v':vZ,'t':v['t'],'index':index,'details':details}]
+        source.details.append('Direct analysis of the correlation function')
+        out=[iRED({'v':vZ,'t':v['t'],'index':index,'source':source,'sampling_info':self.sampling_info})]
         for k,fn in zip(range(nf+1),self.frame_names(include)):
-            print(k)
             if k==0:
                 v0=vft.applyFrame(vft.norm(vZ),nuZ_F=nuZ[k],nuXZ_F=nuXZ[k])
             elif k==nf:
@@ -511,9 +519,10 @@ class FrameObj():
                 v0=sym_nuZ_f(A_0m_PASinf=A0,nuZ_f=nuZ_f,nuXZ_f=nuXZ_f,nuZ_F=nuZ_F,nuXZ_F=nuXZ_F)
         
             
-            details=self.details.copy()
-            details.append('Rotation between frames '+' and '.join(fn.split('>')))
-            out.append({'v':v0,'t':v['t'],'index':index,'details':details})
+            source=copy(source)
+            source.details[-1]='Rotation between frames '+' and '.join(fn.split('>'))
+            source.details.append('Analyzed with iRED')
+            out.append(iRED({'v':v0,'t':v['t'],'index':index,'source':source,'sampling_info':self.sampling_info}))
         return out
             
     def md2iRED(self)->dict:
@@ -528,9 +537,11 @@ class FrameObj():
             well as information about sampling of the time axis.
 
         """
+        if self.vft is None:self.tensor_frame(Type='bond',sel1=1,sel2=2)
         include=[False for _ in range(len(self.vf))]
-        return self.frames2iRED(include)[0]
-            
+        out=self.frames2iRED(include)[0]
+        out.source.Type='iREDmode'
+        return out
 
     #TODO add back in some version of draw tensors        
     # def draw_tensors(self,fr_num,tensor_name='A_0m_PASinF',sc=2.09,tstep=0,disp_mode=None,index=None,scene=None,\

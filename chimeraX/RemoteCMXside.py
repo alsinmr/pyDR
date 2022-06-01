@@ -206,15 +206,18 @@ class CMXReceiver():
         
     def how_many_models(self):
         """
-        Tells pyDR how many models are open in ChimeraX
+        Tells pyDR how many atom-containing models are open in ChimeraX
 
         Returns
         -------
         None.
 
         """
-        self.client.send(len(self.session.models))
-
+        count=0
+        for k in range(len(self.session.models),0,-1):
+            if hasattr(self.session.models[k-1],'atoms'):count+=1
+        
+        self.client.send(count)
 
     def send_command(self,string):
         """todo I found out, that creating any Model with the command line interface inside the thread will cause a program

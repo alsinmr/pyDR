@@ -55,7 +55,49 @@ def set_color_radius(atoms,x:np.array,color:list,ids:list,sc:float=4):
     "Finally, transfer the results to the atoms"
     atoms[ids].radii=(0.8+sc*x).astype('float32')
     atoms[ids].colors=color_calc(x,colors=[[210,180,140,255],color])
+    
+def set_color_radius_CC(atoms,x:np.array,color:list,ids:list,sc:float=4) -> None:
+    """
+    Set the color and radius indicating cross-correlated motion for a given
+    detector.
+    
+    Works essentially like set_color_radius, except that we check for what atom
+    is currently selected and use this to determine which cross correlations we
+    show. Note that if no atom is selected, we take the previous selection, which
+    we determine here internally by searching for the largest radius
 
+    Parameters
+    ----------
+    atoms : atom group in chimeraX
+        Set of atoms (model.atoms) to be colored.
+    x : np.array
+        1D array of floats defining the colors and radii.
+    color : list
+        Color to fade towards (4 elements, 0-255, 4th element is alpha).
+    ids : list
+        List of indices to determine which atoms to color.
+    sc  : float
+        Control how much the radius increases for a value of x=1
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    r=list()
+    for k,id0 in enumerate(ids):
+        a0=atoms[np.array(id0,dtype=int)]
+        if np.any(a0.selected) or np.any(a0.bonds.selected):
+            x=x[k]
+            break
+        else:
+            r.append(a0.radii.max())
+    else:
+        k=np.argmax(r)
+        x=x[k]
+    set_color_radius(atoms,x,color,ids,sc)
+    atoms[np.array(ids[k],dtype=int)].colors=color_calc(np.ones(ids[k].shape),colors=[[0,0,0,255],[0,0,0,255]])
 
 
 def color_calc(x,x0=None,colors=[[0,0,255,255],[210,180,140,255],[255,0,0,255]]):

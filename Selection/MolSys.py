@@ -69,6 +69,8 @@ class MolSys():
 
     def __hash__(self):
         return hash(self.topo) + hash(self.traj)
+    
+
 
 class Trajectory():
     def __init__(self,mda_traj,t0=0,tf=None,step=1,dt=None):
@@ -254,7 +256,7 @@ class MolSelect():
                 repr_sel.append(s.residues[0].atoms.select_atoms('name H HN N CA'))
                 resi=s.residues[0].resindex-1
                 if resi>=0 and self.uni.residues[resi].segid==s[0].segid:
-                    repr_sel[-1]+=self.uni.residues[resi].atoms.select_atoms('name C CA')
+                    repr_sel[-1]+=self.uni.residues[resi].atoms.select_atoms('name C CA O')
         elif Nuc.lower()[:3] in ['ivl','ch3'] and '1' in Nuc:
             for s in self.sel1:
                 repr_sel.append(s+s.residues[0].atoms.select_atoms('name H* and around 1.4 name {}'.format(s.name)))

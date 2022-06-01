@@ -288,7 +288,23 @@ class CMXRemote():
                 return tr.response
 #%% Various queries    
     @classmethod
-    def how_many_models(cls,ID):
+    def how_many_models(cls,ID:int)->int:
+        """
+        Queries chimeraX to determine how many atom-containing models are 
+        currently loaded in chimeraX.
+    
+
+        Parameters
+        ----------
+        ID : int
+            ID of chimeraX session.
+
+        Returns
+        -------
+        int
+            How many models currently open in chimeraX
+
+        """
         try:
             cls.conn[ID].send(('how_many_models',))
         except:
@@ -301,6 +317,8 @@ class CMXRemote():
             if tr.response:
                 return tr.response
         return 0
+    
+                    
     
 #%% Thread handling        
 class Listen(Thread):

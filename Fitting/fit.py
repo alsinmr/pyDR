@@ -26,10 +26,11 @@ def fit(data,bounds=True,parallel=False):
     (otherwise, defaults to the number of cores available on the computer)
     """
     detect=data.detect.copy()
-    out=clsDict['Data'](sens=detect,src_data=data) #Create output data with sensitivity as input detectors
+    # out=clsDict['Data'](sens=detect,src_data=data) #Create output data with sensitivity as input detectors
+    out=data.__class__(sens=detect,src_data=data) #Use same class as input (usually Data, can be Data_iRED)
     out.label=data.label
 #    out.sens.lock() #Lock the detectors in sens since these shouldn't be edited after fitting
-    out.select=data.select
+    out.source.select=data.source.select
     
     
     "Prep data for fitting"

@@ -440,6 +440,9 @@ class Ctcalc():
         self.c=list()
         self.CtFT=list()
         self.Ct=list()
+        self.aEq=None   #Storage for the equilibrium values
+        self.bEq=list() #Storage for the equilibrium values      
+        self.Eq=list()  #Storage for the equilibrium values 
         self[1]
 
 #%% Functions for sparse sampling

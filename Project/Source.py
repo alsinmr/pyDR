@@ -36,7 +36,10 @@ class Source():
             for f in flds:  #Pass the Type, selection, and original filename
                 if getattr(self,f) is None:setattr(self,f,getattr(src_data.source,f))
             self.n_det=src_data.detect.rhoz.shape[0] if 'n' in src_data.detect.opt_pars else 0
-            self._status='n' if src_data.detect.opt_pars['Type']=='no_opt' else 'p'
+            if 'Type' in src_data.detect.opt_pars.keys():
+                self._status='n' if src_data.detect.opt_pars['Type']=='no_opt' else 'p'
+            else:
+                self._status=src_data.source.status
             self.additional_info=src_data.source.additional_info
 
         if self._status is None: #Some default behavior for status
@@ -61,22 +64,66 @@ class Source():
             
     
     @property
-    def topo(self):
+    def topo(self) -> str:
+        """
+        Yields the location of the topology file for the selection object if a
+        selection object is included in source.
+
+        Returns
+        -------
+        str
+            Path to the topology file.
+
+        """
         if self.select is None:return None
         return self.select.molsys.file
     @property
-    def traj(self):
+    def traj(self) -> list:
+        """
+        Yields a list containing the trajectory files in the selection object if
+        the selection object is included in source and has an associated
+        trajectory
+
+        Returns
+        -------
+        list
+            List of strings specifying the location of the trajectory files.
+
+        """
         if self.select is None or self.select.molsys.traj is None:return None
         return self.select.molsys.traj.files
+    
     @property
-    def original_file(self):  #Returns the deepest
+    def original_file(self) -> str:  
+        """
+        Iteratively descends through the source data (src_data) to find the 
+        original raw data file. Returns None if no src_data in source
+
+        Returns
+        -------
+        str
+            String specifying the location of the original data.
+
+        """
         source=self
         while source.src_data is not None:
             source=source.src_data.source
         return source.filename
     
     @property
-    def src_data(self):
+    def src_data(self) -> object:
+        """
+        Returns the source data as a data object for the given source file. Note
+        that when a data object is initially loaded, its src_data is stored 
+        as a string specifying the file location, and will not be loaded unless
+        specifically called by the user.
+
+        Returns
+        -------
+        data
+            Source data for the current processed data object.
+
+        """
         if isinstance(self._src_data,str):
             if self.project is not None:
                 if os.path.split(self._src_data)[1] in self.project.info['filename']:    #Is the source data part of the project?
@@ -96,16 +143,41 @@ class Source():
         return self._src_data #Return the source data
     
     @property
-    def status(self):
+    def status(self) -> str:
+        """
+        Returns the processing status of the current object.
+        
+        'raw': No detector processing applied
+        'no_opt': Processed with unoptimized detectors (further processing allowed)
+        'proc': Processed with detectors (further detector processing not recommended)
+        'opt_fit': Processed with detectors followed by fit optimization
+        'empty': No data stored
+
+        Returns
+        -------
+        str
+            String describing the current processing status.
+
+        """
         keys={'r':'raw','n':'no_opt','p':'proc','o':'opt_fit','e':'empty'}
-        if self._status in keys.values():return self._status
+        if self._status.lower() in keys.values():return self._status.lower()
         if self._status[0].lower() in keys:return keys[self._status]
         self._status
         assert 0,"source.status should be '"+"','".join(keys.keys())+"', setting to ''"
 
 
     @property
-    def title(self):
+    def title(self) -> str:
+        """
+        Returns the title for the data object. This is usually an automatically
+        generated title, but the user may set the title manually.
+
+        Returns
+        -------
+        str
+            Title for the associated data set.
+
+        """
         if self._title is not None:return self._title
         title=self.status[0]
         if self.n_det is not None:title+='{}'.format(self.n_det)
@@ -115,10 +187,18 @@ class Source():
         return title
         
     @property
-    def short_file(self):
+    def short_file(self) -> str:
         """
-        Returns an abbreviated version of the data stored in self.filename
+        Returns the filename of the first file in self.filename, excluding the
+        filepath
+
+        Returns
+        -------
+        str
+            Filename without path
+
         """
+
         if self.filename is not None:          
             return os.path.split(self.filename[0] if isinstance(self.filename,list) else self.filename)[1]
         

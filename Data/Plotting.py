@@ -454,6 +454,7 @@ def plot_rho(lbl,R,R_std=None,style='plot',color=None,ax=None,split=True,**kwarg
     if lbl0 is not None:
         ax.set_xticks(lbl)
         ax.set_xticklabels(lbl0,rotation=90)
+
                 
     return ax,hdls
 

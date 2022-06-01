@@ -8,7 +8,7 @@ Created on Sun Jan 30 15:58:40 2022
 import warnings
 
 import numpy as np
-from .. import Defaults,clsDict
+from pyDR import Defaults,clsDict
 from ..IO import write_file
 from .Plotting import plot_fit,DataPlots
 from ..Fitting import fit,opt2dist
@@ -278,7 +278,7 @@ class Data():
         return plot_fit(lbl=lbl,Rin=Rin,Rc=Rc,Rin_std=Rin_std,\
                     info=info,index=index,exp_index=exp_index,fig=fig)
             
-    def chimera(self,index=None,rho_index:int=None,scaling=None):
+    def chimera(self,index=None,rho_index:int=None,scaling=None) -> None:
         """
         Plots a set of detectors in chimera.
 
@@ -287,8 +287,7 @@ class Data():
         index : list-like, optional
             Select which residues to plot. The default is None.
         rho_index : int, optional
-            Select which detector to initiall show. The default is None.
-            NOT IMPLEMENTED
+            Select which detector to initially show. The default is None.
         scaling : float, optional
             Scale the display size of the detectors. If not provided, a scaling
             will be automatically selected based on the size of the detectors.
@@ -307,7 +306,7 @@ class Data():
         if not(hasattr(rho_index, '__len__')):
             rho_index = np.array([rho_index], dtype=int)
         R = self.R[index]
-        R *= 1/R[index].T[rho_index].max() if scaling is None else scaling
+        R *= 1/R.T[rho_index].max() if scaling is None else scaling
         
         R[R < 0] = 0
 
@@ -320,11 +319,7 @@ class Data():
         else: #Hmm....how should this work?
             ID=CMXRemote.launch()
 
-        # print(*[atom.ids for atom in self.select.sel1])
-        #print(self.select.sel2.ids)
-        # print(self.select.repr_sel)
-        ids=np.array([s.indices for s in self.select.repr_sel],dtype=object)
-        # print(ids)
+        ids=np.array([s.indices for s in self.select.repr_sel[index]],dtype=object)
 
 
         # CMXRemote.send_command(ID,'close')

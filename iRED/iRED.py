@@ -3,7 +3,6 @@ import pyDR.Data.Data as Data
 import numpy as np
 import matplotlib.pyplot as plt
 import warnings
-import pyDR
 from pyDR.MDtools.Ctcalc import Ct
 
 
