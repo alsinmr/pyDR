@@ -44,6 +44,7 @@ class iRED():
         self.rank=rank
         self._vec=vec
         self.source.Type='iREDmode'
+        self._project=None
         
         
     
@@ -81,8 +82,26 @@ class iRED():
                 self._CtInf=None
                 self._DelCt=None
             return
-        super().__setattr__(name,value)
         
+        if name=='project':
+            if value is None or str(value.__class__).split('.')[-1][:-2]=='Project':
+                self.source.project=value
+            return
+        super().__setattr__(name,value)
+    
+    @property
+    def project(self):
+        """
+        Returns the associated project if one exists
+
+        Returns
+        -------
+        Project
+            pyDR Project object
+
+        """
+        return self._project if self._project else self.source.project
+    
     @property
     def t0(self) -> np.ndarray:
         """
@@ -352,6 +371,8 @@ class iRED():
         out.R=self.DelCt
         out.Rstd=np.repeat(np.array([out.sens.info['stdev']],dtype=dtype),self.M.shape[0],axis=0)
         out.iRED={'M':self.M,'m':self.m,'Lambda':self.Lambda,'rank':self.rank}
+        if self.project is not None:
+            self.project.append_data(out)
         return out
         
         

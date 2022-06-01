@@ -202,6 +202,9 @@ def protein_defaults(Nuc,mol,resids=None,segids=None,filter_str=None):
         sel1=sel0.select_atoms('name CA and around 1.5 (name HA or name HA2)')
         sel2=sel0.select_atoms('(name HA or name HA2) and around 1.5 name CA')
         print('Warning: selecting HA2 for glycines. Use manual selection to get HA1 or both bonds')
+    elif Nuc.lower()=='cacb':
+        sel1=sel0.select_atoms('name CA and around 1.7 name CB')
+        sel2=sel0.select_atoms('name CB and around 1.7 name CA')
     elif Nuc[:3].lower()=='ivl' or Nuc[:3].lower()=='ch3':
         if Nuc[:4].lower()=='ivla':
             fs0='resname ILE Ile ile VAL val Val LEU Leu leu ALA Ala ala'

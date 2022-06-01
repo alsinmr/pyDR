@@ -19,7 +19,7 @@ class MolSys():
     """
     Object for storage of the molecule or MD trajectory
     """
-    def __init__(self,topo=None,traj_files=None,t0=0,tf=-1,step=1,dt=None):
+    def __init__(self,topo=None,traj_files=None,t0=0,tf=-1,step=1,dt=None,project=None):
         """
 
         :param topo:        insert path for pdb file here
@@ -41,8 +41,11 @@ class MolSys():
             self._uni=None
             self._traj=None
             return
+        
         self._traj=Trajectory(self.uni.trajectory,t0=t0,tf=tf,step=step,dt=dt) \
-            if hasattr(self.uni,'trajectory') else None     
+            if hasattr(self.uni,'trajectory') else None
+                
+        self.project=project
     
     @property
     def uni(self):
@@ -71,6 +74,7 @@ class MolSys():
         return hash(self.topo) + hash(self.traj)
     
 
+    
 
 class Trajectory():
     def __init__(self,mda_traj,t0=0,tf=None,step=1,dt=None):
@@ -101,6 +105,11 @@ class Trajectory():
 
     def __setattr__(self,name,value):
         "Make sure t0, tf, step are integers"
+        if name=='project': #Ensure project is really a project
+            if value is None or str(value.__class__).split('.')[-1][:-2]=='Project':
+                super().__setattr__(name, value)
+            return
+        
         if name in ['t0','tf','step']:
             value=int(value)
         if name=='tf':
@@ -158,6 +167,7 @@ class MolSelect():
         self._sel2=None
         self._repr_sel=None
         self._label=None
+        self._project=None
         super().__setattr__('_mdmode',False)
 
     def __setattr__(self,name,value):
@@ -166,6 +176,11 @@ class MolSelect():
         """
         if name in ['MolSys']:
             print('Warning: Changing {} is not allowed'.format(name))
+            return
+        
+        if name=='project':
+            if value is None or str(value.__class__).split('.')[-1][:-2]=='Project':
+                self._project=value
             return
         
         if name=='label':
@@ -226,6 +241,18 @@ class MolSelect():
     def sel2(self):
         return self._sel2
             
+    @property
+    def project(self):
+        """
+        Returns the associated project if one exists
+
+        Returns
+        -------
+        Project
+            pyDR Project object
+
+        """
+        return self._project if self._project else self.molsys.project
     
     def __copy__(self):
         cls = self.__class__
@@ -251,7 +278,7 @@ class MolSelect():
         self.sel1,self.sel2=selt.protein_defaults(Nuc=Nuc,mol=self,resids=resids,segids=segids,filter_str=filter_str)
         
         repr_sel=list()        
-        if Nuc.lower() in ['15n','n15','n','co','13co','co13','ca','13ca','ca13']:
+        if Nuc.lower() in ['15n','n15','n','co','13co','co13']:
             for s in self.sel1:
                 repr_sel.append(s.residues[0].atoms.select_atoms('name H HN N CA'))
                 resi=s.residues[0].resindex-1
@@ -530,7 +557,7 @@ class MolSelect():
 
     @property
     def _hash(self):
-        #todo remove this someday
+        #TODO remove this someday
         return hash(self)
 
     def __hash__(self):

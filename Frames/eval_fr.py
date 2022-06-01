@@ -169,7 +169,28 @@ class FrameObj():
         self.A={}
         self.S2=None
         self.__return_index=None
+        self._project=None
     
+    
+    def __setattr__(self,name,value):
+        if name=='project':
+            if str(value.__class__).split('.')[-1][:-2]=='Project':
+                self._project=value
+            return
+        super().__setattr__(name,value)
+    
+    @property
+    def project(self):
+        """
+        Returns the associated project if one exists
+
+        Returns
+        -------
+        Project
+            pyDR Project object
+
+        """
+        return self._project if self._project else self.molecule.project
     
     @property
     def description_of_terms(self):
@@ -430,6 +451,10 @@ class FrameObj():
         out[0].select._mdmode=False
         for o in out:o.select=out[0].select
         
+        if self.project is not None:
+            for o in out:
+                self.project.append_data(o)
+        
         return out
     
     def md2data(self):
@@ -447,6 +472,7 @@ class FrameObj():
         out.source.Type='MD'
         out.source.additional_info=None
         out.sens.sampling_info=self.sampling_info
+        if self.project is not None:self.project.update_info()
         return out
     
     def frames2iRED(self, rank=2, include: list = None) -> list:
@@ -484,6 +510,7 @@ class FrameObj():
                       status='raw')
         source.select._mdmode=False #Turn off md mode for export!
         source.details=self.details.copy()
+        source.project=self.project
         
         if len(v['v']):
             vZ,vXZ,nuZ,nuXZ,_=apply_fr_index(v)
