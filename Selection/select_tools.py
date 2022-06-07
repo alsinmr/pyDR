@@ -50,32 +50,47 @@ def sel0_filter(mol,resids=None,segids=None,filter_str=None):
 
 #%% Simple selection 
 
-def sel_simple(mol,sel=None,resids=None,segids=None,filter_str=None):
+def sel_simple(mol=None,sel:mda.AtomGroup=None,resids=None,segids=None,filter_str:str=None) -> mda.AtomGroup:
     """
-    Takes a selection out of the molecule object, where that selection may
-    be an atom group produced by the user, may be a selection string, or
-    may be extracted from mol.sel1/mol.sel2. In each case, the output is a MDAnalysis
-    atom group.
+    Produces a selection extracted from an MDAnalysis atom group. The initial
+    atom group may be given directly by setting sel to an mda.AtomGroup, or via
+    a MolSelect object (mol) where sel may be 1 or 2, thus selecting mol.sel1 
+    or mol.sel2 as the initial atom group, sel may be a string, thus acting a
+    filter on the associated universe. sel may also be omitted.
     
-    One may further filter the given group with a valid MDAnalysis selection
-    string, with a specification of specific residues or specific segments
-    
-    sel = sel_simple(sel,mol=None,resids,segids,filter_str=None)
-    
-    set 'sel' to be a string, an atom group, or simply 1 or 2 to use the selections
-    stored in mol
+    Further filtering is then performed using resids, segids, and a filter string
+    (filter_str)
+
+    Parameters
+    ----------
+    mol : MolSelect object or AtomGroup
+    sel : mda.AtomGroup or index (1 or 2) or a string, optional
+        Defines the initial atom group. Can be an atom group itself, an index 
+        1 or 2, which selects mol.sel1 or mol.sel2, or a string which applies a
+        selection string to the universe contained in mol. The default is None.
+    resids : list/array/single element, optional
+        Restrict selected residues. The default is None.
+    segids : list/array/single element, optional
+        Restrict selected segments. The default is None.
+    filter_str : str, optional
+        Restricts selection to atoms selected by the provided string. String
+        is applied to the MDAnalysis select_atoms function. The default is None.
+
+    Returns
+    -------
+    mda.AtomGroup
+        MDAnalysis atom group filtered by the inputs
+
     """
-    
-    """If sel has atoms as an attribute, we make sure it's an atom group
-    (could be a residue group or universe, for example)
-    """
-    if hasattr(mol,'atoms'): sel=mol.atoms 
+
+    if hasattr(mol,'atoms') and sel is None: sel=mol.atoms #In case user forgets to use keyword
     
     
     if sel is None:
         if not(isinstance(sel,mda.AtomGroup)):
             print('If the molecule object is not provided, then sel must be an atom group')
             return
+        #TODO I don't think the next two lines can be reached. Why are they here?
         sel=sel0_filter(mol,resids,segids,filter_str)
         return sel
     

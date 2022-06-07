@@ -14,6 +14,7 @@ from pyDR import clsDict
 import re
 from copy import copy
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 decode=bytes.decode
 
 
@@ -47,6 +48,9 @@ class DataMngr():
         self.data_objs[index]=read_file(fullpath,directory=self.project.directory)
         self._hashes[index]=self.data_objs[index]._hash
         self.data_objs[index].source.project=self.project
+        if self.data_objs[index].source.select is not None:
+            self.data_objs[index].source.select.molsys.project=self.project
+            self.data_objs[index].source.select.project=self.project
         
         
     def append_data(self,data):
@@ -73,6 +77,10 @@ class DataMngr():
         self._hashes.append(None)   #We only add the hash value if data is saved
         self._saved_files.append(None)
         self.data_objs[-1].source.project=self.project
+        
+        if self.data_objs[-1].source.select is not None:
+            self.data_objs[-1].source.select.molsys.project=self.project
+            self.data_objs[-1].source.select.project=self.project
 
         if self.project is not None:
             flds=['Type','status','short_file','title','additional_info']
@@ -470,12 +478,34 @@ class Chimera():
                 r=np.arange(d.R.shape[1]) if rho_index is None else rho_index
                 m=max((d.R[i][:,r].max(),m))
             scaling=1/m
+        if self.current is None:self.current=0
+        nm=self.CMX.how_many_models(self.CMXid)+1
+        nm+=(nm>1)
+        #A bunch of stuff to try to guess which atoms to align
+        res0=[np.min(d.select.uni.residues.resids) for d in self.project]
+        ress=[np.max([res0[0],r]) for r in res0]
+        i0=[np.argwhere(r==d.select.uni.residues.resids)[0,0] for d,r in zip(self.project,ress)]
+        resl=[len(d.select.uni.residues[i:]) for i,d in zip(i0,self.project)]
+        resl=[np.min([resl[0],r]) for r in resl]
+        resf=[(self.project[0].select.uni.residues.resids[i0[0]+l-1],
+               d.select.uni.residues.resids[i+l-1]) for d,i,l in zip(self.project,i0,resl)]
         for k,d in enumerate(self.project):
             if offset is None:
-                offset=np.std(d.select.pos,0)*3
+                offset=np.std(d.select.pos,0)*6
                 # offset[offset!=offset.min()]=0
+                ax=['x','y','z'].pop(np.argmin(offset))
+                offset=offset.min()
             d.chimera(index=index,rho_index=rho_index,scaling=scaling)
-            self.CMX.conn[self.CMXid].send(('shift_position',-1,offset*k))
+            if k:
+                mdl_num=nm+k+(nm==1)
+                print(mdl_num)
+                cmds='align #{3}:{4}-{5}@CA toAtoms #{0}:{1}-{2}@CA cutoffDistance 5'.format(\
+                                    nm,ress[k],resf[k][0],mdl_num,ress[k],resf[k][1])
+                print(cmds)
+                self.command_line(cmds,ID=self.CMXid)
+            # self.CMX.conn[self.CMXid].send(('shift_position',-1,offset*k))
+                self.command_line('move {0} {1} models #{2} coordinateSystem #{3}'.format(\
+                                ax,offset*k,mdl_num,nm))
     
     def command_line(self,cmds:list=None,ID:int=None) -> None:
         """
@@ -566,7 +596,30 @@ class Chimera():
         
         
         self.command_line('save "{0}" {1}'.format(filename,options))
+
+#%% Numpy nice display
+
         
+class nparray_nice(np.ndarray):
+    def __new__(cls, *args, **kwargs):
+        return super().__new__(cls, *args, **kwargs)
+
+    def _ipython_display_(self):
+        for x in self:print(x)
+        
+    def __repr__(self):
+        out=''
+        for x in self:out+=x+'\n'
+        return out 
+    def __array_finalize__(self, obj):
+        print('In array_finalize:')
+    
+def mk_nparray_nice(x):
+    if not(hasattr(x,'__len__')):x=[x]
+    out=nparray_nice(shape=[len(x)],dtype=str)
+    for k,x0 in enumerate(x):
+        out[k]=x0
+    return out
 #%% Project class
 class Project():
     """
@@ -1026,7 +1079,8 @@ class Project():
         fig-=1
         if len(self.plots) > fig and self.plots[fig] is not None:
             hdl=self.plots[fig]
-            self.plots[fig].close()
+            # self.plots[fig].close()
+            plt.close(self.plots[fig].fig)
             self.plots[fig] = None
         
     def plot(self, data_index=None, data=None, fig=None, style='plot',

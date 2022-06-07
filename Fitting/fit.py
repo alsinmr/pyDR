@@ -110,7 +110,7 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
 
     """
     
-    out=clsDict['Data'](sens=data.sens) #Create output data with sensitivity as input detectors
+    out=data.__class__(sens=data.sens) #Create output data with sensitivity as input detectors
     out.label=data.label
 #    out.sens.lock() #Lock the detectors in sens since these shouldn't be edited after fitting
     out.select=data.select

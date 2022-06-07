@@ -13,7 +13,7 @@ from pyDR import clsDict
 from pyDR.IO import write_file,read_file
 
 class Movies():
-    def __init__(self,data) -> None:
+    def __init__(self,data=None,molsys=None) -> None:
         """
         
 
@@ -22,15 +22,27 @@ class Movies():
         data : pyDR.Data
             Data object from pyDR, where data is stored in a project
             (movies works from within the project folder, so this is required)
+        molsys : pyDR.MolSys
+            Alternatively, can providing a molsys, although then we may only see
+            the molecule without any detector plotting.
 
         Returns
         -------
         None.
 
         """
-        assert data.select is not None and data.select.sel1 is not None,"Selection must be defined to use movies"
-        self.data=data
-        self.project=data.source.project
+        if data is None or data.select is None or data.select.sel1 is None:
+            print("Warning: Selection must be defined to use some movie functions")
+        
+        if data is not None:
+            self.data=data
+            self.molsys=None
+            self.project=data.source.project
+        else:
+            assert molsys is not None,"data or molsys must be defined to use movies"
+            self.data=None
+            self.molsys=molsys
+            self.project=molsys.project
         self.CMX=self.project.chimera.CMX
         self.chimera=self.project.chimera
         self._xtcs=list()
@@ -369,12 +381,6 @@ class Movies():
 
         Parameters
         ----------
-        i : int, optional
-            Index of the data set from which to create the movie. Data set needs
-            to include an MD trajectory. Note that one may first index the project
-            to create a subproject with only the desired trajectory and then
-            call write_traj without i, since this will just take the first
-            data object and its associated trajectory. The default is 0.
         select : selection, optional
             Selection of atoms to write out. Can be a string, in which case it
             is applied to the MDAnalysis universe to filter atoms. May alternatively
@@ -392,7 +398,7 @@ class Movies():
         nt : int, optional
             DESCRIPTION. The default is 450.
         nss0 : float, optional
-            Initial frame rate, given in ns/s. The default is 0.02.
+            Initial frame rate, given in ns/s. The default is 0.005.
         nssf : float, optional
             Final frame rate, given in ns/s. The default is 200.
         dt : float, optional

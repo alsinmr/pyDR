@@ -51,7 +51,7 @@ class Source():
             elif self.filename is not None:
                 self._status='raw'
             
-        assert self._status[0].lower() in ['r','n','p','e'],"Status should be 'raw','proc','no_opt', or 'empty'"
+        assert self._status[0].lower() in ['r','n','p','e','o'],"Status should be 'raw','proc','no_opt', 'opt_fit', or 'empty'"
     
     def __copy__(self):
         cls = self.__class__

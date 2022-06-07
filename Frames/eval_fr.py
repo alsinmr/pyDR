@@ -37,7 +37,7 @@ from pyDR.MDtools.Ctcalc import sparse_index,get_count,Ctcalc
 from pyDR.misc import ProgressBar
 from .vec_funs import new_fun,print_frame_info
 from . import FramesPostProc as FPP
-from pyDR.iRED.iRED2 import iRED
+from pyDR.iRED.iRED import iRED
 from pyDR import Defaults,clsDict
 
 
@@ -318,7 +318,7 @@ class FrameObj():
         index=sparse_index(tf,n,nr)
         if self.__frames_loaded:
             if np.all(self.vecs['index']==index):return
-        self.sampling_info={'tf':tf,'dt':self.molecule.traj.dt,'n':n,'nr':nr}
+        self.sampling_info={'tf':tf,'dt':self.molecule.traj.dt/1e3,'n':n,'nr':nr}
         self.vecs=mol2vec(self,index=index)
         self.__frames_loaded=True
         self.include=None   #If new frames loaded, we should re-set what frames used for correlation functions
@@ -439,7 +439,7 @@ class FrameObj():
             out[1].source.additional_info='Product'
             out[1].details.append('Product of correlation functions from frame analysis')
                 
-            for o,fn in zip(out[2:],self.frame_names):
+            for o,fn in zip(out[2:],self.frame_names(include=include)):
                 o.source.additional_info=fn
                 o.details=self.details.copy()
                 o.details.append('Rotation between frames '+' and '.join(fn.split('>')))
@@ -521,7 +521,7 @@ class FrameObj():
             
             source.details.append('Direct analysis of the correlation function')
             source.details.append('Analyzed with iRED')
-            out=[iRED({'v':vZ,'t':v['t'],'index':index,'source':source,'sampling_info':self.sampling_info})]
+            out=[iRED({'v':vZ,'t':v['t'],'index':index,'source':source,'sampling_info':self.sampling_info},rank=rank)]
             return out
         
     
@@ -534,7 +534,7 @@ class FrameObj():
             A_0m_PASinf.append(vft.D2vec(vZ_inf).mean(axis=-1))
         
         source.details.append('Direct analysis of the correlation function')
-        out=[iRED({'v':vZ,'t':v['t'],'index':index,'source':source,'sampling_info':self.sampling_info})]
+        out=[iRED({'v':vZ,'t':v['t'],'index':index,'source':source,'sampling_info':self.sampling_info},rank=rank)]
         for k,fn in zip(range(nf+1),self.frame_names(include)):
             if k==0:
                 v0=vft.applyFrame(vft.norm(vZ),nuZ_F=nuZ[k],nuXZ_F=nuXZ[k])
@@ -549,10 +549,11 @@ class FrameObj():
             source=copy(source)
             source.details[-1]='Rotation between frames '+' and '.join(fn.split('>'))
             source.details.append('Analyzed with iRED')
-            out.append(iRED({'v':v0,'t':v['t'],'index':index,'source':source,'sampling_info':self.sampling_info}))
+            source.additional_info=fn
+            out.append(iRED({'v':v0,'t':v['t'],'index':index,'source':source,'sampling_info':self.sampling_info},rank=rank))
         return out
             
-    def md2iRED(self)->dict:
+    def md2iRED(self,rank=2):
         """
         Extracts vectors describing only the full motion for use in the iRED 
         analysis
@@ -566,7 +567,7 @@ class FrameObj():
         """
         if self.vft is None:self.tensor_frame(Type='bond',sel1=1,sel2=2)
         include=[False for _ in range(len(self.vf))]
-        out=self.frames2iRED(include)[0]
+        out=self.frames2iRED(rank=rank,include=include)[0]
         out.source.Type='iREDmode'
         return out
 
@@ -1005,7 +1006,7 @@ def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=
         i=N!=0
         N=N[i]
         dt=(v['t'][1]-v['t'][0])/(index[1]-index[0])
-        t=(np.cumsum(i)-1)*dt/1e3
+        t=(np.cumsum(i)-1)*dt
         out['N']=N
         out['t']=t[i]
     
@@ -1425,7 +1426,7 @@ def ini_vec_load(traj,frame_funs,tensor_fun,frame_index=None,index=None,info=Non
     nt=len(traj)
     
     if index is None: index=np.arange(nt)
-    dt=traj.dt
+    dt=traj.dt/1e3
     
     t=index*dt
     v=[list() for _ in range(nf)]

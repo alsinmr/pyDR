@@ -10,7 +10,7 @@ from MDAnalysis import Universe, AtomGroup
 from pyDR.misc.ProgressBar import ProgressBar
 from pyDR.Selection import select_tools as selt
 from pyDR.MDtools.vft import pbc_corr
-from pyDR import Defaults
+from pyDR import Defaults,clsDict
 from copy import copy
 import os
 dtype=Defaults['dtype']
@@ -70,11 +70,78 @@ class MolSys():
     def _hash(self):
         return hash(self.topo)
 
+    @property
+    def select_atoms(self):
+        """
+        Quick link to the MDAnalysis universe select_atoms function. 
+
+        Returns
+        -------
+        function
+            MDAnalysis select_atoms called from the full universe.
+        """
+        return self.uni.atoms.select_atoms
+    
+    def select_filter(self,resids=None,segids=None,filter_str=None) -> AtomGroup:
+        """
+        Create a selection from the MolSys universe based on filtering by
+        resid, segid, and a filter string.        
+
+        Parameters
+        ----------
+        resids : list/array/single element, optional
+            Restrict selected residues. The default is None.
+        segids : list/array/single element, optional
+            Restrict selected segments. The default is None.
+        filter_str : str, optional
+            Restricts selection to atoms selected by the provided string. String
+            is applied to the MDAnalysis select_atoms function. The default is None.
+
+        Returns
+        -------
+        AtomGroup
+            DESCRIPTION.
+
+        """
+        return selt.sel_simple(self.uni.atoms,resids=resids,segids=segids,filter_str=filter_str)
+
     def __hash__(self):
         return hash(self.topo) + hash(self.traj)
     
+    def chimera(self):
+        """
+        Opens the molecule in Chimera for viewing
 
+        Returns
+        -------
+        None.
+
+        """
+        
+        CMXRemote=clsDict['CMXRemote']
+
+        if self.project is not None:
+            ID=self.project.chimera.CMXid
+            if ID is None:
+                self.project.chimera.current=0
+                ID=self.project.chimera.CMXid
+        else: #Hmm....how should this work?
+            ID=CMXRemote.launch()
+
+
+        CMXRemote.send_command(ID,'open "{0}"'.format(self.topo))
+        nm=CMXRemote.how_many_models(ID)
+        CMXRemote.command_line(ID,'sel #{0}'.format(nm))
+
+        CMXRemote.send_command(ID,'style sel ball')
+        CMXRemote.send_command(ID,'size sel stickRadius 0.2')
+        CMXRemote.send_command(ID,'size sel atomRadius 0.8')
+        # CMXRemote.send_command(ID,'~ribbon')
+        # CMXRemote.send_command(ID,'show sel')
+        # CMXRemote.send_command(ID,'color sel tan')
+        CMXRemote.send_command(ID,'~sel')
     
+        
 
 class Trajectory():
     def __init__(self,mda_traj,t0=0,tf=None,step=1,dt=None):
@@ -263,7 +330,7 @@ class MolSelect():
         return out
         
         
-    def select_bond(self,Nuc=None,resids=None,segids=None,filter_str=None,label=None):
+    def select_bond(self,Nuc,resids=None,segids=None,filter_str:str=None,label=None) -> None:
         """
         Select a bond according to 'Nuc' keywords
             '15N','N','N15': select the H-N in the protein backbone
@@ -273,18 +340,52 @@ class MolSelect():
                 (ivl: ILE,VAL,LEU, ivla: ILE,LEU,VAL,ALA, ch3: all methyl groups)
                 (e.g. ivl1: only take one bond per methyl group)
                 (e.g. ivlr,ivll: Only take the left or right methyl group)
+        
+        Note that it is possible to provide a list of keywords for Nuc in order
+        to simultaneously evaluate multiple bond types. In this case, sorting
+        will be such that bonds from the same residues/segments are grouped 
+        together.
+
+        Parameters
+        ----------
+        Nuc : str or list, optional
+            Nucleus keyword or list of keywords. 
+        resids : list/array/single element, optional
+            Restrict selected residues. The default is None.
+        segids : list/array/single element, optional
+            Restrict selected segments. The default is None.
+        filter_str : str, optional
+            Restricts selection to atoms selected by the provided string. String
+            is applied to the MDAnalysis select_atoms function. The default is None.
+        label : list/array, optional
+            Manually provide a label for the selected bonds. The default is None.
+
+        Returns
+        -------
+        None.
+
         """
         
-        self.sel1,self.sel2=selt.protein_defaults(Nuc=Nuc,mol=self,resids=resids,segids=segids,filter_str=filter_str)
+        if isinstance(Nuc,list):
+            sel1,sel2=self.uni.atoms[:0],self.uni.atoms[:0] #Create empty selection
+            for Nuc0 in Nuc:
+                sel10,sel20=selt.protein_defaults(Nuc=Nuc0,mol=self,resids=resids,segids=segids,filter_str=filter_str)
+                sel1+=sel10
+                sel2+=sel20
+            i=np.lexsort([sel1.names,sel2.names,sel1.resids,sel1.segids])
+            self.sel1,self.sel2=sel1[i],sel2[i]
+                
+        else:
+            self.sel1,self.sel2=selt.protein_defaults(Nuc=Nuc,mol=self,resids=resids,segids=segids,filter_str=filter_str)
         
         repr_sel=list()        
-        if Nuc.lower() in ['15n','n15','n','co','13co','co13']:
+        if hasattr(Nuc,'lower') and Nuc.lower() in ['15n','n15','n','co','13co','co13']:
             for s in self.sel1:
                 repr_sel.append(s.residues[0].atoms.select_atoms('name H HN N CA'))
                 resi=s.residues[0].resindex-1
                 if resi>=0 and self.uni.residues[resi].segid==s[0].segid:
                     repr_sel[-1]+=self.uni.residues[resi].atoms.select_atoms('name C CA O')
-        elif Nuc.lower()[:3] in ['ivl','ch3'] and '1' in Nuc:
+        elif hasattr(Nuc,'lower') and Nuc.lower()[:3] in ['ivl','ch3'] and '1' in Nuc:
             for s in self.sel1:
                 repr_sel.append(s+s.residues[0].atoms.select_atoms('name H* and around 1.4 name {}'.format(s.name)))
         else:
@@ -554,6 +655,44 @@ class MolSelect():
         if sel is self:return True
         in21=self.compare(sel,mode='auto')[1]
         return len(in21)==len(self) and np.all(in21==np.sort(in21))
+
+    def chimera(self,color:tuple=(1.,0.,0.,1.)):
+        """
+        Opens the molecule in Chimera for viewing, with selection highlighted.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        CMXRemote=clsDict['CMXRemote']
+
+        if self.project is not None:
+            ID=self.project.chimera.CMXid
+            if ID is None:
+                self.project.chimera.current=0
+                ID=self.project.chimera.CMXid
+        else: #Hmm....how should this work?
+            ID=CMXRemote.launch()
+
+
+        CMXRemote.send_command(ID,'open "{0}"'.format(self.molsys.topo))
+        nm=CMXRemote.how_many_models(ID)
+        CMXRemote.command_line(ID,'sel #{0}'.format(nm))
+
+        CMXRemote.send_command(ID,'style sel ball')
+        CMXRemote.send_command(ID,'size sel stickRadius 0.2')
+        CMXRemote.send_command(ID,'size sel atomRadius 0.8')
+        CMXRemote.send_command(ID,'~ribbon')
+        CMXRemote.send_command(ID,'show sel')
+        CMXRemote.send_command(ID,'color sel tan')
+        CMXRemote.send_command(ID,'~sel')
+        
+        if self.sel1 is not None:
+            ids=np.concatenate([s.indices for s in [*self.sel1,*self.sel2]],dtype=int)
+            
+        CMXRemote.show_sel(ID,ids=ids,color=color)
 
     @property
     def _hash(self):

@@ -365,7 +365,7 @@ def read_Source(f,directory:str=''):
     if line=='Details':
         details=list()
         line=decode(f.readline()).strip()
-        while line not in ['src_data','OBJECT:MOLSELECT']:
+        while line not in ['src_data','OBJECT:MOLSELECT','END:OBJECT']:
             details.append(line)
             line=decode(f.readline()).strip()
         source.details=details

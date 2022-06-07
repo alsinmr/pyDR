@@ -92,6 +92,7 @@ class Detector(Sens.Sens):
         """
         Obtain the r matrix for fitting with detectors
         """
+        self.reload()
         assert self.__r is not None,"First optimize detectors (r_auto, r_target, r_no_opt)"
         
         if not(self.SVD.up2date):
@@ -610,6 +611,18 @@ class SVD():
         """
         if self._sens_hash is None or self._sens_hash!=self.sens._hash:return False
         return True
+    
+    def update(self):
+        """
+        Updates the SVD calculation in case the sensitivities have changed
+
+        Returns
+        -------
+        None.
+
+        """
+        if not(self.up2date):self(self.n)
+        
     
     def run(self,n):
         """

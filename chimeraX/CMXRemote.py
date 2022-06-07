@@ -257,7 +257,36 @@ class CMXRemote():
         cls.send_command(ID,'open {0}'.format(cls.full_path(ID)))
 #        cls.conn[ID].send(('command_line','open {}'.format(cls.full_path(ID))))
 
-    
+
+#%% Non-event actions
+    @classmethod
+    def show_sel(cls,ID:int,ids:np.ndarray,color:tuple=(1.,0.,0.,1.)):
+        """
+        Highlight a selection of atoms by id in ChimeraX. Provide the chimeraX
+        session ID, an array of ids (numpy integer array), and optionally a
+        color tuple (3 or 4 elements, 0 to 1 or 0 to 255)
+
+        Parameters
+        ----------
+        ID : int
+            ChimeraX session ID.
+        ids : np.ndarray
+            Selection ids.
+        color : tuple, optional
+            Color to use. The default is (1,0,0,1).
+
+        Returns
+        -------
+        None.
+
+        """
+        if np.max(color)<=1 and not(isinstance(color[0],int)):
+            color=[int(c*255) for c in color]
+        else:
+            color=[int(c) for c in color]
+        if len(color)==3:
+            color.append(255)
+        cls.conn[ID].send(('show_sel',ids,color))
 #%% Event handling
     @classmethod
     def add_event(cls,ID,name,*args):

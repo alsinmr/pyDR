@@ -160,7 +160,37 @@ class CMXReceiver():
             print('index exceeds number of atom groups')
             return
         self.get_atoms()[index].coords+=np.array(shift)
-        
+    
+    def show_sel(self,ids:np.ndarray,color=(255,0,0,255)):
+        """
+        Highlight a selection of atoms by id in ChimeraX. Provide the chimeraX
+        session ID, an array of ids (numpy integer array), and optionally a
+        color tuple (3 or 4 elements, 0 to 1 or 0 to 255)
+
+        Parameters
+        ----------
+        ID : int
+            ChimeraX session ID.
+        ids : np.ndarray
+            Selection ids.
+        color : tuple, optional
+            Color to use. The default is (255,0,0,255).
+
+        Returns
+        -------
+        None.
+
+        """
+        print('checkpoint')
+        for k in range(len(self.session.models),0,-1):
+            if hasattr(self.session.models[k-1],'atoms'):
+                model=self.session.models[k-1]
+                print(k)
+                break
+        print(ids)
+        print(color)
+        model.atoms[ids].colors=color
+    
     def play_traj(self,topo:str,traj:str):
         """
         Opens a trajecory in chimeraX and sets up the play settings

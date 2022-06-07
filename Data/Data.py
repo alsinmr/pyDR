@@ -14,7 +14,7 @@ from .Plotting import plot_fit,DataPlots
 from ..Fitting import fit,opt2dist
 from matplotlib.figure import Figure
 from copy import copy
-from pyDR.chimeraX.Movies import Movies
+# from pyDR.chimeraX.Movies import Movies
 
 dtype=Defaults['dtype']
 
@@ -170,7 +170,31 @@ class Data():
         # todo I was a little confused by that, might be useful to rename the return function? -K
         return fit(self, bounds=bounds, parallel=parallel)
     
-    def opt2dist(self,rhoz_cleanup=False,parallel=False):
+    def opt2dist(self,rhoz_cleanup:bool = False,parallel:bool = False):
+        """
+        Forces a set of detector responses to be consistent with some given distribution
+        of motion. Achieved by performing a linear-least squares fit of the set
+        of detector responses to a distribution of motion, and then back-calculating
+        the detectors from that fit. Set rhoz_cleanup to True to obtain monotonic
+        detector sensitivities: this option eliminates unusual detector due to 
+        oscilation and negative values in the detector sensitivities. However, the
+        detectors are no longer considered "DIstortion Free".
+                                
+    
+        Parameters
+        ----------
+        data : TYPE
+            DESCRIPTION.
+        rhoz_cleanup : TYPE, optional
+            DESCRIPTION. The default is False. If true, we use a threshold for cleanup
+            of 0.1, although rhoz_cleanup can be set to a value between 0 and 1 to
+            assign the threshold manually
+    
+        Returns
+        -------
+        data object
+    
+        """
         return opt2dist(self,rhoz_cleanup=rhoz_cleanup,parallel=parallel)
     
     def save(self, filename, overwrite: bool = False, save_src: bool = True, src_fname=None):
@@ -325,6 +349,7 @@ class Data():
         # CMXRemote.send_command(ID,'close')
         CMXRemote.send_command(ID,'open "{0}"'.format(self.select.molsys.topo))
         nm=CMXRemote.how_many_models(ID)
+        nm+=nm>1
         # CMXRemote.send_command(ID,'sel #{0}'.format(nm))
         CMXRemote.command_line(ID,'sel #{0}'.format(nm))
 
@@ -343,6 +368,7 @@ class Data():
         
     @property
     def movies(self):
+        Movies=clsDict['Movies']
         if self.source.project is None:
             print('movies only available within projects')
             return
