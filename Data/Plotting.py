@@ -69,18 +69,18 @@ class DataPlots():
     
     def append_data(self,data,style='plot',errorbars=True,index=None,rho_index=None,split=True,plot_sens=True,**kwargs):
         self._plot_sens=self._plot_sens if len(self.data) else plot_sens
-        if len(self.data)==0:
-            if index is not None:
-                data=copy(data)
-                for f in ['R','Rstd','S2','S2std','label']:
-                    if getattr(data,f) is not None:setattr(data,f,getattr(data,f)[index])
-                if data.select is not None and len(data.select):
-                    data.source=copy(data.source)
-                    data.source.select=copy(data.source.select)
-                    data.select.sel1=data.select.sel1[index]
-                    if data.select.sel2 is not None:
-                        data.select.sel2=data.select.sel2[index]
-                index=None
+        # if len(self.data)==0: #Why did we check for no data currently in project?
+        if index is not None:
+            data=copy(data)
+            for f in ['R','Rstd','S2','S2std','label']:
+                if getattr(data,f) is not None:setattr(data,f,getattr(data,f)[index])
+            if data.select is not None and len(data.select):
+                data.source=copy(data.source)
+                data.source.select=copy(data.source.select)
+                data.select.sel1=data.select.sel1[index]
+                if data.select.sel2 is not None:
+                    data.select.sel2=data.select.sel2[index]
+            index=None
             
         self.data.append(data)        
         self.rho_index.append(self.calc_rho_index() if rho_index is None else np.array(rho_index,dtype=int))

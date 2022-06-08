@@ -498,15 +498,13 @@ class Chimera():
             d.chimera(index=index,rho_index=rho_index,scaling=scaling)
             if k:
                 mdl_num=nm+k+(nm==1)
-                print(mdl_num)
                 cmds='align #{3}:{4}-{5}@CA toAtoms #{0}:{1}-{2}@CA cutoffDistance 5'.format(\
                                     nm,ress[k],resf[k][0],mdl_num,ress[k],resf[k][1])
-                print(cmds)
-                self.command_line(cmds,ID=self.CMXid)
+                self.command_line(cmds)
             # self.CMX.conn[self.CMXid].send(('shift_position',-1,offset*k))
                 self.command_line('move {0} {1} models #{2} coordinateSystem #{3}'.format(\
                                 ax,offset*k,mdl_num,nm))
-    
+        self.command_line('view')
     def command_line(self,cmds:list=None,ID:int=None) -> None:
         """
         Send commands to chimeraX as a single string, as a list, or interactively
