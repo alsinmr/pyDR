@@ -12,6 +12,7 @@ import numpy as np
 import multiprocessing as mp
 from ._fitfun import fit0,dist_opt
 from copy import copy
+from pyDR.misc.tools import linear_ex
 
 dtype=Defaults['dtype']
 
@@ -209,3 +210,180 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
     if data.source.project is not None:data.source.project.append_data(out)
     
     return out
+
+
+def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,include:list=None)->tuple:
+    """
+    Fits a data object with model-free (i.e. multi-exponential) analysis. 
+    Procedure is iterative: we start by fitting all detectors with a single
+    correlation time and amplitude, and then the second correlation time and
+    amplitude fit the remaining detector intensity, and so on. This procedure
+    is repeated several times (set Niter to control precision), where the latter
+    correlation times are the included when performing the initial fit.
+
+    Parameters may be fixed to certain input values (use fixz, fixA), where
+    these entries should be lists of length nz. Usually, just one parameter is fixed.
+    In this case, the parameter may be provided as a single entry. That is, for
+    nz=3, the following are equivalent
+    
+    model_free(data,nz=2,fixA=8/9)
+    model_free(data,nz=2,fixA=[8/9,None],fixz=[None,None])
+    
+    Note that it is also possible to specify different fixed values for different
+    residues. If this behavior is desired, then a list *must* be used, and the
+    elements of the list should also be lists (or iterable) with the same length
+    as the number of residues being fitted.
+    
+    We may also opt not to fit all detector responses. This is controlled by
+    an index (for example, if we have 6 detectors). Note that regardless, we will
+    always back-calculate all detectors (not just those in include)
+    
+    include=[0,1,2]
+    include=[True,True,True,False,False,False]
+    
+    Note that we return amplitudes of each correlation time, not the corresponding
+    S2 values (or S values). To get parameters in the form:
+    (1-Sf^2)exp(-t/tauf)+Sf^2(1-Ss^2)exp(-t/\taus), we'd need to calculate
+    
+    Sf^2=1-A[0], Ss=1-A[1]/Sf^2
+    
+
+    Parameters
+    ----------
+    data : data object
+        Data to be fit.
+    nz : int, optional
+        Number of correlation times to include. The default is 1.
+    fixz : list, optional
+        List with length nz. Include the log-correlation time as a list element
+        to fix to a given value. Include None in the list where values should
+        not be fixed. The default is None.
+    fixA : list, optional
+        Fix amplitudes to some input values. The default is None.
+    Niter : int, optional
+        Number of iterations for fitting. Will be set internally depending on
+        the number of correlation times to use. The default is None.
+    include : list, optional
+        Index to determine which detectors to fit. The default is None.
+
+    Returns
+    -------
+    tuple
+        Contains z (log correlation times), A (amplitudes), the total error 
+        (chi-squared) for each residue, and a data object which contains the 
+        back-calculated detector responses.
+
+    """
+    
+    "Loop over project or list if provided"
+    if hasattr(data,'__getitem__'):
+        out=[model_free(d,nz=nz,fixz=fixz,fixA=fixA,Niter=Niter,include=include) for d in data]
+        return out
+    
+    nz=nz if nz is not None else 1
+    
+    fixz=[None for _ in range(nz)] if fixz is None else \
+        (fixz if hasattr(fixz,'__len__') else [fixz,*[None for _ in range(nz-1)]])
+    fixA=[None for _ in range(nz)] if fixA is None else \
+        (fixA if hasattr(fixA,'__len__') else [fixA,*[None for _ in range(nz-1)]])
+    
+    nb,nd=data.R.shape    
+    
+    if include is None:
+        include=np.arange(nd if data.sens.rhoz[-1,-1]>=.99 else nd-1)
+    else:
+        include=np.array(include)
+
+    z0,rhoz,R,Rstd=data.sens.z,data.sens.rhoz[include],data.R[:,include],data.Rstd[:,include]
+        
+    Niter=4**(nz-1) if Niter is None else Niter  #I actually have no idea what to put here. Should be 1, though, for nz=1
+    
+    z,A=list(),list()  #Set initial values
+    for k in range(nz):
+        if fixz[k] is None:
+            z.append(np.ones(nb)*z0[0])
+        else:
+            z.append(np.array(fixz[k]) if hasattr(fixz[k],'__len__') else np.ones(nb)*fixz[k])
+        if fixA[k] is None:
+            A.append(np.zeros(nb))
+        else:
+            A.append(np.array(fixA[k]) if hasattr(fixA[k],'__len__') else np.ones(nb)*fixA[k])
+                
+    
+    for q in range(Niter):
+        print('{0} of {1} iterations'.format(q+1,Niter))
+        for k in range(nz):
+            R0=np.zeros(R.shape)
+            for m in range(nz):
+                if k!=m:
+                    R0+=(linear_ex(z0,rhoz.T,z[m]).T*A[m]).T
+            DelR=(R-R0)/Rstd
+            
+            if fixz[k] is None:
+                if fixA[k] is None:
+                    #No fixed parameters
+                    err=list()
+                    A00=list()
+                    for z00 in z0:
+                        m=linear_ex(z0,rhoz.T,z00)/Rstd
+                        pinv=((m**2).sum(1)**(-1))*m.T
+                        A00.append((pinv.T*DelR).sum(1))
+                        A00[-1][A00[-1]<0]=0
+                        A00[-1][A00[-1]>1]=1
+                        err.append(((DelR.T-m.T*A00[-1])**2).sum(0))
+                    err=np.array(err)
+                    i=err.argmin(0)
+                    A00=np.array(A00).T
+                    A[k]=np.array([A00[k][i0] for k,i0 in enumerate(i)])
+                    z[k]=z0[i]
+                else:
+                    #Amplitude fixed
+                    err=list()
+                    for z00 in z0:
+                        m=linear_ex(z0,rhoz.T,z00)/Rstd
+                        err.append(((DelR.T-m.T*A[k])**2).sum(0))
+                    err=np.array(err)
+                    i=err.argmin(0)
+                    z[k]=z0[i]
+                    
+            else:
+                if fixA[k] is None:
+                    #Correlation time fixed
+                    #Here, we build the pseudo-inverse at the input correlation times
+                    m=linear_ex(z0,rhoz.T,z[k])/Rstd
+                    pinv=((m**2).sum(1)**(-1))*m.T
+                    A[k]=(pinv.T*DelR).sum(1)
+                    A[k][A[k]<0]=0
+                    A[k][A[k]>1]=1
+                else:
+                    #All parameters fixed (no operations)
+                    pass
+    #Calculate the fit
+
+    Rc=np.zeros(data.R.shape)
+    for m in range(nz):
+        Rc+=(linear_ex(data.sens.z,data.sens.rhoz.T,z[m]).T*A[m]).T
+    z,A=np.array(z),np.array(A)
+    Rc+=np.atleast_2d((1-A.sum(0))).T@np.atleast_2d(data.sens.rhoz[:,-1])
+
+    out=copy(data)
+    out.R=Rc
+    err=((R-Rc[:,include])**2/Rstd**2).sum(1)
+    
+    out.source.details.append('Back calculation of detector responses for model free fit')
+    out.source.details.append('Fitted to {0} correlation times'.format(nz))
+    out.source.Type='ModelFreeFit'
+    out.source.src_data=None
+    
+    if data.source.project is not None:data.source.project.append_data(out)
+    
+    
+
+    i=z.argsort(axis=0)
+    z=np.array([o[i0] for o,i0 in zip(z.T,i.T)]).T
+    A=np.array([o[i0] for o,i0 in zip(A.T,i.T)]).T
+    
+    
+    return z,A,err,out
+    
+

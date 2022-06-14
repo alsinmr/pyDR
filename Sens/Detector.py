@@ -106,13 +106,15 @@ class Detector(Sens.Sens):
         """
         if self.__r is None and self._Sens__rho is not None:
             opt_pars=copy(self.opt_pars)
-            inclS2='inclS2' in opt_pars
+            inclS2='inclS2' in opt_pars['options']
             R2ex='R2ex' in opt_pars
             target=self._Sens__rho[inclS2:-1] if R2ex else self._Sens__rho[inclS2:]
             
             self.r_target(target)
             if np.max(np.abs(target-self.rhoz))>1e-6:
                 print('Warning: Detector reoptimization failed')
+            self.opt_pars=copy(opt_pars)
+            self.opt_pars['options']=[]
             for o in opt_pars['options']:
                 getattr(self,o)()
             
@@ -546,10 +548,15 @@ class Detector(Sens.Sens):
     def _hash(self):
         #todo get rid of that later
         return hash(self)
-
+    
     def __hash__(self):
-        warnings.warn("implement hash value for Detector!")
-        return 0
+        if 'n' not in self.opt_pars:   #Unoptimized set of detectors (hash not defined)
+            return hash(self.sens)
+        return hash(self.rhoz.tobytes())
+
+    # def __hash__(self):
+    #     warnings.warn("implement hash value for Detector!")
+    #     return 0
 
 class SVD():
     """

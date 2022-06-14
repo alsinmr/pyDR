@@ -370,7 +370,7 @@ class iRED():
             self._DelCt=self._DelCt.T
         return self._DelCt
     
-    def iRED2data(self) -> Data:
+    def iRED2data(self,rank=None) -> Data:
         """
         Creates a data object - technically a Data_iRED object – which can be
         analyzed with detectors to get the detector responses for the individual
@@ -382,6 +382,8 @@ class iRED():
             DESCRIPTION.
 
         """
+        
+        if rank is not None:self.rank=rank
         
         out=Data_iRED(sens=clsDict['MD'](t=self.t))
         out.source=copy(self.source)

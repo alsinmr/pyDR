@@ -339,9 +339,10 @@ class Data():
             if ID is None:
                 self.source.project.chimera.current=0
                 ID=self.source.project.chimera.CMXid
-                print(ID)
+            saved_commands=self.source.project.chimera.saved_commands
         else: #Hmm....how should this work?
             ID=CMXRemote.launch()
+            saved_commands=[]
 
         ids=np.array([s.indices for s in self.select.repr_sel[index]],dtype=object)
 
@@ -361,11 +362,13 @@ class Data():
         CMXRemote.send_command(ID,'color sel tan')
         CMXRemote.send_command(ID,'~sel')
 
+        for cmd in saved_commands:
+            CMXRemote.send_command(ID,cmd)
 
         out=dict(R=R,rho_index=rho_index,ids=ids)
         # CMXRemote.remove_event(ID,'Detectors')
         CMXRemote.add_event(ID,'Detectors',out)
-        
+                
     @property
     def movies(self):
         Movies=clsDict['Movies']

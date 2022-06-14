@@ -435,6 +435,7 @@ class Chimera():
         self._current=[-1]
         self._CMXids=[]
         self.CMX=clsDict['CMXRemote']
+        self.saved_commands=[] #Automatically run these commands when chimera is initialized.
     
     @property
     def CMXid(self):
@@ -505,6 +506,9 @@ class Chimera():
                 self.command_line('move {0} {1} models #{2} coordinateSystem #{3}'.format(\
                                 ax,offset*k,mdl_num,nm))
         self.command_line('view')
+    
+    
+    
     def command_line(self,cmds:list=None,ID:int=None) -> None:
         """
         Send commands to chimeraX as a single string, as a list, or interactively
@@ -609,12 +613,10 @@ class nparray_nice(np.ndarray):
         out=''
         for x in self:out+=x+'\n'
         return out 
-    def __array_finalize__(self, obj):
-        print('In array_finalize:')
     
 def mk_nparray_nice(x):
     if not(hasattr(x,'__len__')):x=[x]
-    out=nparray_nice(shape=[len(x)],dtype=str)
+    out=nparray_nice(shape=[len(x)],dtype=object)
     for k,x0 in enumerate(x):
         out[k]=x0
     return out
@@ -788,27 +790,37 @@ class Project():
         self.data.append_data(data)
         
     def remove_data(self,index,delete=False):
-        #TODO implement this the right way
-        assert not(self._subproject),"Data cannot be removed from subprojects"
+        #TODO Some problems may arise if data is removed but not deleted, and the project is subsquently saved
+        # assert not(self._subproject),"Data cannot be removed from subprojects"
         
         if not(hasattr(index,'__len__')):index=[index]
-        index=np.sort([self._index[i] for i in index])[::-1] #Convert to data index
         
-        # proj=self[index]
-        
-        # if hasattr(proj,'R'):#Single index given, thus self[index] returns a data object
-        #     index=[self.data.data_objs.index(proj)]
-        # else:
-        #     index=np.sort(proj._index)[::-1]
-        
-        # if delete and len(index)>1:
-        #     print('Delete data sets permanently by full title or index (no multi-delete of saved data allowed)')
-        #     return
-        
-        for i in index:
-            self.data.remove_data(index=i,delete=delete)
-            self._index=self._index[self._index!=i]
-            self._index[self._index>i]-=1
+        if self._subproject:
+            i=[self.parent_index[i] for i in index]
+            self._parent.remove_data(i,delete=delete)
+            index=np.sort([self._index[i] for i in index])[::-1] #Convert to data index
+            for i in index:
+                self._index=self._index[self._index!=i]
+                self._index[self._index>i]-=1
+        else:
+            
+            index=np.sort([self._index[i] for i in index])[::-1] #Convert to data index
+            
+            # proj=self[index]
+            
+            # if hasattr(proj,'R'):#Single index given, thus self[index] returns a data object
+            #     index=[self.data.data_objs.index(proj)]
+            # else:
+            #     index=np.sort(proj._index)[::-1]
+            
+            # if delete and len(index)>1:
+            #     print('Delete data sets permanently by full title or index (no multi-delete of saved data allowed)')
+            #     return
+            
+            for i in index:
+                self.data.remove_data(index=i,delete=delete)
+                self._index=self._index[self._index!=i]
+                self._index[self._index>i]-=1
 
     def __iter__(self):
         def gen():
@@ -841,6 +853,7 @@ class Project():
         
         proj=copy(self)
         proj._subproject=True
+        proj._parent=self
         proj.chimera=copy(self.chimera)
         proj.chimera.project=proj
         if isinstance(index,str):
@@ -881,28 +894,42 @@ class Project():
         
     @property
     def Types(self):
-        return self.info['Type'][self._index]
+        return mk_nparray_nice(self.info['Type'][self._index])
     
     @property
     def statuses(self):
-        return self.info['status'][self._index]
+        return mk_nparray_nice(self.info['status'][self._index])
     
     @property
     def titles(self): 
-        return self.info['title'][self._index]
+        return mk_nparray_nice(self.info['title'][self._index])
     
     @property
     def short_files(self):
-        return self.info['short_file'][self._index]
+        return mk_nparray_nice(self.info['short_file'][self._index])
     
     @property
     def additional_info(self):
-        return self.info['additional_info'][self._index]
+        return mk_nparray_nice(self.info['additional_info'][self._index])
     
     @property
     def filenames(self):
-        return self.info['filename'][self._index]
+        return mk_nparray_nice(self.info['filename'][self._index])
     
+    @property
+    def parent_index(self):
+        """
+        Returns the location of data objects of a subproject in the parent project
+
+        Returns
+        -------
+        np.array
+
+        """
+        if not(self._subproject):return None
+        return np.array([np.argwhere(i==self._parent._index)[0,0] for i in self._index],dtype=int)
+        
+        
     def save(self):
         assert not(self._subproject),"Sub-projects cannot be saved"
         self.data.save()

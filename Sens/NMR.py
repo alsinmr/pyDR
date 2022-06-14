@@ -40,10 +40,10 @@ class NMR(Sens):
         
         self.new_exper(info,**kwargs)
 
-    def __hash__(self):
-        x = 0
-        warnings.warn("not implemented yet, please implement")
-        return 0
+    # def __hash__(self):
+    #     x = 0
+    #     warnings.warn("not implemented yet, please implement")
+    #     return 0
         
     def new_exper(self,info=None,**kwargs):
         """

@@ -130,8 +130,8 @@ class Sens():
         return hash(self)
 
     def __hash__(self):
-        if hasattr(self,'opt_pars') and 'n' not in self.opt_pars:   #Unoptimized set of detectors (hash not defined)
-            return hash(self.sens)
+        # if hasattr(self,'opt_pars') and 'n' not in self.opt_pars:   #Unoptimized set of detectors (hash not defined)
+        #     return hash(self.sens)
         return hash(self.rhoz.tobytes())
         
 
@@ -299,17 +299,26 @@ class Sens():
         hdl=ax.plot(self.z,a)
         set_plot_attr(hdl,**kwargs)
         
-        ax.set_xlim(self.z[[0,-1]])
-        ticks=ax.get_xticks()
-        nlbls=4
-        step=int(len(ticks)/(nlbls-1))
-        start=0 if step*nlbls==len(ticks) else 1
-        lbl_str=NiceStr('{:q1}',unit='s')
-        ticklabels=['' for _ in range(len(ticks))]
-        for k in range(start, len(ticks),step):ticklabels[k]=lbl_str.format(10**ticks[k])
+        # ax.set_xlim(self.z[[0,-1]])
+        # ticks=ax.get_xticks()
+        # nlbls=4
+        # step=int(len(ticks)/(nlbls-1))
+        # start=0 if step*nlbls==len(ticks) else 1
+        # lbl_str=NiceStr('{:q1}',unit='s')
+        # ticklabels=['' for _ in range(len(ticks))]
+        # for k in range(start, len(ticks),step):ticklabels[k]=lbl_str.format(10**ticks[k])
         
-        ax.xaxis.set_major_locator(ticker.FixedLocator(ticks))
-        ax.xaxis.set_major_formatter(ticker.FixedFormatter(ticklabels))
+        # ax.xaxis.set_major_locator(ticker.FixedLocator(ticks))
+        # ax.xaxis.set_major_formatter(ticker.FixedFormatter(ticklabels))
+        
+        
+        def format_func(value,tick_number):
+            prec='{:q1}' if int(value)==value else '{:q3}'
+            lbl_str=NiceStr(prec,unit='s')
+            return lbl_str.format(10**value)
+        
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
+        
 #        ax.set_xticklabels(ticklabels)
         ax.set_xlabel(r'$\tau_\mathrm{c}$')
         ax.set_ylabel(r'$\rho_n(z)$')

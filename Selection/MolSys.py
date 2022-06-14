@@ -280,12 +280,14 @@ class MolSelect():
         if name=='repr_sel':
             if self.sel1 is not None and len(self.sel1)!=len(value):
                 print('Warning: length of sel1 and repr_sel are not equal. This will cause errors in ChimeraX')
-        if name in ['sel1','sel2','repr_sel'] and value is not None:
+        if name in ['sel1','sel2','repr_sel']:
             # if name=='repr_sel':name='_repr_sel'
             _mdmode=self._mdmode
             self._mdmode=False
             name='_'+name
-            if isinstance(value,AtomGroup):
+            if value is None:
+                return
+            elif isinstance(value,AtomGroup):
                 sel=np.zeros(len(value),dtype=object)
                 for k in range(len(value)):sel[k]=value[k:k+1]
                 super().__setattr__(name,sel)
