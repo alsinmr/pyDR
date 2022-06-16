@@ -21,18 +21,22 @@ decode=bytes.decode
 class DataMngr():
     def __init__(self, project):
         self.project = project
-        if not(os.path.exists(self.directory)):
-            os.mkdir(self.directory)
+
         self._saved_files = list()
-        for fname in os.listdir(self.directory):
-            if '.data' in fname:
-                self._saved_files.append(fname)
-        self._saved_files.sort()
+        
+        if self.directory:
+            if not(os.path.exists(self.directory)):
+                os.mkdir(self.directory)
+            for fname in os.listdir(self.directory):
+                if '.data' in fname:
+                    self._saved_files.append(fname)
+            self._saved_files.sort()
         self.data_objs = [None for _ in self.saved_files]
         self._hashes = [None for _ in self.saved_files]
 
     @property
     def directory(self):
+        if self.project.directory is None:return
         return os.path.join(self.project.directory, 'data')
         
     @property
@@ -40,6 +44,7 @@ class DataMngr():
         return self._saved_files
                 
     def load_data(self,filename=None,index=None):
+        if self.directory is None:return
         "Loads a saved file from the project directory"
         if filename is not None:
             assert filename in self.saved_files,"{} not found in project. Use 'append_data' for new data".format(filename)
@@ -620,12 +625,13 @@ def mk_nparray_nice(x):
     for k,x0 in enumerate(x):
         out[k]=x0
     return out
+
 #%% Project class
 class Project():
     """
     Project class of pyDIFRATE, used for organizing data and plots
     """
-    def __init__(self, directory:str, create:bool = False, subproject:bool = False) -> None:
+    def __init__(self, directory:str=None, create:bool = False, subproject:bool = False) -> None:
         """
         Initialize a pyDIFRATE project, for organizing data and plots
 
@@ -646,10 +652,10 @@ class Project():
 
         """
         self.name = directory   #todo maybe create the name otherwise?
-        self._directory = os.path.abspath(directory)
-        if not(os.path.exists(self.directory)) and create:
+        self._directory = os.path.abspath(directory) if directory is not None else None
+        if self.directory and not(os.path.exists(self.directory)) and create:
             os.mkdir(self.directory)
-        assert os.path.exists(self.directory),'Project directory does not exist. Select an existing directory or set create=True'
+        # assert os.path.exists(self.directory),'Project directory does not exist. Select an existing directory or set create=True'
                
         self.data=DataMngr(self)
         self._subproject = subproject  #Subprojects cannot be edited/saved
@@ -706,7 +712,7 @@ class Project():
         flds=['Type','status','short_file','title','additional_info','filename']
         for f in flds:info.new_parameter(f)
         
-        if os.path.exists(os.path.join(self.directory,'project.txt')):
+        if self.directory and os.path.exists(os.path.join(self.directory,'project.txt')):
             dct={}
             with open(os.path.join(self.directory,'project.txt'),'r') as f:
                 for line in f:

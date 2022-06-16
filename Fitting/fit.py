@@ -212,7 +212,7 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
     return out
 
 
-def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,include:list=None)->tuple:
+def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,include:list=None,nsteps=1000)->tuple:
     """
     Fits a data object with model-free (i.e. multi-exponential) analysis. 
     Procedure is iterative: we start by fitting all detectors with a single
@@ -265,6 +265,8 @@ def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,inc
         the number of correlation times to use. The default is None.
     include : list, optional
         Index to determine which detectors to fit. The default is None.
+    nsteps : int, optional
+        Number of steps taken to sweep over the correlation time. Default is 1000
 
     Returns
     -------
@@ -289,10 +291,12 @@ def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,inc
     
     nb,nd=data.R.shape    
     
+    
+    op_in_rho=not(data.source.Type=='NMR')  #Order parameter adds to detector responses (order parameter in rho)
+    op_loc=np.argwhere(data.sens.rhoz[:,-1]>0.99)[0,0] if op_in_rho else None
     if include is None:
-        include=np.arange(nd if data.sens.rhoz[-1,-1]>=.99 else nd-1)
-    else:
-        include=np.array(include)
+        include=np.ones(nd,dtype=bool)
+        if op_in_rho:include[op_loc]=False
 
     z0,rhoz,R,Rstd=data.sens.z,data.sens.rhoz[include],data.R[:,include],data.Rstd[:,include]
         
@@ -309,7 +313,7 @@ def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,inc
         else:
             A.append(np.array(fixA[k]) if hasattr(fixA[k],'__len__') else np.ones(nb)*fixA[k])
                 
-    
+    zswp=np.linspace(z0[0],z0[-1],nsteps);
     for q in range(Niter):
         print('{0} of {1} iterations'.format(q+1,Niter))
         for k in range(nz):
@@ -324,8 +328,12 @@ def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,inc
                     #No fixed parameters
                     err=list()
                     A00=list()
-                    for z00 in z0:
+                    
+                    for z00 in zswp:
                         m=linear_ex(z0,rhoz.T,z00)/Rstd
+                        if np.abs(m).max()==0:
+                            err.append(np.ones(nb)*1e10)
+                            continue
                         pinv=((m**2).sum(1)**(-1))*m.T
                         A00.append((pinv.T*DelR).sum(1))
                         A00[-1][A00[-1]<0]=0
@@ -335,16 +343,16 @@ def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,inc
                     i=err.argmin(0)
                     A00=np.array(A00).T
                     A[k]=np.array([A00[k][i0] for k,i0 in enumerate(i)])
-                    z[k]=z0[i]
+                    z[k]=zswp[i]
                 else:
                     #Amplitude fixed
                     err=list()
-                    for z00 in z0:
+                    for z00 in zswp:
                         m=linear_ex(z0,rhoz.T,z00)/Rstd
                         err.append(((DelR.T-m.T*A[k])**2).sum(0))
                     err=np.array(err)
                     i=err.argmin(0)
-                    z[k]=z0[i]
+                    z[k]=zswp[i]
                     
             else:
                 if fixA[k] is None:
@@ -364,7 +372,8 @@ def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,inc
     for m in range(nz):
         Rc+=(linear_ex(data.sens.z,data.sens.rhoz.T,z[m]).T*A[m]).T
     z,A=np.array(z),np.array(A)
-    Rc+=np.atleast_2d((1-A.sum(0))).T@np.atleast_2d(data.sens.rhoz[:,-1])
+    if op_in_rho:
+        Rc+=np.atleast_2d((1-A.sum(0))).T@np.atleast_2d(data.sens.rhoz[:,-1])
 
     out=copy(data)
     out.R=Rc

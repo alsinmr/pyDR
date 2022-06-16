@@ -248,6 +248,27 @@ class CMXReceiver():
             if hasattr(self.session.models[k-1],'atoms'):count+=1
         
         self.client.send(count)
+        
+    def valid_models(self):
+        """
+        Tells pyDR the indices of valid models (#1,#2, etc.)
+                                                
+        Returns
+        -------
+        None.
+
+        """
+        counter=0
+        mdls=list()
+        for m in self.session.models:
+            if hasattr(m,'atoms'):
+                if m.parent is None or not(hasattr(m.parent,'atoms')):
+                    counter+=1
+                    mdls.append(counter)
+            else:
+                if m.parent is None:
+                    counter+=1
+        self.client.send(mdls)
 
     def send_command(self,string):
         """todo I found out, that creating any Model with the command line interface inside the thread will cause a program

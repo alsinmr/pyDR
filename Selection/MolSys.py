@@ -19,15 +19,38 @@ class MolSys():
     """
     Object for storage of the molecule or MD trajectory
     """
-    def __init__(self,topo=None,traj_files=None,t0=0,tf=-1,step=1,dt=None,project=None):
+    def __init__(self,topo:str,traj_files:list=None,t0:int=0,tf:int=None,step:int=1,dt:float=None,project=None):
         """
+        Generates a MolSys object, potentially with a trajectory attached, in
+        case traj_files is specified. Note that if the topology provided does
+        not include positions (.psf, for exampe), then you must provide
+        traj_files for viewing purposes.
 
-        :param topo:        insert path for pdb file here
-        :param traj_files:  insert path (or list of paths) for xtc file(s) here
-        :param t0:          timepoint to start?
-        :param tf:          last timepoint
-        :param step:        stepsize to iterate over trajectory
-        :param dt:
+        Parameters
+        ----------
+        topo : str
+            Location of the topology file (pdb,psf, etc). The default is None.
+        traj_files : str or list of strs, optional
+            Location(s) of trajectory. The default is None.
+        t0 : int, optional
+            First time point to use in the trajectory. The default is 0.
+        tf : int, optional
+            Last time point to use in the trajectory. Set to None to go to the 
+            end of the trajectory. The default is None.
+        step : int, optional
+            Step size to skip frames in trajectory. Set to 1 for all frames.
+            The default is 1.
+        dt : float, optional
+            Overrides the saved timestep in the MD trajectory (ps). Set to None
+            to use the saved timestep. The default is None.
+        project : pyDR.Project, optional
+            Attach a Project object to this MolSys, such that data generated from
+            this MolSys will be attached to the project. The default is None.
+
+        Returns
+        -------
+        MolSys.
+
         """
         if traj_files is not None and not(isinstance(traj_files,list) and len(traj_files)==0):
             if isinstance(traj_files,list):
@@ -129,9 +152,9 @@ class MolSys():
             ID=CMXRemote.launch()
 
 
-        CMXRemote.send_command(ID,'open "{0}"'.format(self.topo))
-        nm=CMXRemote.how_many_models(ID)
-        CMXRemote.command_line(ID,'sel #{0}'.format(nm))
+        CMXRemote.send_command(ID,'open "{0}" maxModels 1'.format(self.topo))
+        mn=CMXRemote.valid_models(ID)[-1]
+        CMXRemote.command_line(ID,'sel #{0}'.format(mn))
 
         CMXRemote.send_command(ID,'style sel ball')
         CMXRemote.send_command(ID,'size sel stickRadius 0.2')
@@ -140,6 +163,10 @@ class MolSys():
         # CMXRemote.send_command(ID,'show sel')
         # CMXRemote.send_command(ID,'color sel tan')
         CMXRemote.send_command(ID,'~sel')
+        
+        if self.project is not None and self.project.chimera.saved_commands is not None:
+            for cmd in self.project.chimera.saved_commands:
+                CMXRemote.send_command(ID,cmd)
     
         
 
@@ -228,7 +255,45 @@ class Trajectory():
             return [self.mda_traj.filename] #Always return a list
     
 class MolSelect():
-    def __init__(self,molsys):
+    def __init__(self,molsys:MolSys=None,topo:str=None,traj_files:list=None,t0:int=0,tf:int=None,step:int=1,dt:float=None,project=None):
+        """
+        Provide either a MolSys object, or provide a topology file (usually pdb)
+        to generate a selection (MolSelect) object. 
+
+        Parameters
+        ----------
+        molsys : MolSys, optional
+            Provide a MolSys directly, or provide location of a topology, such
+            that MolSys is generated upon initialization.
+        topo : str, optional
+            Location of the topology file (pdb,psf, etc). The default is None.
+        traj_files : str or list of strs, optional
+            Location(s) of trajectory. The default is None.
+        t0 : int, optional
+            First time point to use in the trajectory. The default is 0.
+        tf : int, optional
+            Last time point to use in the trajectory. Set to None to go to the 
+            end of the trajectory. The default is None.
+        step : int, optional
+            Step size to skip frames in trajectory. Set to 1 for all frames.
+            The default is 1.
+        dt : float, optional
+            Overrides the saved timestep in the MD trajectory (ps). Set to None
+            to use the saved timestep. The default is None.
+        project : pyDR.Project, optional
+            Attach a Project object to this MolSys, such that data generated from
+            this MolSys will be attached to the project. The default is None.
+
+        Returns
+        -------
+        None.
+
+        """
+        assert not(molsys is None and topo is None),'Either molsys or topo must be provided'
+        
+        if molsys is None:
+            molsys=MolSys(topo=topo,traj_files=traj_files,t0=t0,tf=tf,step=step,dt=dt,project=project)
+        
         super().__setattr__('molsys',molsys)
         self._sel1=None
         self._sel2=None
@@ -658,9 +723,22 @@ class MolSelect():
         in21=self.compare(sel,mode='auto')[1]
         return len(in21)==len(self) and np.all(in21==np.sort(in21))
 
-    def chimera(self,color:tuple=(1.,0.,0.,1.)):
+    def chimera(self,color:tuple=(1.,0.,0.,1.),x:np.array=None,norm:bool=False):
         """
-        Opens the molecule in Chimera for viewing, with selection highlighted.
+        Opens the molecule in chimera. One may either highlight the selection
+        (optionally provide color) or one may plot some data onto the molecule,
+        provided by a parameter, x. 
+
+        Parameters
+        ----------
+        color : tuple, optional
+            Color for the selection. The default is (1.,0.,0.,1.).
+        x : TYPE, optional
+            Parameter to encode onto the molecule. Length should match the length
+            of the selection object. Typically, x is normalized to a maximum
+            of 1, although this is not requred. The default is None.
+        norm : bool, optional
+            Determine whether to renormalize x, such that it spans from 0 to 1.
 
         Returns
         -------
@@ -679,9 +757,9 @@ class MolSelect():
             ID=CMXRemote.launch()
 
 
-        CMXRemote.send_command(ID,'open "{0}"'.format(self.molsys.topo))
-        nm=CMXRemote.how_many_models(ID)
-        CMXRemote.command_line(ID,'sel #{0}'.format(nm))
+        CMXRemote.send_command(ID,'open "{0}" maxModels 1'.format(self.molsys.topo))
+        mn=CMXRemote.valid_models(ID)[-1]
+        CMXRemote.command_line(ID,'sel #{0}'.format(mn))
 
         CMXRemote.send_command(ID,'style sel ball')
         CMXRemote.send_command(ID,'size sel stickRadius 0.2')
@@ -691,10 +769,26 @@ class MolSelect():
         CMXRemote.send_command(ID,'color sel tan')
         CMXRemote.send_command(ID,'~sel')
         
+        if self.project is not None and self.project.chimera.saved_commands is not None:
+            for cmd in self.project.chimera.saved_commands:
+                CMXRemote.send_command(ID,cmd)
+        
         if self.sel1 is not None:
             ids=np.concatenate([s.indices for s in [*self.sel1,*self.sel2]],dtype=int)
+        
+        if x is None:
+            CMXRemote.show_sel(ID,ids=ids,color=color)
+        else:
+            assert len(x)==len(self),'Length of x must match the length of the selection'
+            x=np.array(x)
+            if x.ndim==1:x=np.atleast_2d(x).T
+            if norm:
+                x-=x.min()
+                x/=x.max()
+            ids=np.array([s.indices for s in self.repr_sel],dtype=object)
+            out=dict(R=x,rho_index=np.arange(x.shape[1]),ids=ids)
             
-        CMXRemote.show_sel(ID,ids=ids,color=color)
+            CMXRemote.add_event(ID,'Detectors',out)
 
     @property
     def _hash(self):

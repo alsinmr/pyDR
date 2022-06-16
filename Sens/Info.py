@@ -75,6 +75,7 @@ class Info():
             index=self.keys.index(par)
             self.keys.remove(par)
         self.__values=np.delete(self.__values,index,axis=0)
+        self.__edited=True
     
     
     def append(self,new):
@@ -285,8 +286,12 @@ class Info():
             assert index<self.N,"Index must be less than the number of experiments ({0})".format(self.N)
             self.__values=np.concatenate((self.__values[:,:index],self.__values[:,index+1:]),axis=1)
             self.N+=-1
+            self.__edited=True
                 
     def copy(self):
         return copy.deepcopy(self)
+    
+    def __copy__(self):
+        return self.copy()
 
      

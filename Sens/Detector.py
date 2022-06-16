@@ -58,6 +58,31 @@ class Detector(Sens.Sens):
         else:
             return super().__eq__(ob)
     
+    def del_exp(self,index):
+        """
+        Deletes detectors from the detector object
+
+        Parameters
+        ----------
+        index : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+        if not(hasattr(self,'nowarn')):
+            print('Warning: Deleting detectors from the detector object will prevent fitting')
+        
+        i=np.ones(self.rhoz.shape[0],dtype=bool)
+        i[index]=False
+        self._Sens__rho=self.rhoz[i]
+        self._Sens__rhoCSA=self._rhoCSA()[i]
+        self.opt_pars['n']=i.sum()
+        self.info.del_exp(index)
+        
+    
     def copy(self):
         """
         Returns a deep copy of the detector object. Note that we do not deep-copy

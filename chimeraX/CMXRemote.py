@@ -347,6 +347,35 @@ class CMXRemote():
                 return tr.response
         return 0
     
+    @classmethod
+    def valid_models(cls,ID:int)->list:
+        """
+        Queries chimeraX to determine what models with atoms are open.
+    
+
+        Parameters
+        ----------
+        ID : int
+            ID of chimeraX session.
+
+        Returns
+        -------
+        list
+            List of valid model indices
+
+        """
+        try:
+            cls.conn[ID].send(('valid_models',))
+        except:
+            print('Connection failed')
+            return None
+        tr=Listen(cls.conn[ID])
+        tr.start()
+        t0=time()
+        while time()-t0<1:
+            if tr.response:
+                return tr.response
+        return 0
                     
     
 #%% Thread handling        

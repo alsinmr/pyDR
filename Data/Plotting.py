@@ -16,7 +16,7 @@ from ..misc.disp_tools import set_plot_attr,NiceStr
 
 
 class DataPlots():
-    def __init__(self,data=None,style='plot',errorbars=True,index=None,rho_index=None,title=None,fig=None,mode='auto',split=True,plot_sens=True,**kwargs):
+    def __init__(self,data=None,style='plot',errorbars=True,index=None,rho_index=None,title=None,fig=None,mode='auto',split=True,plot_sens=True,std_filter=True,**kwargs):
         self.fig=fig if fig is not None else plt.figure(title)
         self.fig.clear()
         self.fig.canvas.mpl_connect('close_event', self.close)
@@ -33,6 +33,7 @@ class DataPlots():
         self.threshold=0.7  #Overlap threshold
         self.tclabels=None
         self._plot_sens=plot_sens
+        self.std_filter=std_filter
 
         assert mode in ['auto','union','b_in_a'],"mode must be 'auto','union', or 'b_in_a'"
         self._mode=mode  
@@ -216,9 +217,10 @@ class DataPlots():
         for k,(a,ri) in enumerate(zip(self.ax,self.rho_index[i])):
             if ri is not None:
                 plt_style=self.plt_style(k,i,split,**kwargs)
-                Rstd=self.data[i].Rstd[self.index[i],ri] if errorbars else None
-                self.hdls[k][i]=plot_rho(x,self.data[i].R[self.index[i],ri],
-                              Rstd,ax=a,**plt_style)[1]
+                Rstd=self.data[i].Rstd[self.index[i],ri]
+                i0=Rstd<1e3 if self.std_filter else np.ones(Rstd.shape,dtype=bool)
+                self.hdls[k][i]=plot_rho(x[i0],self.data[i].R[self.index[i],ri][i0],
+                              Rstd[i0],ax=a,**plt_style)[1]
         self.xlabel(i)        
         if self.style[i]=='b':self.adjust_bar_width()
     
@@ -459,7 +461,7 @@ def plot_rho(lbl,R,R_std=None,style='plot',color=None,ax=None,split=True,**kwarg
     return ax,hdls
 
 
-def plot_fit(lbl,Rin,Rc,Rin_std=None,info=None,index=None,exp_index=None,fig=None):
+def plot_fit(lbl,Rin,Rc,Rin_std=None,info=None,index=None,exp_index=None,fig=None,std_filter=True):
     """
     Plots the fit of experimental data (small data sizes- not MD correlation functions)
     Required inputs are the data label, experimental rates, fitted rates. One may
@@ -524,11 +526,12 @@ def plot_fit(lbl,Rin,Rc,Rin_std=None,info=None,index=None,exp_index=None,fig=Non
     #Sweep through each experiment
     clr=[k for k in colors.TABLEAU_COLORS.values()]     #Color table
     for k,a in enumerate(ax):
-        a.bar(lbl,Rin[:,k],color=clr[np.mod(k,len(clr))])       #Bar plot of experimental data
+        i0=Rin_std[:,k]/Rin[:,k].max()<1e3 if std_filter else np.ones(Rin_std.shape[0],dtype=bool)
+        a.bar(lbl[i0],Rin[i0,k],color=clr[np.mod(k,len(clr))])       #Bar plot of experimental data
         if Rin_std is not None:             
-            a.errorbar(lbl,Rin[:,k],Rin_std[:,k],color='black',linestyle='',\
+            a.errorbar(lbl[i0],Rin[i0,k],Rin_std[i0,k],color='black',linestyle='',\
                        capsize=3) #Errorbar
-        a.plot(lbl,Rc[:,k],linestyle='',marker='o',color='black',markersize=3)
+        a.plot(lbl[i0],Rc[i0,k],linestyle='',marker='o',color='black',markersize=3)
         if xax[k]:
             if lbl0 is not None:
                 a.set_xticks(ii)

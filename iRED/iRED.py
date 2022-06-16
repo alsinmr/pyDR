@@ -721,11 +721,10 @@ class Data_iRED(Data):
 
 
         # CMXRemote.send_command(ID,'close')
-        CMXRemote.send_command(ID,'open "{0}"'.format(self.select.molsys.topo))
-        nm=CMXRemote.how_many_models(ID)
-        nm+=nm>1
-        # CMXRemote.send_command(ID,'sel #{0}'.format(nm))
-        CMXRemote.command_line(ID,'sel #{0}'.format(nm))
+        CMXRemote.send_command(ID,'open "{0}"  maxModels 1'.format(self.select.molsys.topo))
+        mn=CMXRemote.valid_models(ID)[-1]
+        CMXRemote.command_line(ID,'sel #{0}'.format(mn))
+
 
         CMXRemote.send_command(ID,'set bgColor gray')
         CMXRemote.send_command(ID,'style sel ball')

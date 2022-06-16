@@ -100,18 +100,21 @@ class Data():
         elif name == 'src_data':
             self.source._src_data = value
             return
-        elif name in ['select', 'project']:
+        # elif name=='select' and isinstance(value,str):
+        #     setattr(self.source,'select',clsDict['MolSelect'](value))
+        #     return
+        elif name in ['select', 'project','title','details']:
             setattr(self.source, name, value)
             return
         elif name in ['Rc','S2c']:
             setattr(self,'_'+name,value)
             return
-        elif name == 'details':
-            self.source.details=value
-            return
+        # elif name == 'details':
+        #     self.source.details=value
+        #     return
         super().__setattr__(name, value)
         
-
+#%% Descriptive data
     @property
     def title(self):
         return self.source.title
@@ -139,6 +142,32 @@ class Data():
     @property
     def info(self):
         return self.sens.info if self.sens is not None else None
+    
+#%% Some statistics
+    @property
+    def chi2(self):
+        if self.Rc is None or self.src_data is None:return None
+        return ((self.Rc-self.src_data.R)**2/self.src_data.Rstd**2).sum(1)
+    
+    @property
+    def chi2red(self):
+        chi2=self.chi2
+        if chi2 is None:return
+        return chi2/(self.Rc.shape[1]+(self.S2c is not None)-self.R.shape[1])
+    
+    @property
+    def AIC(self):
+        chi2=self.chi2
+        if chi2 is None:return
+        N,K=self.Rc.shape[1]+(self.S2c is not None),self.R.shape[1]
+        return N*np.log(chi2/N)+2*K
+    
+    @property
+    def AICc(self):
+        AIC=self.AIC
+        if AIC is None:return
+        N,K=self.Rc.shape[1]+(self.S2c is not None),self.R.shape[1]
+        return AIC+2*K*(K+1)/(N-K-1)
     
     @property
     def _hash(self) -> int:
@@ -219,6 +248,34 @@ class Data():
                     setattr(self,f,np.delete(getattr(self,f),index,axis=0))
             if self.select is not None:
                 self.select.del_sel(index)
+                
+    def del_exp(self,index:int) -> None:
+        """
+        Deletes an experiment or experiments (provide a list of indices). Note
+        that if this is the result of a fit, deleting an experiment will prevent
+        us from back-calculating the original data
+
+        Parameters
+        ----------
+        index : int
+            Index or list of indices of experiments to delete.
+
+        Returns
+        -------
+        None
+
+        """
+        
+        if hasattr(self.sens,'opt_pars'):
+            print('Warning: Back calculating fitted parameters will no longer be possible')
+        i=np.ones(self.R.shape[1],dtype=bool)
+        i[index]=False
+        self.R=self.R[:,i]
+        self.Rstd=self.Rstd[:,i]
+        sens=copy(self.sens) #These can be shared, so we need to make a copy now
+        sens.del_exp(index)
+        self.sens=sens
+        
     
     def __copy__(self):
         cls = self.__class__
@@ -226,6 +283,12 @@ class Data():
         out.__dict__.update(self.__dict__)  
         for f in ['R','Rstd','_Rc','S2','_S2c','label','source']:
             setattr(out,f,copy(getattr(self,f)))
+        #Append copy to project (let's assume the user intends to edit the copy)
+        if self.source.project is not None:
+            out.R[0,0]=1e10  #Usually, project rejects data copies. This bypasses that
+            self.source.project.append_data(out)
+            out.R[0,0]=self.R[0,0] #Put value back
+            
         return out
     
     def __add__(self,obj):
@@ -348,11 +411,9 @@ class Data():
 
 
         # CMXRemote.send_command(ID,'close')
-        CMXRemote.send_command(ID,'open "{0}"'.format(self.select.molsys.topo))
-        nm=CMXRemote.how_many_models(ID)
-        nm+=nm>1
-        # CMXRemote.send_command(ID,'sel #{0}'.format(nm))
-        CMXRemote.command_line(ID,'sel #{0}'.format(nm))
+        CMXRemote.send_command(ID,'open "{0}" maxModels 1'.format(self.select.molsys.topo))
+        mn=CMXRemote.valid_models(ID)[-1]
+        CMXRemote.command_line(ID,'sel #{0}'.format(mn))
 
         CMXRemote.send_command(ID,'style sel ball')
         CMXRemote.send_command(ID,'size sel stickRadius 0.2')

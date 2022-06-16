@@ -22,7 +22,7 @@ from pyDR.Sens.Info import Info
 from pyDR.misc.disp_tools import set_plot_attr,NiceStr
 import matplotlib.pyplot as plt
 from matplotlib import ticker
-from copy import deepcopy
+from copy import deepcopy,copy
 from pyDR import Defaults
 zrange=Defaults['zrange'] #Program defaults for correlation times
 # from pyDR._Data._Data import write_file
@@ -65,11 +65,35 @@ class Sens():
         self.__index=-1     #Index for iterating
         self.__norm=None
     
+    def del_exp(self,index:int):
+        """
+        Deletes an experiment or experiment (provide a list)
+
+        Parameters
+        ----------
+        index : int or list of indices
+            Experiment index, or list of indices.
+
+        Returns
+        -------
+        None.
+
+        """
+        self.info.del_exp(index)
+        
+    
     def copy(self):
         """
         Returns a deep copy of the sensitivity object. 
         """
         return deepcopy(self)
+    
+    def __copy__(self):
+        cls = self.__class__
+        out = cls.__new__(cls)
+        out.__dict__.update(self.__dict__)
+        out.info=copy(self.info)
+        return out
     
     # def save(self,filename,overwrite=False):
     #     write_file(filename,self,overwrite)
