@@ -220,7 +220,7 @@ class DataPlots():
                 Rstd=self.data[i].Rstd[self.index[i],ri]
                 i0=Rstd<1e3 if self.std_filter else np.ones(Rstd.shape,dtype=bool)
                 self.hdls[k][i]=plot_rho(x[i0],self.data[i].R[self.index[i],ri][i0],
-                              Rstd[i0],ax=a,**plt_style)[1]
+                              Rstd[i0] if errorbars else None,ax=a,**plt_style)[1]
         self.xlabel(i)        
         if self.style[i]=='b':self.adjust_bar_width()
     
