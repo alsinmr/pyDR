@@ -190,7 +190,7 @@ class DataMngr():
         "Logical index "
         return [True if d is None else h==d._hash for h,d in zip(self._hashes,self.data_objs)]
     
-    def save(self,i='all'):
+    def save(self,i='all',include_rawMD=False):
         """
         Save data object stored in the project by index, or set i to 'all' to
         save all data objects. Default is to derive the filename from the title.
@@ -201,9 +201,14 @@ class DataMngr():
         if i=='all':
             for i in range(len(self)):
                 if not(self.saved[i]):
-                    if self[i].R.size>ME:
-                        print('Skipping data object {0}. Size of data.R ({1}) exceeds default max elements ({2})'.format(i,self[i].R.size,ME))
+                    # if self[i].R.size>ME:
+                    #     print('Skipping data object {0}. Size of data.R ({1}) exceeds default max elements ({2})'.format(i,self[i].R.size,ME))
+                    #     continue
+                    if self[i].source.status=='raw' and str(self[i].sens.__class__).split('.')[-1][:-2]=='MD'\
+                        and not(include_rawMD):
+                        print('Skipping data object "{0}".\n Set include_rawMD to True to include raw MD data'.format(self[i].title))
                         continue
+                            
                     self.save(i)
         else:
             assert i<len(self),"Index {0} to large for project with {1} data objects".format(i,len(self))
@@ -212,10 +217,14 @@ class DataMngr():
                 if self[i].src_data is not None and not(isinstance(self[i].src_data,str)):
                     k=np.argwhere([self[i].src_data==d for d in self.data_objs])[0,0]
                     
-                    if self[k].R.size<=ME:
+                    # if self[k].R.size<=ME:
+                    #     self.save(k)
+                    if not(self[k].source.status=='raw' and str(self[k].sens.__class__).split('.')[-1][:-2]=='MD')\
+                        or include_rawMD:
                         self.save(k)
                     else:
-                        print('Skipping source data of object {0} (project index {1}). Size of source data exceeds default max elements ({2})'.format(i,k,ME))
+                        # print('Skipping source data of object {0} (project index {1}). Size of source data exceeds default max elements ({2})'.format(i,k,ME))
+                        print('Skipping source data of object "{0}".\n Set include_rawMD to True to include raw MD data'.format(self[i].title))
                     src_fname=self.save_name[k]
                 self[i].save(self.save_name[i],overwrite=True,save_src=False,src_fname=src_fname)
                 self[i].source.saved_filename=self.save_name[i]
@@ -485,8 +494,8 @@ class Chimera():
                 m=max((d.R[i][:,r].max(),m))
             scaling=1/m
         if self.current is None:self.current=0
-        nm=self.CMX.how_many_models(self.CMXid)+1
-        nm+=(nm>1)
+        
+        
         #A bunch of stuff to try to guess which atoms to align
         res0=[np.min(d.select.uni.residues.resids) for d in self.project]
         ress=[np.max([res0[0],r]) for r in res0]
@@ -495,6 +504,7 @@ class Chimera():
         resl=[np.min([resl[0],r]) for r in resl]
         resf=[(self.project[0].select.uni.residues.resids[i0[0]+l-1],
                d.select.uni.residues.resids[i+l-1]) for d,i,l in zip(self.project,i0,resl)]
+
         for k,d in enumerate(self.project):
             if offset is None:
                 offset=np.std(d.select.pos,0)*6
@@ -502,14 +512,19 @@ class Chimera():
                 ax=['x','y','z'].pop(np.argmin(offset))
                 offset=offset.min()
             d.chimera(index=index,rho_index=rho_index,scaling=scaling)
-            if k:
-                mdl_num=nm+k+(nm==1)
+            
+            if not(k):
+                mn=self.CMX.valid_models(self.CMXid)[-1]
+            else:
+                mdl_num=self.CMX.valid_models(self.CMXid)[-1]
                 cmds='align #{3}:{4}-{5}@CA toAtoms #{0}:{1}-{2}@CA cutoffDistance 5'.format(\
-                                    nm,ress[k],resf[k][0],mdl_num,ress[k],resf[k][1])
+                                    mn,ress[k],resf[k][0],mdl_num,ress[k],resf[k][1])
                 self.command_line(cmds)
+            
+                
             # self.CMX.conn[self.CMXid].send(('shift_position',-1,offset*k))
                 self.command_line('move {0} {1} models #{2} coordinateSystem #{3}'.format(\
-                                ax,offset*k,mdl_num,nm))
+                                ax,offset*k,mdl_num,mn))
         self.command_line('view')
     
     
@@ -936,9 +951,9 @@ class Project():
         return np.array([np.argwhere(i==self._parent._index)[0,0] for i in self._index],dtype=int)
         
         
-    def save(self):
+    def save(self,include_rawMD=False):
         assert not(self._subproject),"Sub-projects cannot be saved"
-        self.data.save()
+        self.data.save(include_rawMD=include_rawMD)
         self.write_proj()
 
     #%% Project operations (|,&,-, i.e. Union, Intersection, and Difference)
@@ -1255,6 +1270,40 @@ class Project():
                     sens.append(fit.sens)
                     detect.append(fit.detect)
         print('Fitted {0} data objects'.format(count))
+        
+    def modes2bonds(self,includeOverall:bool=False,calcCC='auto'):
+        """
+        
+        Converts iRED mode detector responses into bond-specific detector 
+        responses, including calculation of cross-correlation matrices for each 
+        detector. These are stored in CC and CCnorm, where CC is the unnormalized
+        correlation and CCnorm is the correlation coefficient, i.e. Pearson's r
+        
+        Parameters
+        ----------
+        inclOverall : bool, optional
+            Determines whether to include the 3 or 5 overall modes of motion
+            (depends on rank). The default is False
+        calcCC : bool, optional
+            Usually modes2bonds is run after fitting the modes with detectors.
+            Then, cross correlation is only calculated for a few detectors. 
+            However, if run before fitting, then a large number of cross
+            correlation terms would be calculated. Therefore, by default, we only
+            calculate CC if there are less than 40 different detectors/time points.
+            Override this behavior by setting to True or False
+            The default is 'auto'.
+        
+        Returns
+        -------
+        None (appends data to project)
+        """
+        count = 0
+        for d in self:
+            if hasattr(d,'iRED') and 'Lambda' in d.iRED:
+                count+=1
+                d.modes2bonds()
+        print('Converted {0} iRED data objects from modes to bonds'.format(count))
+                
 
     #%% iPython stuff   
     def _ipython_display_(self):

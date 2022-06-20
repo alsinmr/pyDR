@@ -54,11 +54,14 @@ flags={'ct_finF':True,'ct_m0_finF':False,'ct_0m_finF':False,'ct_0m_PASinF':False
         'ct_prod':True,'ct':True,'S2':True}
 
 class ReturnIndex():
+    _flags={'ct_finF':True,'ct_m0_finF':False,'ct_0m_finF':False,'ct_0m_PASinF':False,\
+            'A_m0_finF':False,'A_0m_finF':False,'A_0m_PASinF':False,\
+            'ct_prod':True,'ct':True,'S2':True}
     for k in flags.keys():
         locals()[k]=property(lambda self,k=k:self.flags[k]) #Default flag settings
     
     def __init__(self,ret_in=None,**kwargs):
-        self.flags=flags
+        self.flags=copy(self._flags)
         
 
         if ret_in is not None:
@@ -74,6 +77,7 @@ class ReturnIndex():
                 flags[k]=v
         
         self.flags=flags.copy() #This makes the class and instance values independent
+    
     
     
     def __getitem__(self,k):
@@ -130,12 +134,13 @@ class ReturnIndex():
     def set2sym(self):
         "De-activates the storage of terms that cannot by calculated in symmetric mode"  
         self.set2auto()
-        self.flags['ct_m0_finF']=False
+        # self.flags['ct_m0_finF']=False
     
     def set2auto(self):
         "De-activates the storage of terms that cannot by calculated in auto mode"
         if self.ct_0m_finF or self.ct_0m_PASinF or self.A_m0_finF or self.A_m0_finF:
             print('Warning: Individual components of the correlation functions or tensors will not be returned in auto or sym mode')
+        self.flags=copy(self._flags)
         self.flags.update({'ct_0m_finF':False,'ct_0m_PASinF':False,\
                            'A_m0_finF':False,'A_0m_finF':False})
     def set2direct(self):
@@ -147,13 +152,14 @@ class ReturnIndex():
         
 
 class FrameObj():
-    def __init__(self,molecule):
-        self.molecule=copy(molecule)
-        self.molecule._mdmode=True
+    def __init__(self,select=None,molecule=None):
+        self.select=copy(select) if select is not None else copy(molecule) #I want to phase out using the name molecule
+        self.select._mdmode=True
         self.vft=None
         self.vf=list()
+        self.rank=2 #Rank of calculation
         self.frame_info={'frame_index':list(),'label':None,'info':list()}
-        self.defaults={'t0':0,'tf':-1,'dt':None,'n':10,'nr':10,'mode':'auto',\
+        self.defaults={'t0':0,'tf':-1,'dt':None,'n':-1,'nr':10,'mode':'auto',\
                        'squeeze':True}
         self.terms={'ct_finF':True,'ct_m0_finF':False,'ct_0mPASinF':False,\
                     'A_m0_finF':True,'A_0m_finF':True,'A_0m_PASinF':True,\
@@ -177,7 +183,18 @@ class FrameObj():
             if str(value.__class__).split('.')[-1][:-2]=='Project':
                 self._project=value
             return
+        if name=='rank':
+            if hasattr(self,'rank') and value!=self.rank: #Check if the rank has changed
+                self.include=None #This will force the re-calculation of correlation functions
+                if hasattr(self,'ct_out'):delattr(self,'ct_out')
+            super().__setattr__(name,value)
+            return
         super().__setattr__(name,value)
+    
+    
+    @property
+    def molecule(self):
+        return self.select
     
     @property
     def project(self):
@@ -190,7 +207,7 @@ class FrameObj():
             pyDR Project object
 
         """
-        return self._project if self._project else self.molecule.project
+        return self.select.project if self._project is None else self._project
     
     @property
     def description_of_terms(self):
@@ -225,11 +242,15 @@ class FrameObj():
     
     @property
     def details(self):
-        out=self.molecule.details
+        out=self.select.details
         tf,n,nr=(self.sampling_info[k] for k in ['tf','n','nr'])
         out.append('Processed data sampling: tf={0}, n={1}, nr={2}'.format(tf,n,nr))
         out.append('Frame processing mode is {0}'.format(self.mode))
         return out
+    
+    @property
+    def traj(self):
+        return self.select.traj
     
     def new_frame(self,Type=None,frame_index=None,**kwargs):
         """
@@ -246,7 +267,7 @@ class FrameObj():
         function without any arguments. To get arguments for a particular frame,
         call this function with only Type defined.
         """
-        mol=self.molecule
+        mol=self.select
         if Type is None:
             print_frame_info()
         elif len(kwargs)==0:
@@ -284,7 +305,7 @@ class FrameObj():
         frame should return vectors defining both a z-axis and the xz-plane. A
         warning will be returned if this is not the case.
         """
-        mol=self.molecule
+        mol=self.select
         if Type is None:
             print_frame_info()
         elif len(kwargs)==0:
@@ -314,11 +335,11 @@ class FrameObj():
         Sweeps through the trajectory and loads all frame and tensor vectors, 
         storing the result in vecs
         """
-        tf=len(self.molecule.traj)
+        tf=len(self.select.traj)
         index=sparse_index(tf,n,nr)
         if self.__frames_loaded:
             if np.all(self.vecs['index']==index):return
-        self.sampling_info={'tf':tf,'dt':self.molecule.traj.dt/1e3,'n':n,'nr':nr}
+        self.sampling_info={'tf':tf,'dt':self.select.traj.dt/1e3,'n':n,'nr':nr}
         self.vecs=mol2vec(self,index=index)
         self.__frames_loaded=True
         self.include=None   #If new frames loaded, we should re-set what frames used for correlation functions
@@ -389,6 +410,8 @@ class FrameObj():
         if mode=='sym':self.return_index.set2sym()
         if mode=='direct':self.return_index.set2direct()
         
+        
+        
         assert include is  None or len(include)==len(self.vf),\
         "include index must have the same length ({0}) as the number of frames({1})".format(len(include),len(self.vf))
         include=np.ones(len(self.vf),dtype=bool) if include is None else np.array(include,dtype=bool)
@@ -401,14 +424,15 @@ class FrameObj():
         if not(self.mode==mode):run=True
         if self.__return_index is not None:
             for k in range(10):
-                if return_index[k]!=self.__return_index[k]:run=True        
+                if return_index[k]!=self.__return_index[k]:run=True
+
         
         if run:
             self.__return_index=return_index.copy()
             "Here, we take out frames that aren't used"
             vecs=self.select_frames(include)
 
-            out=frames2ct(v=vecs,return_index=return_index,mode=mode)
+            out=frames2ct(v=vecs,return_index=return_index,mode=mode,rank=self.rank)
             self.mode=mode
             self.include=include
             
@@ -425,12 +449,44 @@ class FrameObj():
             
         return self.ct_out
                 
-    def frames2data(self,mode='auto',return_index=None,include=None):
+    def frames2data(self,mode:str='auto',return_index=None,include:list=None,rank:int=None):
         """
         Transfers the frames results to a list of data objects
+
+        Parameters
+        ----------
+        mode : str, optional
+            Determine whether to assume the motions have an axis of symmetry,
+            where the full frames calculation is run in 'full' mode, we assume
+            an axis of symmetry in 'sym' mode, and toggle between the two modes
+            depending on a pre-calculation of eta in 'auto' mode. The default is 'auto'.
+        return_index : TYPE, optional
+            Index or object which determines what calculationg are run. 
+            The default is None.
+        include : list, optional
+            List of which loaded frames to include in the calculation. 
+            The default is None.
+        rank : int, optional
+            Rank of the correlation function (1 or 2). Rank 1 is only valid in
+            symmetric mode. Rank 1 is primarily used for comparison of results
+            to a rank-1 iRED calculation. If not specified, the stored value of
+            rank will be used (usually 2). The default is None.
+
+        Returns
+        -------
+        out : list
+            List of data objects corresponding to the full correlation function,
+            the product of frame correlation functions, and rotation between each
+            frame.
+
         """
+        if mode=='auto':self.return_index.set2auto()
+        if mode=='sym':self.return_index.set2sym()
+        
+        if rank is not None:self.rank=rank #User-sepecified rank.
+        
         self.frames2ct(mode=mode,return_index=return_index,include=include)
-        out=ct2data(self.ct_out,self.molecule)  
+        out=ct2data(self.ct_out,self.select)  
         for o in out:o.details=self.details.copy()
         out[0].source.additional_info='Direct'        
         out[0].details.append('Direct analysis of the correlation function')
@@ -450,6 +506,10 @@ class FrameObj():
         out[0].select=copy(out[0].select)
         out[0].select._mdmode=False
         for o in out:o.select=out[0].select
+        if self.rank==1:
+            for o in out:
+                o.source.additional_info='rk1_'+o.source.additional_info if \
+                    o.source.additional_info is not None else 'rk1'
         
         if self.project is not None:
             for o in out:
@@ -457,25 +517,46 @@ class FrameObj():
         
         return out
     
-    def md2data(self):
+    def md2data(self,rank:int=None):
         """
         Calculates only the direct correlation function and returns this as a
         data object
+
+        Parameters
+        ----------
+        rank : TYPE, optional
+            Rank of the correlation function. Usually set to 2 for the tensor
+            correlation functions. However, can be set to 1, primarily for 
+            comparing results to iRED analysis. The default is 2.
 
         Returns
         -------
         None.
 
         """
+        if rank is not None:self.rank=rank
+        
         if self.vft is None:self.tensor_frame(Type='bond',sel1=1,sel2=2)
-        out=self.frames2data(mode='direct')[0]
-        out.source.Type='MD'
-        out.source.additional_info=None
-        out.sens.sampling_info=self.sampling_info
-        if self.project is not None:self.project.update_info()
+        
+        if hasattr(self,'ct_out') and 'ct' in self.ct_out:
+            out=ct2data(self.ct_out,self.select)[0]
+            out.details=self.details.copy()
+            out.details.append('Direct analysis of the correlation function')
+            out.source.Type='MD'
+            out.source.additional_info='rk1' if self.rank==1 else None
+            out.sens.sampling_info=self.sampling_info
+            if self.project is not None:self.project.append_data(out)
+        else:
+            self.return_index.set2direct()
+            include=[False for _ in range(len(self.vf))]
+            out=self.frames2data(mode='direct',include=include,rank=rank)[0]
+            out.source.Type='MD'
+            out.source.additional_info='rk1' if self.rank==1 else None
+            out.sens.sampling_info=self.sampling_info
+            if self.project is not None:self.project.update_info()
         return out
     
-    def frames2iRED(self, rank=2, include: list = None) -> list:
+    def frames2iRED(self, rank:int=2, include: list = None) -> list:
         """
         Sets the frames mode to symmetric and extracts vectors for each frame
         required to perform iRED analysis.
@@ -506,7 +587,7 @@ class FrameObj():
     
         v=self.select_frames(include)
         index=v['index']
-        source=clsDict['Source'](Type='Fr2iREDmode',select=copy(self.molecule),filename=self.molecule.molsys.traj.files,
+        source=clsDict['Source'](Type='Fr2iREDmode',select=copy(self.select),filename=self.select.traj.files,
                       status='raw')
         source.select._mdmode=False #Turn off md mode for export!
         source.details=self.details.copy()
@@ -553,7 +634,7 @@ class FrameObj():
             out.append(iRED({'v':v0,'t':v['t'],'index':index,'source':source,'sampling_info':self.sampling_info},rank=rank))
         return out
             
-    def md2iRED(self,rank=2):
+    def md2iRED(self,rank:int=2):
         """
         Extracts vectors describing only the full motion for use in the iRED 
         analysis
@@ -626,7 +707,7 @@ class FrameObj():
     
 
 #%% Output functions
-"This is the usual output– go from a molecule object to a data object"
+"This is the usual output– go from a MolSelect object to a data object"
 def frames2data(mol=None,v=None,mode='full',n=100,nr=10,tf=None,dt=None):
     """
     Calculates the correlation functions (frames2ct) and loads the result into
@@ -812,10 +893,10 @@ def apply_fr_index(v,squeeze=True):
 
 
 "This function handles the organization of the output, determines which terms to calculate"
-def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=None,dt=None):
+def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=None,dt=None,rank:int=2):
     """
     Calculates correlation functions for frames (f in F), for a list of frames.
-    One may provide the molecule object, containing the frame functions, or
+    One may provide the MolSelect object, containing the frame functions, or
     the output of mol2vec (or ini_vec_load). frames2data returns np arrays with
     the following data
     
@@ -879,6 +960,7 @@ def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=
             if k not in ['ct','S2']:ri.flags[k]=False
     
 
+    assert rank==2 or (mode=='direct' or mode=='sym'),'rank 1 calculations can only be done in "sym" mode'
     
     nr,nt=vZ.shape[1:]
 
@@ -910,15 +992,15 @@ def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=
         A_m0_finF=list()
         for k in range(nf+1):
             if k==0:
-                a,b=Ct_D2inf(vZ=vZ,vXZ=vXZ,nuZ_F=nuZ[k],nuXZ_F=nuXZ[k],cmpt='m0',mode='both',index=index)
+                a,b=Ct_D2inf(vZ=vZ,vXZ=vXZ,nuZ_F=nuZ[k],nuXZ_F=nuXZ[k],cmpt='m0',mode='both',index=index,rank=rank)
             elif k==nf:
                 a,b=sym_full_swap(vZ=vZ,threshold=threshold,A_0m_PASinf=A_0m_PASinf[k-1],vXZ=vXZ,\
-                              nuZ_f=nuZ[k-1],nuXZ_f=nuXZ[k-1],cmpt='m0',mode='both',index=index)
+                              nuZ_f=nuZ[k-1],nuXZ_f=nuXZ[k-1],cmpt='m0',mode='both',index=index,rank=rank)
             else:
 #                a,b=Ct_D2inf(vZ=vZ,vXZ=vXZ,nuZ_f=nuZ[k-1],nuXZ_f=nuXZ[k-1],nuZ_F=nuZ[k],nuXZ_F=nuXZ[k],cmpt='m0',mode='both',index=index)
                 a,b=sym_full_swap(vZ=vZ,threshold=threshold,A_0m_PASinf=A_0m_PASinf[k-1],vXZ=vXZ,\
                               nuZ_f=nuZ[k-1],nuXZ_f=nuXZ[k-1],nuZ_F=nuZ[k],nuXZ_F=nuXZ[k],\
-                              cmpt='m0',mode='both',index=index)
+                              cmpt='m0',mode='both',index=index,rank=rank)
             ct_m0_finF.append(a)
             A_m0_finF.append(b)
         ct_m0_finF=np.array(ct_m0_finF)
@@ -986,12 +1068,12 @@ def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=
         
     if ri.ct:
         "Calculate ct if requested"
-        ct,S2=Ct_D2inf(vZ,cmpt='00',mode='both',index=index)
+        ct,S2=Ct_D2inf(vZ,cmpt='00',mode='both',index=index,rank=rank)
         ct=ct.real
         S2=S2.real
     elif ri.S2:
         "Calculate S2 if requested"
-        S2=Ct_D2inf(vZ,cmpt='00',mode='d2',index=index)
+        S2=Ct_D2inf(vZ,cmpt='00',mode='d2',index=index,rank=rank)
         S2=S2.real
     
     out=dict()
@@ -1015,12 +1097,12 @@ def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=
 "This function extracts various frame vectors from trajectory"
 def mol2vec(fr_obj,n=100,nr=10,index=None):
     """
-    Extracts vectors describing from the frame functions found in the molecule
+    Extracts vectors describing from the frame functions found in the MolSelect
     object. Arguments are mol, the molecule object, n and nr, which are parameters
     specifying sparse sampling, and dt, which overrides dt found in the trajectory
     """
     
-    traj=fr_obj.molecule.traj    
+    traj=fr_obj.select.traj    
     tf=len(traj)
     if index is None:
         index=sparse_index(tf,n,nr)
@@ -1028,7 +1110,7 @@ def mol2vec(fr_obj,n=100,nr=10,index=None):
     return ini_vec_load(traj,fr_obj.vf,fr_obj.vft,fr_obj.frame_info['frame_index'],index=index,info=fr_obj.frame_info['info'])
     
 "This function takes care of the bulk of the actual calculations"
-def Ct_D2inf(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p',mode='both',index=None):
+def Ct_D2inf(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p',mode='both',index=None,rank:int=2):
     """
     Calculates the correlation functions and their values at infinite time
     simultaneously (reducing the total number of calculations)
@@ -1074,6 +1156,7 @@ def Ct_D2inf(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p'
     """
     calc=np.zeros(5,dtype=bool)
     mmpswap=False
+
     if cmpt in ['0m','m0','0p','p0']:
         calc[:3]=True
         if cmpt in ['m0','p0']:mmpswap=True
@@ -1090,10 +1173,12 @@ def Ct_D2inf(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p'
     ctc=Ctcalc(mode='a',index=index,calc_ct=calc_ct,length=5)
 
     "Here we create a generator that contains each term in the correlation function"
-    l=loops(vZ=vZ,vXZ=vXZ,nuZ_F=nuZ_F,nuXZ_F=nuXZ_F,nuZ_f=nuZ_f,nuXZ_f=nuXZ_f,calc=calc)
-    for l0 in l:
+    l=loops(vZ=vZ,vXZ=vXZ,nuZ_F=nuZ_F,nuXZ_F=nuXZ_F,nuZ_f=nuZ_f,nuXZ_f=nuXZ_f,calc=calc,rank=rank)
+    for k,l0 in enumerate(l):
         "These terms appear in all correlation functions"
-        if 'eag' in l0.keys():
+        if rank==1:
+            zzp=l0['az']
+        elif 'eag' in l0.keys():
             zzp=l0['eag']*l0['ebd']
         else:
             zzp=l0['az']*l0['bz']
@@ -1103,14 +1188,13 @@ def Ct_D2inf(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p'
         it to a of the correlation function calculator
         """
         ctc.a=zzp
-
         "Loop over all terms C_0p"
         for k,ctc0 in enumerate(ctc):
             if calc[k]:             #Loop over all terms
-                p=ct_prods(l0,k)
+                p=ct_prods(l0,k,rank=rank)
                 "Assigning p to b to correlate it with the zz component"
                 ctc[k].b=p      
-                ctc[k].add()                    
+                ctc[k].add()     
        
     """
     Previously, we had implemented a complex conjugate before inverse FT, in
@@ -1119,7 +1203,7 @@ def Ct_D2inf(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p'
     """    
     #Calculate results
     ct,d2=list(),list()
-    offsets=[0,0,-1/2,0,0]
+    offsets=[0,0,-1/2 if rank==2 else 0,0,0]
     for ctc0,offset in zip(ctc,offsets):
         out=ctc0.Return(offset=offset)
         ct.append(out[0])
@@ -1159,7 +1243,7 @@ def Ct_D2inf(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p'
         return d2
 
 "Used in conjunction with loops to calculate the required terms for the correlation functions"
-def ct_prods(l,n):
+def ct_prods(l,n,rank:int=2):
     """
     Calculates the appropriate product (x,y,z components, etc.) for a given
     correlation function's component. Provide l, the output of a generator from
@@ -1171,7 +1255,10 @@ def ct_prods(l,n):
     [0-2,0-1,00,01,02,-2-2,-1-1,11,22]
     
     """
-    
+
+
+    if rank==1:
+        return l['az']
 
     if n==0:
         p=np.sqrt(3/8)*(l['ax']*l['bx']-l['ay']*l['by']+1j*2*l['ax']*l['by'])
@@ -1201,7 +1288,7 @@ def ct_prods(l,n):
         
         
 "Generator object to loop over when calculating correlation functions/residual tensors"
-def loops(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,calc=None):
+def loops(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,calc=None,rank:int=2):
     """
     Generator that calculates the elements required for the loop over components
     for each correlation function. 
@@ -1240,7 +1327,11 @@ def loops(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,calc=None):
         vXF=[None,None,None]    #Just set to None if not required
         vYF=[None,None,None]
     
-    if nuZ_f is None:   #This is a bond in frame calculation (9 loop elements)
+    if rank==1: #Rank 1 symmetric calculation. Only z-components, correlated with self (3 loop elements)
+        for az in vZF:
+            out={'az':az}
+            yield out
+    elif nuZ_f is None:   #This is a bond in frame calculation (9 loop elements)
         for ax,ay,az in zip(vXF,vYF,vZF):
             for bx,by,bz in zip(vXF,vYF,vZF):
                 out={'az':az,'bz':bz}
@@ -1312,7 +1403,8 @@ def m_mp_swap(X,mpi=0,mi=0,mpf=0,mf=0):
     
 
 #%% Calculations in case of symmetry axis in motion
-def sym_full_swap(vZ,threshold=0,A_0m_PASinf=None,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p',mode='both',index=None):
+def sym_full_swap(vZ,threshold=0,A_0m_PASinf=None,vXZ=None,nuZ_F=None,nuXZ_F=None,
+                  nuZ_f=None,nuXZ_f=None,cmpt='0p',mode='both',index=None,rank:int=2):
     """
     Swaps between calculating all components of the correlation function or
     assuming the correlation function is symmetric
@@ -1328,7 +1420,7 @@ def sym_full_swap(vZ,threshold=0,A_0m_PASinf=None,vXZ=None,nuZ_F=None,nuXZ_F=Non
     if A_0m_PASinf is None or threshold==0:
         ct,A=Ct_D2inf(vZ=vZ,vXZ=vXZ,nuZ_F=nuZ_F,nuXZ_F=nuXZ_F,nuZ_f=nuZ_f,nuXZ_f=nuXZ_f,cmpt=cmpt,mode=mode,index=index)
     elif threshold==1:
-        ct0=Ctsym(A_0m_PASinf,nuZ_f=nuZ_f,nuXZ_f=nuXZ_f,nuZ_F=nuZ_F,nuXZ_F=nuXZ_F,index=index)
+        ct0=Ctsym(A_0m_PASinf,nuZ_f=nuZ_f,nuXZ_f=nuXZ_f,nuZ_F=nuZ_F,nuXZ_F=nuXZ_F,index=index,rank=rank)
         ct=np.zeros([5,ct0.shape[0],ct0.shape[1]],dtype=complex)
         ct[2]=ct0
     else:
@@ -1381,7 +1473,7 @@ def sym_nuZ_f(A_0m_PASinf,nuZ_f,nuXZ_f=None,nuZ_F=None,nuXZ_F=None):
     else:
         return out
 
-def Ctsym(A_0m_PASinf,nuZ_f,nuXZ_f=None,nuZ_F=None,nuXZ_F=None,index=None):
+def Ctsym(A_0m_PASinf,nuZ_f,nuXZ_f=None,nuZ_F=None,nuXZ_F=None,index=None,rank:int=2):
     """
     Calculates the correlation function of the motion of a frame, assuming that
     motion within that frame has a symmetry axis. This is achieved by providing
@@ -1401,7 +1493,7 @@ def Ctsym(A_0m_PASinf,nuZ_f,nuXZ_f=None,nuZ_F=None,nuXZ_F=None,index=None):
     """
     
     nuZ_fsym=sym_nuZ_f(A_0m_PASinf=A_0m_PASinf,nuZ_f=nuZ_f,nuXZ_f=nuXZ_f,nuZ_F=nuZ_F,nuXZ_F=nuXZ_F)
-    return Ct_D2inf(nuZ_fsym,cmpt='00',mode='ct',index=index)
+    return Ct_D2inf(nuZ_fsym,cmpt='00',mode='ct',index=index,rank=rank)
 
 def ini_vec_load(traj,frame_funs,tensor_fun,frame_index=None,index=None,info=None):
     """

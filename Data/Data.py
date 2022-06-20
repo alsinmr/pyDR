@@ -284,10 +284,10 @@ class Data():
         for f in ['R','Rstd','_Rc','S2','_S2c','label','source']:
             setattr(out,f,copy(getattr(self,f)))
         #Append copy to project (let's assume the user intends to edit the copy)
-        if self.source.project is not None:
-            out.R[0,0]=1e10  #Usually, project rejects data copies. This bypasses that
-            self.source.project.append_data(out)
-            out.R[0,0]=self.R[0,0] #Put value back
+        # if self.source.project is not None:
+        #     out.R[0,0]=1e10  #Usually, project rejects data copies. This bypasses that
+        #     self.source.project.append_data(out)
+        #     out.R[0,0]=self.R[0,0] #Put value back
             
         return out
     

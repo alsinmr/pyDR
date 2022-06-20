@@ -370,6 +370,55 @@ class iRED():
             self._DelCt=self._DelCt.T
         return self._DelCt
     
+    # def Ct2data(self,rank=None):
+    #     """
+    #     Produces a data object for which correlation functions are calculated 
+    #     WITHOUT using iRED. This is an important validation of the iRED method
+    #     where we confirm that the motion is well-described by modes of motion.
+    #     Note that this function is primarily necessary for validating rank-1
+    #     iRED behavior. Rank-2 validation may also be performed here, but is
+    #     also the same result as obtains from the frame object, via 
+    #     frames.md2data() or from frames.frames2data()[0].
+
+    #     Parameters
+    #     ----------
+    #     rank : TYPE, optional
+    #         Rank of the correlation function. The default is None.
+
+    #     Returns
+    #     -------
+    #     None.
+
+    #     """
+    #     if rank is None:rank=self.rank
+        
+    #     if rank==2:
+    #         frames=clsDict['FrameObj'](self.source.select)
+    #         vecs=copy(self._vec)
+    #         vecs['vT'],vecs['v'],vecs['frame_index']=vecs['v'],[],[]
+    #         frames.vecs=vecs
+    #         #We have to trick frames into thinking it was initialized correctly
+    #         frames._FrameObj__frames_loaded=True 
+    #         frames.vft=1 #Anything but None (if we were keeping frames, this would eventually break it)
+    #         return frames.md2data()
+    #     elif rank==1:
+    #         data=clsDict['Data']
+    #         ctc=Ctcalc(index=self.index)
+    #         for v0 in self.v:
+    #             ctc.a=v0
+    #             ctc.add()
+    #         ct=ctc.Return()[0] #This is the correlation function
+    #         #Now load it into a data object
+    #         md=clsDict['MD'](t=self.t)
+    #         stdev=np.repeat([md.info['stdev']],ct.shape[0],axis=0)
+    #         data=clsDict['Data'](R=ct,Rstd=stdev,sens=md,select=self.source.select)
+    #         data.source.additional_info='rk1_Direct'
+    #         data.source.filename=self.source.traj
+    #         data.source.status='raw'
+    #         if self.project is not None:self.project.append_data(data)
+    #         return data
+            
+        
     def iRED2data(self,rank=None) -> Data:
         """
         Creates a data object - technically a Data_iRED object – which can be
@@ -405,10 +454,7 @@ class iRED():
         if self.project is not None:
             self.project.append_data(out)
         return out
-        
-        
-            
-                   
+                          
 class Data_iRED(Data):
     def __init__(self,CC=None,totalCC=None,*args,**kwargs):
         super().__init__(*args,**kwargs)
@@ -622,6 +668,17 @@ class Data_iRED(Data):
             ax,*_=subplot_setup(self.CCnorm.shape[0])
             for k,a in enumerate(ax):
                 self.plot_CC(rho_index=k,norm=norm,abs_val=abs_val,color=color,ax=a,**kwargs)
+            for a in ax[1:]:
+                a.sharex(ax[0])
+                a.sharey(ax[0])
+            ax[0].figure.tight_layout()
+            def empty_formatter(a,b):
+                return ''
+            for a in ax:
+                if not(a.is_first_row()):a.xaxis.set_major_formatter(empty_formatter)
+                if not(a.is_last_col()):a.yaxis.set_major_formatter(empty_formatter)
+                    
+                    
             return ax
             
             

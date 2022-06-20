@@ -723,7 +723,7 @@ class MolSelect():
         in21=self.compare(sel,mode='auto')[1]
         return len(in21)==len(self) and np.all(in21==np.sort(in21))
 
-    def chimera(self,color:tuple=(1.,0.,0.,1.),x:np.array=None,norm:bool=False):
+    def chimera(self,color:tuple=(1.,0.,0.,1.),x:np.array=None,norm:bool=False,repr_sel=False):
         """
         Opens the molecule in chimera. One may either highlight the selection
         (optionally provide color) or one may plot some data onto the molecule,
@@ -774,7 +774,7 @@ class MolSelect():
                 CMXRemote.send_command(ID,cmd)
         
         if self.sel1 is not None:
-            ids=np.concatenate([s.indices for s in [*self.sel1,*self.sel2]],dtype=int)
+            ids=np.concatenate([s.indices for s in (self.repr_sel if repr_sel else [*self.sel1,*self.sel2])],dtype=int)
         
         if x is None:
             CMXRemote.show_sel(ID,ids=ids,color=color)
