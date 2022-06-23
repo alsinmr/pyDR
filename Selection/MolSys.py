@@ -455,6 +455,9 @@ class MolSelect():
         elif hasattr(Nuc,'lower') and Nuc.lower()[:3] in ['ivl','ch3'] and '1' in Nuc:
             for s in self.sel1:
                 repr_sel.append(s+s.residues[0].atoms.select_atoms('name H* and around 1.4 name {}'.format(s.name)))
+        elif hasattr(Nuc,'lower') and Nuc.lower()=='cacb':
+            for s in self.sel1:
+                repr_sel.append(s.residues[0].atoms.select_atoms('name N CA C CB'))
         else:
             for s1,s2 in zip(self.sel1,self.sel2):
                 repr_sel.append(s1+s2)

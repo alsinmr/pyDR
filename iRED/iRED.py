@@ -630,7 +630,7 @@ class Data_iRED(Data):
             
         return out
     
-    def plot_CC(self,rho_index:int=None,norm:bool=True,abs_val:bool=True,color=None,ax:plt.Axes=None,**kwargs) -> plt.Axes:
+    def plot_CC(self,rho_index:int=None,index=None,norm:bool=True,abs_val:bool=True,color=None,ax:plt.Axes=None,**kwargs) -> plt.Axes:
         """
         Plots the cross-correlation between bonds for iRED cross correlation
         data. Only applies to iRED data converted to bonds
@@ -667,16 +667,16 @@ class Data_iRED(Data):
         if hasattr(rho_index,'lower') and rho_index.lower()=='all':
             ax,*_=subplot_setup(self.CCnorm.shape[0])
             for k,a in enumerate(ax):
-                self.plot_CC(rho_index=k,norm=norm,abs_val=abs_val,color=color,ax=a,**kwargs)
+                self.plot_CC(rho_index=k,index=index,norm=norm,abs_val=abs_val,color=color,ax=a,**kwargs)
             for a in ax[1:]:
                 a.sharex(ax[0])
                 a.sharey(ax[0])
             ax[0].figure.tight_layout()
-            def empty_formatter(a,b):
-                return ''
-            for a in ax:
-                if not(a.is_first_row()):a.xaxis.set_major_formatter(empty_formatter)
-                if not(a.is_last_col()):a.yaxis.set_major_formatter(empty_formatter)
+            # def empty_formatter(a,b):
+            #     return ''
+            # for a in ax:
+            #     if not(a.is_first_row()):a.xaxis.set_major_formatter(empty_formatter)
+            #     if not(a.is_last_col()):a.yaxis.set_major_formatter(empty_formatter)
                     
                     
             return ax
@@ -689,6 +689,12 @@ class Data_iRED(Data):
             CC=self.totalCCnorm-np.eye(self.totalCC.shape[0]) if norm else self.totalCC
         else:
             CC=self.CCnorm[rho_index]-np.eye(self.totalCC.shape[0]) if norm else self.CC[rho_index]
+        
+        if index is None:index=np.arange(CC.shape[0])
+        CC=CC[index][:,index]
+        
+        
+    
         
         if abs_val:
             # CC/=CC.max()
@@ -712,10 +718,11 @@ class Data_iRED(Data):
             im=np.array(im).T
             ax.imshow(im)
         
+        label=self.label[index]
         def format_func(value,tick_number):
-            if value>=self.label.shape[0]:value=self.label.shape[0]-1
+            if value>=label.shape[0]:value=label.shape[0]-1
             if value<0:value=0
-            return str(self.label[int(value)])
+            return str(label[int(value)])
         
         ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
         ax.yaxis.set_major_formatter(plt.FuncFormatter(format_func))
@@ -771,6 +778,7 @@ class Data_iRED(Data):
                 print(ID)
         else: #Hmm....how should this work?
             ID=CMXRemote.launch()
+            cmds=[]
 
 
         ids=np.array([s.indices for s in self.select.repr_sel[index]],dtype=object)
@@ -797,6 +805,8 @@ class Data_iRED(Data):
         # CMXRemote.remove_event(ID,'Detectors')
         CMXRemote.add_event(ID,'DetCC',out)
         
+        if self.source.project is not None:
+            self.source.project.chimera.command_line(self.source.project.chimera.saved_commands)
         
                 
         
