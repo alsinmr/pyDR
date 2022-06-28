@@ -119,7 +119,8 @@ class Click(Hover):
 
 class Detectors(Hover):
     def __init__(self, cmx, *args):
-        Hover.__init__(self,cmx)
+        # Hover.__init__(self,cmx)
+        super().__init__(cmx)
         for k in range(len(self.session.models),0,-1):
             if hasattr(self.session.models[k-1],'atoms'):
                 self.model=self.session.models[k-1]
@@ -128,6 +129,7 @@ class Detectors(Hover):
         ids = args[0].get("ids")
         R = args[0].get("R")
         rho_index=args[0].get('rho_index')
+        self.color=args[0]['color'] if (R.shape[1]==1 and 'color' in args[0]) else None
         self.open_detector(ids,R,rho_index)
 
     def __call__(self):
@@ -145,7 +147,8 @@ class Detectors(Hover):
             label.label.update_drawing()
 
     def open_detector(self, ids, R,rho_index):
-        cmap =lambda ind: (np.array(get_cmap("tab10")(ind%10)) * 255).astype(int)  # get_cmap("tab10")
+        cmap =lambda ind: (np.array(get_cmap("tab10")(ind%10)) * 255).astype(int) \
+            if self.color is None else self.color  # get_cmap("tab10")
         # def set_color_radius(atoms,R, color,ids):
         #     #todo check if R has a value and is greater than 0, otherwise you can get problems
         #     # R/=R.max()

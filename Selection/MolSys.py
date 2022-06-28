@@ -23,7 +23,7 @@ class MolSys():
         """
         Generates a MolSys object, potentially with a trajectory attached, in
         case traj_files is specified. Note that if the topology provided does
-        not include positions (.psf, for exampe), then you must provide
+        not include positions (.psf, for example), then you must provide
         traj_files for viewing purposes.
 
         Parameters
@@ -65,6 +65,8 @@ class MolSys():
             self._traj=None
             return
         
+        i=self.uni.atoms.types==''
+        self.uni.atoms[i].types=[s.name[0] for s in self.uni.atoms[i]] #Fill in types where missing (ok??) 
         self._traj=Trajectory(self.uni.trajectory,t0=t0,tf=tf,step=step,dt=dt) \
             if hasattr(self.uni,'trajectory') else None
                 
@@ -726,7 +728,7 @@ class MolSelect():
         in21=self.compare(sel,mode='auto')[1]
         return len(in21)==len(self) and np.all(in21==np.sort(in21))
 
-    def chimera(self,color:tuple=(1.,0.,0.,1.),x:np.array=None,norm:bool=False,repr_sel=False):
+    def chimera(self,color:tuple=(1.,0.,0.,1.),x=None,norm:bool=False,repr_sel=False):
         """
         Opens the molecule in chimera. One may either highlight the selection
         (optionally provide color) or one may plot some data onto the molecule,
@@ -772,12 +774,14 @@ class MolSelect():
         CMXRemote.send_command(ID,'color sel tan')
         CMXRemote.send_command(ID,'~sel')
         
+        if np.max(color)>1:color=[float(c/255) for c in color]
+        
         if self.project is not None and self.project.chimera.saved_commands is not None:
             for cmd in self.project.chimera.saved_commands:
                 CMXRemote.send_command(ID,cmd)
         
         if self.sel1 is not None:
-            ids=np.concatenate([s.indices for s in (self.repr_sel if repr_sel else [*self.sel1,*self.sel2])],dtype=int)
+            ids=np.concatenate([s.indices for s in self.repr_sel],dtype=int)
         
         if x is None:
             CMXRemote.show_sel(ID,ids=ids,color=color)
@@ -789,8 +793,7 @@ class MolSelect():
                 x-=x.min()
                 x/=x.max()
             ids=np.array([s.indices for s in self.repr_sel],dtype=object)
-            out=dict(R=x,rho_index=np.arange(x.shape[1]),ids=ids)
-            
+            out=dict(R=np.abs(x),rho_index=np.arange(x.shape[1]),ids=ids,color=[int(c*255) for c in color])
             CMXRemote.add_event(ID,'Detectors',out)
 
     @property

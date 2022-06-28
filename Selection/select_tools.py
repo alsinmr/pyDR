@@ -308,7 +308,7 @@ def find_methyl(mol,resids=None,segids=None,filter_str=None,select=None):
     
     
 
-def find_bonded(sel,sel0=None,exclude=None,n=3,sort='dist',d=1.65):
+def find_bonded(sel,sel0=None,exclude=None,n=4,sort='dist',d=1.65):
     """
     Finds bonded atoms for each input atom in a given selection. Search is based
     on distance. Default is to define every atom under 1.65 A as bonded. It is 
@@ -453,35 +453,35 @@ def get_chain(atom,sel0,exclude=None):
     a_name=atom.name.lower()
     a_type=atom.name[0].lower()
     if 'c'==a_name and len(exclude):
-      return [atom]
+        return [atom]
     elif a_name == "n":
-      return []
+        return []
     connected_atoms = []
     bonded = get_bonded()
     if len(exclude)==0:
-      if np.sum(np.fromiter(["h"==a.type.lower() for a in bonded],dtype=bool)) == 3:
-        final=True  
-        for a in bonded:
-          if "h"==a.name[0].lower():
-            connected_atoms.append(a)
-        if not "c"==a_type:
-          return []
-      else:
-        return []
+        if np.sum(np.fromiter(["h"==a.type.lower() for a in bonded],dtype=bool)) == 3:
+            final=True  
+            for a in bonded:
+                if "h"==a.name[0].lower():
+                  connected_atoms.append(a)
+            if not "c"==a_type:
+                return []
+        else:
+            return []
     connected_atoms.append(atom)
     exclude.append(atom)
     for a in bonded:
-      if not a in exclude:
-        nxt = get_chain(a,sel0,exclude)
-        for b in nxt:
-           connected_atoms.append(b)
+        if not a in exclude:
+            nxt = get_chain(a,sel0,exclude)
+            for b in nxt:
+               connected_atoms.append(b)
     if len(connected_atoms)>1:
-      if final:
-          return np.sum(connected_atoms)
-      else:
-          return connected_atoms
+        if final:
+            return np.sum(connected_atoms)
+        else:
+            return connected_atoms
     else:
-      return []
+        return []
 
 def search_methyl_groups(residue):
     methyl_groups = []

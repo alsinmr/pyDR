@@ -181,14 +181,10 @@ class CMXReceiver():
         None.
 
         """
-        print('checkpoint')
         for k in range(len(self.session.models),0,-1):
             if hasattr(self.session.models[k-1],'atoms'):
                 model=self.session.models[k-1]
-                print(k)
                 break
-        print(ids)
-        print(color)
         model.atoms[ids].colors=color
     
     def play_traj(self,topo:str,traj:str):
