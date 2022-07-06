@@ -875,6 +875,8 @@ class Project():
         proj=copy(self)
         proj._subproject=True
         proj._parent=self
+        proj._current_plot=self._current_plot #This line and the next should let us control plots from subproject
+        proj.plots=self.plots
         proj.chimera=copy(self.chimera)
         proj.chimera.project=proj
         if isinstance(index,str):

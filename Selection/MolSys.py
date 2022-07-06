@@ -65,11 +65,15 @@ class MolSys():
             self._traj=None
             return
         
+        self._orig_topo=topo
+        
         i=self.uni.atoms.types==''
         self.uni.atoms[i].types=[s.name[0] for s in self.uni.atoms[i]] #Fill in types where missing (ok??) 
         self._traj=Trajectory(self.uni.trajectory,t0=t0,tf=tf,step=step,dt=dt) \
             if hasattr(self.uni,'trajectory') else None
-                
+         
+        self.make_pdb()
+        
         self.project=project
     
     @property
@@ -86,7 +90,7 @@ class MolSys():
 
     @property
     def details(self):
-        out=['Topology: {}'.format(self.topo)]
+        out=['Topology: {}'.format(self._orig_topo)]
         out.extend(self.traj.details)
         return out
 
@@ -169,7 +173,53 @@ class MolSys():
         if self.project is not None and self.project.chimera.saved_commands is not None:
             for cmd in self.project.chimera.saved_commands:
                 CMXRemote.send_command(ID,cmd)
+                
+    def make_pdb(self,ti:int=None,replace:bool=True)->str:
+        """
+        Creates a pdb from the topology and trajectory files at the specified
+        time point (default ti=0). By default, the pdb will be used as the
+        topology file for this molsys object and will replace the existing 
+        topology (i.e. we'll reload the MDAnalysis universe)
+
+        Parameters
+        ----------
+        ti : int, optional
+            Determines which time point of the trajectory to use for the pdb. If
+            ti is not provided and the topology is already a pdb, then make_pdb
+            will exit, and return the current topology. If ti is not provided,
+            but the topology is not a pdb, then ti will be set to 0.
+            The default is None.
+        replace : bool, optional
+            Determines whether to replace the MDAnalysis universe. The default 
+            is True.
+
+        Returns
+        -------
+        str
+            Location of the new pdb. Located in same folder as original topology,
+            unless write access is restricted. Then writes to current directory
+                                     
+        """
     
+        
+        if self.topo.rsplit('.')[-1]=='pdb':return self.topo #Already a pdb
+        if ti is None:ti=0
+        
+        if self.traj is not None and len(self.traj):self.traj[ti]
+        
+        folder=os.path.split(self.topo)[0]
+        
+        filename='timestep{0}.pdb'.format(self.traj.mda_traj.ts.frame)
+        filename=os.path.join(folder,filename) if os.access(folder, os.W_OK) else os.path.abspath(filename)
+        self.uni.atoms.write(filename)
+        
+        if replace:
+            self._uni=Universe(filename)
+            self._uni.trajectory=self.traj.mda_traj
+            
+        return filename
+        
+        
         
 
 class Trajectory():
@@ -638,7 +688,7 @@ class MolSelect():
             self._mdmode=mdmode
         
     def copy(self):
-        return copy.copy(self)
+        return copy(self)
         
         
     def compare(self,sel,mode='auto'):

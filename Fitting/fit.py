@@ -293,7 +293,7 @@ def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,inc
     
     
     op_in_rho=not(data.source.Type=='NMR')  #Order parameter adds to detector responses (order parameter in rho)
-    op_loc=np.argwhere(data.sens.rhoz[:,-1]>0.99)[0,0] if op_in_rho else None
+    op_loc=np.argwhere(data.sens.rhoz[:,-1]>0.99)[0,-1] if op_in_rho else None
     if include is None:
         include=np.ones(nd,dtype=bool)
         if op_in_rho:include[op_loc]=False
