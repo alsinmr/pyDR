@@ -261,7 +261,6 @@ def find_methyl(mol,resids=None,segids=None,filter_str=None,select=None):
     index=np.array([all(b0 in selH0 for b0 in b)\
            for b in np.array(find_bonded(selC0,selH0,n=3,d=1.5,sort='massi')).T])
 #    index=np.all([b.names[0]=='H' for b in find_bonded(selC0,selH0,n=3,d=1.5)],axis=0)
-    print('check1')
     selH=find_bonded(selC0[index],sel0=selH0,n=3,d=1.5)
     selH=np.array(selH).T
     selC=selC0[index]
@@ -362,8 +361,7 @@ def find_bonded(sel,sel0=None,exclude=None,n=4,sort='dist',d=1.65):
                 #Append self if we don't find enough bound atoms
                 out[k]+=s #Why do we do this? Here we add the original selection where no bonds are found....very strange, I think.
                 #Apparently, this breaks find_methyl without the above line.
-                # pass
-    print('check0')            
+                # pass           
     return out        
         
     
