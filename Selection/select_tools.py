@@ -359,7 +359,8 @@ def find_bonded(sel,sel0=None,exclude=None,n=4,sort='dist',d=1.65):
             if len(sel01)>k:
                 out[k]+=sel01[k]
             else:
-                out[k]+=s
+                # out[k]+=s #Why do we do this? Here we add the original selection where no bonds are found....very strange, I think.
+                pass
                 
     return out        
         
@@ -436,6 +437,40 @@ def peptide_plane(mol,resids=None,segids=None,filter_str=None,full=True):
         return selCA,selH,selN,selCm1,selOm1,selCAm1
     else:
         return selN,selCm1,selOm1
+    
+
+def aromatic_plane(mol,resids=None,segids=None,filter_str:str=None)->list:
+    """
+    Selects atoms in the peptide plane (CB and other heteroatoms) for the 
+    specified resids, segids, and filter_str. Note that if residues are requested
+    that are not aromatic, then empty atom groups will be returned for those
+    residues. If residues is not specified, then all resids will be used.
+
+    Parameters
+    ----------
+    mol : MolSelect
+        Selection object.
+    resids : TYPE, optional
+        List of residues for which we should return aromatic planes. 
+        The default is None.
+    segids : TYPE, optional
+        List of segments for which we should return aromatic planes.
+        The default is None.
+    filter_str : str, optional
+        string which filters the selection using MDAnalysis format. 
+        The default is None.
+
+    Returns
+    -------
+    list
+        list of atom groups for each aromatic plane
+    """
+    
+    sel0=sel0_filter(mol,resids,segids,filter_str)
+    return [r.atoms.select_atoms('resname TYR H* PHE TRP and not name N CA O C and not type H') for r in sel0.residues]
+        
+    
+    
     
 
 def get_chain(atom,sel0,exclude=None):

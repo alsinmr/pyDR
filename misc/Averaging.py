@@ -164,8 +164,8 @@ def avgData(data:Data,index:list,wt:list=None)->Data:
     """
     
     if str(data.__class__)==str(clsDict['Project']):
-        for d in data:avgData(d,index=index,wt=wt)
-        return
+        return [avgData(d,index=index,wt=wt) for d in data]
+        
     
     out=clsDict['Data'](sens=data.sens) #Create output data with sensitivity as input detectors
     out.detect=data.detect
@@ -233,6 +233,9 @@ def avgData(data:Data,index:list,wt:list=None)->Data:
         out.select.sel1=sel1
         out.select.sel2=sel2
     
+    
+    if np.all([l[0]=='_' for l in out.label]):
+        out.label=np.array([l[1:] for l in out.label],dtype=out.label.dtype)
     
     out.details=data.details.copy()
     out.details.append('Data was averaged using an index')

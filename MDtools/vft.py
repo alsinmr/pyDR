@@ -1003,7 +1003,7 @@ def RMSplane(v,weight=None):
     For a set of points (v: 3xN array), calculates the normal vector for a plane
     fitted to that set of points. May include a weighting (weight: N elements)
     """
-    v=np.array(norm(v))
+    # v=np.array(norm(v))
     
     "Default, uniform weighting"
     if weight is None:

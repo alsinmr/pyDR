@@ -81,7 +81,7 @@ assigned to different elements of a list. Which element is edited and returned
 depends on the state of ctf._index. When we call ctf[k], it's just editing the
 state of ctf._index, and then returning itself.
 
-Also note, we do not store A, B, but rather its FT-unless we're not in FT mode
+Also note, we do not store a, b, but rather its FT-unless we're not in FT mode
                                                     
 
 Finally, we'll use class variables for storage of A and B so that they may

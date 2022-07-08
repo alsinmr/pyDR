@@ -708,3 +708,56 @@ def MOIbeta(molecule,sel,sel1=None,sel2=None,Nuc=None,index=None,resids=None,seg
     return sub
 
 
+def aromatic_plane(molecule,resids=None,segids=None,filter_str:str=None,sigma:float=0)->tuple:
+    """
+    Frame which returns a vector perpendicular to the plane of an aromatic amino
+    acid (F,H,W,Y) and a second vector pointing from the center of ring to the
+    CB.
+
+    Parameters
+    ----------
+    molecule : TYPE
+        Selection object.
+    resids : TYPE, optional
+        List of residues for which we should return aromatic planes. 
+        The default is None.
+    segids : TYPE, optional
+        List of segments for which we should return aromatic planes.
+        The default is None.
+    filter_str : str, optional
+        string which filters the selection using MDAnalysis format. 
+        The default is None.
+    sigma : float, optional
+        Parameter to determine Gaussian moving average in post processing. 
+        The default is 0 (no post processing).
+
+    Returns
+    -------
+    tuple
+        Frame function, frame_index (np.array), dict (Post Processing info)
+
+    """
+    
+    
+    sel0=selt.aromatic_plane(molecule,resids=resids,segids=segids,filter_str=filter_str)
+    
+    frame_index=np.ones(len(sel0))*np.nan
+    count=0
+    sel=list()
+    selCB=list()
+    for k,s in enumerate(sel0):
+        if len(s):
+            frame_index[k]=count
+            count+=1
+            sel.append(s)
+            selCB.append(s[s.names=='CB'])
+    
+    def sub():
+        vZ=np.zeros([len(sel),3])
+        vXZ=np.zeros([len(sel),3])
+        for k,(s,sCB) in enumerate(zip(sel,selCB)):
+            vZ[k]=vft.RMSplane(s.positions.T)
+            vXZ[k]=(s-sCB).positions.mean(0)-sCB.positions
+        return vZ.T,vXZ.T
+    
+    return sub,frame_index,{'PPfun':'AvgGauss','sigma':sigma}

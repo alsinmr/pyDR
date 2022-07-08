@@ -16,6 +16,7 @@ from time import time,sleep
 from platform import platform
 from subprocess import Popen,check_output,DEVNULL
 from pyDR import clsDict
+import socket
 
 #%% Functions to run in pyDR
 class CMXRemote():
@@ -35,11 +36,28 @@ class CMXRemote():
         if True in cls.closed:
             ID=np.argwhere(cls.closed)[0,0]
         else:
-            ID=len(cls.ports)
-            cls.PIDs.append(None)
-            cls.conn.append(None)
-            cls.closed.append(True)
-            cls.ports.append(cls.port0+ID) 
+            while True:
+                ID=len(cls.ports)
+                cls.PIDs.append(None)
+                cls.conn.append(None)
+                cls.closed.append(True)
+                cls.ports.append(cls.port0+ID)
+                
+                try:
+                    """So, I am not super happy about this. Problem is this: the curl 
+                    port does not work if another terminal has also launched a chimera 
+                    session with the same ID. What actually happens is that the commands
+                    sent from here end up at the first session. So, what we do is
+                    try to send a command to the curl port. If we're successful, we 
+                    DO NOT use this port and move on to the next one. If an error
+                    is thrown, we end up in the exception, which breaks the
+                    while loop. -A.S.
+                    """
+                    _=check_output('curl http://127.0.0.1:{0}/run?command={1}'.format(ID+cls.rc_port0,' '),shell=True,
+                                        stderr=DEVNULL)
+                except:
+                    break
+                    
             
 
         with File(ID) as f:
