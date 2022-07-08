@@ -429,6 +429,14 @@ class FrameObj():
         
         if run:
             self.__return_index=return_index.copy()
+            
+            "Here we check if post-processing is REQUIRED"
+            for v in self.vecs['v']:
+                if v.shape[0]>2:
+                    print('Post processing is required for some frames')
+                    self.post_process()
+            
+            
             "Here, we take out frames that aren't used"
             vecs=self.select_frames(include)
 
