@@ -202,7 +202,7 @@ class MolSys():
         """
     
         
-        if self.topo.rsplit('.')[-1]=='pdb':return self.topo #Already a pdb
+        if self.topo.rsplit('.')[-1]=='pdb' and ti is None:return self.topo #Already a pdb
         if ti is None:ti=0
         
         if self.traj is not None and len(self.traj):self.traj[ti]
