@@ -10,6 +10,7 @@ from pyDR.Sens import Info
 import os
 import re
 import numpy as np
+from copy import copy
 
 
 
@@ -177,9 +178,94 @@ def linear_ex(x0,I0,x,dim=None,mode='last_slope'):
     else:
         return I.swapaxes(0,dim)
 
+#%% Class to translate among amino acid names, symbols, and abbreviations
+class AA():
+    names=['alanine','arginine','asparagine','aspartic acid','cysteine',
+           'glutamine','glutamic acid','glycine','histidine','isoleucine',
+           'leucine','lysine','methionine','phenylalanine','proline',
+           'serine','threonine','tryptophan','tyrosine','valine']
+    symbols=['A','R','N','D','C',
+             'Q','E','G','H','I',
+             'L','K','M','F','P',
+             'S','T','W','Y','V']
+    codes=['Ala','Arg','Asn','Asp','Cys',
+           'Gln','Glu','Gly','His','Ile',
+           'Leu','Lys','Met','Phe','Pro',
+           'Ser','Thr','Trp','Tyr','Val']
+    weights=[89,174,132,133,121,
+            145,147,75,155,131,
+            131,146,149,165,115,
+            105,119,204,181,117]
+    #Here we put uncommon names/codes/etc translated into the above codes
+    alternates={'hsd':'his'} 
+    
+    def __init__(self,aa:str=None):
+        """
+        Initialize an amino acid with a string (name, symbol, code). Not
+        case sensitive. Alternatively, intialize without any arguments to use
+        indexing to specify amino acid later.
 
+        Parameters
+        ----------
+        aa : str
+            Amino acid specification (name, symbol, or code).
+
+        Returns
+        -------
+        None.
+
+        """
+        if aa is None:
+            self._index=None
+            return
+        else:
+            if aa.upper() in self.symbols:
+                self._index=self.symbols.index(aa.upper())
+            elif aa.capitalize() in self.codes:
+                self._index=self.codes.index(aa.capitalize())
+            elif aa.lower() in self.names:
+                self._index=self.names.index(aa.lower())
+            elif aa.lower() in self.alternates:
+                out=AA(self.alternates[aa.lower()])
+                self._index=out._index
+            else:
+                assert 0,'Unknown amino acid: {}'.format(aa)
+    
+    @property
+    def name(self):
+        if self._index is not None:
+            return self.names[self._index]
+    @property
+    def symbol(self):
+        if self._index is not None:
+            return self.symbols[self._index]
+    @property
+    def code(self):
+        if self._index is not None:
+            return self.codes[self._index]
+    @property
+    def weight(self):
+        if self._index is not None:
+            return self.weights[self._index]
+        
+    def __getitem__(self,aa):
+        return AA(aa)
+    
+    def __call__(self,aa):
+        return AA(aa)
+    
+    def __repr__(self):
+        return self.name+'/'+self.code+'/'+self.symbol
+    
+    def _ipython_key_completions_(self):
+        out=self.codes
+        out.extend(self.names)
+        return out
+    
+    
 
 class tools():
     NucInfo=NucInfo
     dipole_coupling=dipole_coupling
-    linear_ex=linear_ex    
+    linear_ex=linear_ex  
+    AA=AA()

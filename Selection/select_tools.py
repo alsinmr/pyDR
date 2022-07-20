@@ -193,7 +193,51 @@ def sel_lists(mol,sel=None,resids=None,segids=None,filter_str=None):
     return sel
 
 #%% Specific selections for proteins
-def protein_defaults(Nuc,mol,resids=None,segids=None,filter_str=None):
+def protein_defaults(Nuc:str,mol,resids:list=None,segids:list=None,filter_str:str=None)->tuple:
+    """
+    Selects pre-defined pairs of atoms in a protein, where we use defaults based
+    on common pairs of nuclei used for relaxation. Additional filters may be
+    applied to obtain a more specific selection.
+
+
+    Multiple strings may return the same pair
+    
+    N,15N,N15       : Backbone N and the directly bonded hydrogen
+    C,CO,13CO,CO13  : Backbone carbonyl carbon and the carbonyl oxygen
+    CA,13CA,CA13    : Backbone CA and the directly bonded hydrogen (only HA1 for glycine) 
+    CACB            : Backbone CA and CB (not usually relaxation relevant)
+    IVL/IVLA/CH3    : Methyl groups in Isoleucine/Valine/Leucine, or also including
+                      Alanine, or simply all methyl groups. Each methyl group
+                      returns 3 pairs, corresponding to each hydrogen
+    IVL1/IVLA1/CH31 : Same as above, except only one pair
+    IVLl/IVLAl/CH3l : Same as above, but with only the 'left' leucine and valine
+                      methyl group
+    IVLr/IVLAr/CH3r : Same as above, but selects the 'right' methyl group
+    FY_d,FY_e,FY_z  : Phenylalanine and Tyrosine H–C pairs at either the delta,
+                      epsilon, or  zeta positions.
+    FY_d1,FY_e1,FY_z1:Same as above, but only one pair returned for each amino
+                      acid
+
+    Parameters
+    ----------
+    Nuc : str
+        Specifies the nuclear pair to select. Not case sensitive
+    mol : MolSelect object or AtomGroup
+    resids : list/array/single element, optional
+        Restrict selected residues. The default is None.
+    segids : list/array/single element, optional
+        Restrict selected segments. The default is None.
+    filter_str : str, optional
+        Restricts selection to atoms selected by the provided string. String
+        is applied to the MDAnalysis select_atoms function. The default is None.
+        
+    Returns
+    -------
+    sel1 : atomgroup
+    sel2 : atomgroup
+
+    """
+    
     """
     Selects pre-defined pairs of atoms in a protein, usually based on nuclei that
     are observed for relaxation. One may also select specific residues, specific
@@ -241,6 +285,14 @@ def protein_defaults(Nuc,mol,resids=None,segids=None,filter_str=None):
         if '1' in Nuc:
             sel1=sel1[::3]
             sel2=sel2[::3]
+    elif Nuc[:3].lower()=='fy_':
+        sel1=sel0.select_atoms('name C{0}* and resname TYR PHE'.format(Nuc[-1].upper()))
+        sel2=sel0.select_atoms('name H{0}* and resname TYR PHE'.format(Nuc[-1].upper()))
+        if Nuc[:4].lower()!='fy_z' and '1' in Nuc.lower():
+            sel1,sel2=sel1[::2],sel2[::2]
+    else:
+        print('Unrecognized Nuc option')
+        return
           
     return sel1,sel2
 

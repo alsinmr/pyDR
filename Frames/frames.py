@@ -741,16 +741,26 @@ def aromatic_plane(molecule,resids=None,segids=None,filter_str:str=None,sigma:fl
     
     sel0=selt.aromatic_plane(molecule,resids=resids,segids=segids,filter_str=filter_str)
     
-    frame_index=np.ones(len(sel0))*np.nan
-    count=0
     sel=list()
     selCB=list()
     for k,s in enumerate(sel0):
         if len(s):
-            frame_index[k]=count
-            count+=1
             sel.append(s)
             selCB.append(s[s.names=='CB'])
+            
+    #Make a frame index
+    if molecule.sel1 is not None:
+        mdmode=molecule._mdmode
+        molecule._mdmode=True
+        frame_index=np.ones(len(molecule.sel1))*np.nan
+        sel1=molecule.sel1
+        for k,s in enumerate(sel):
+            frame_index[np.logical_and(s.resids[0]==sel1.resids,s.segids[0]==sel1.segids)]=k
+        molecule._mdmode=mdmode
+    else:
+        frame_index=np.repeat(np.arange(len(sel0)),2) #Just a best guess if no other information available
+        
+        
     
     def sub():
         vZ=np.zeros([len(sel),3])
@@ -761,3 +771,4 @@ def aromatic_plane(molecule,resids=None,segids=None,filter_str:str=None,sigma:fl
         return vZ.T,vXZ.T
     
     return sub,frame_index,{'PPfun':'AvgGauss','sigma':sigma}
+
