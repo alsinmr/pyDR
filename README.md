@@ -38,8 +38,14 @@ conda install mdanalysis<br />
 
 run the GUI with 'python3 -m pyDR'
 
+Copyright 2022 Albert Smith-Penzel, Kai Zumpfe
 
 All files are copyrighted under the GNU General Public License. A copy of the license has been provided in the file LICENSE
 
+Funding for this project provided by:
+
+Deutsche Forschungsgemeinschaft (DFG) grant SM 576/1-1
+
+European Social Funds (ESF) and the Free State of Saxony (Junior Research Group UniDyn, Project No. SAB 100382164)
 
 Copyright 2022 Albert Smith-Penzel, Kai Zumpfe
