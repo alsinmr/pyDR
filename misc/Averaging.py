@@ -94,11 +94,15 @@ def avg2sel(data:Data,sel:MolSelect) -> Data:
             if np.any(i):
                 count+=1
                 if sel1 is None:
-                    sel1=s01
-                    sel2=s02
+                    # sel1=(s01+s01)[:1] #Trick to ensure we get atom groups
+                    # sel2=(s02+s02)[:1]
+                    sel1=(sel0.sel1[i]+sel0.sel1[i])[:1]
+                    sel2=(sel0.sel2[i]+sel0.sel2[i])[:1]
                 else:
-                    sel1+=s01
-                    sel2+=s02
+                    # sel1+=s01
+                    # sel2+=s02
+                    sel1+=sel0.sel1[i]
+                    sel2+=sel0.sel2[i]
                 for f in flds:
                     if hasattr(data,f) and getattr(data,f) is not None:
                         getattr(out,f)[k]+=getattr(data,f)[i][0]

@@ -58,8 +58,11 @@ class Data():
 #        self.select=select #Stores the molecule selection for this data object
         self.vars=dict() #Storage for miscellaneous variable
         self._movies=None
-        
-        
+             
+    @property
+    def project(self):
+        return self.source.project
+    
     @property
     def Rc(self):
         if self._Rc is None and hasattr(self.sens,'opt_pars') and 'n' in self.sens.opt_pars:
@@ -108,6 +111,9 @@ class Data():
             return
         elif name in ['Rc','S2c']:
             setattr(self,'_'+name,value)
+            return
+        elif name=='project':
+            setattr(self.source,'project',value)
             return
         # elif name == 'details':
         #     self.source.details=value
@@ -195,7 +201,7 @@ class Data():
         if str(self.__class__) != str(data.__class__): return False
         return self._hash == data._hash
     
-    def fit(self, bounds: bool = True, parallel: bool = False):
+    def fit(self, bounds: bool = 'auto', parallel: bool = False):
         # todo I was a little confused by that, might be useful to rename the return function? -K
         return fit(self, bounds=bounds, parallel=parallel)
     

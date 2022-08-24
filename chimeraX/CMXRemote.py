@@ -190,7 +190,7 @@ class CMXRemote():
         #The % has to come first because all the other signs will introduce a %
         encoding={'%':'%25','@':'%40','#':'%23','$':'%24','^':'5E','&':'%26',
                   '[':'%5B',']':'%5D','{':'%7B','}':'%7D','"':'%22',"'":'%27',
-                  ' ':'+','|':'%7C'}
+                  ' ':'+','|':'%7C','(':'\(',')':'\)'}
         
         for k,v in encoding.items():
             string=string.replace(k,v)

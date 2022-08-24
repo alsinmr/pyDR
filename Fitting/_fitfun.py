@@ -15,11 +15,11 @@ def fit0(X):
     Used for parallel fitting of data. Single argument in the input should
     include data, the r matrix, and the upper and lower bounds
     """
-    if X[2] is None:
+    if X[2] is None or True:
         pinv=PINV(X[0])   #Simple pinv fit if no bounds required
         rho=pinv@X[1]
         Rc=X[0]@rho
-        stdev=sqrt((pinv**2).sum())
+        stdev=sqrt((pinv**2).sum(1))
     else:
         Y=lsq(X[0],X[1],bounds=X[2])
         rho=Y['x']

@@ -16,7 +16,7 @@ from pyDR.misc.tools import linear_ex
 
 dtype=Defaults['dtype']
 
-def fit(data,bounds=True,parallel=False):
+def fit(data,bounds='auto',parallel=False):
     """
     Performs a detector analysis on the provided data object. Options are to
     include bounds on the detectors and whether to utilize parallelization to
@@ -27,6 +27,13 @@ def fit(data,bounds=True,parallel=False):
     (otherwise, defaults to the number of cores available on the computer)
     """
     detect=data.detect.copy()
+    assert detect.opt_pars.__len__()>0,"Detector object must first be optimized (e.g. run data.detect.r_auto)"
+    
+    
+    if hasattr(bounds,'lower') and bounds.lower()=='auto':
+        bounds=False if data.detect.opt_pars['Type']=='no_opt' else True
+    
+    
     # out=clsDict['Data'](sens=detect,src_data=data) #Create output data with sensitivity as input detectors
     out=data.__class__(sens=detect,src_data=data) #Use same class as input (usually Data, can be Data_iRED)
     out.label=data.label
@@ -34,28 +41,48 @@ def fit(data,bounds=True,parallel=False):
     out.source.select=data.source.select
     
     
-    "Prep data for fitting"
-    X=list()
-    for k,(R,Rstd) in enumerate(zip(data.R.copy(),data.Rstd)):
-        r0=detect[k] #Get the detector object for this bond (detectors support indexing but not iteration)
-        UB=r0.rhoz.max(1)#Upper and lower bounds for fitting
-        LB=r0.rhoz.min(1)
-        R-=data.sens[k].R0 #Offsets if applying an effective sensitivity
+    simple_fit=np.all(data.Rstd[0]==data.Rstd) and len(detect)==1 and not(bounds)
+    # simple_fit=False
+    "simple_fit: All detectors can be fit with the same pinv matrix– so just calculate it once"
+    if simple_fit:
+        r0=detect
+        R=data.R-data.sens.R0
+        Rstd=data.Rstd[0]
         if 'inclS2' in r0.opt_pars['options']: #Append S2 if used for detectors
-            R=np.concatenate((R,[1-data.S2[k]]))
-            Rstd=np.concatenate((Rstd,[data.S2std[k]]))
-        R/=Rstd     #Normalize data by its standard deviation
-        r=(r0.r.T/Rstd).T   #Also normalize R matrix
+            R=np.concatenate((R,np.array([1-data.S2]).T))
+            Rstd=np.concatenate((Rstd,[data.S2std]))
+        r=(r0.r.T/Rstd).T
+        R/=Rstd
+        pinv=np.linalg.pinv(r)
+        rho=(pinv@R.T).T
+        stdev=np.sqrt((pinv**2).sum(1))
+        Rc=(r@rho.T).T
         
-        X.append((r,R,(LB,UB) if bounds else None,Rstd))
-    
-    "Perform fitting"
-    if parallel:
-        nc=parallel if isinstance(parallel,int) else mp.cpu_count()
-        with mp.Pool(processes=nc) as pool:
-            Y=pool.map(fit0,X)
+        Y=[(rho0,stdev,Rc0) for rho0,Rc0 in zip(rho,Rc)]
+        
     else:
-        Y=[fit0(x) for x in X]
+        "Prep data for fitting"
+        X=list()
+        for k,(R,Rstd) in enumerate(zip(data.R.copy(),data.Rstd)):
+            r0=detect[k] #Get the detector object for this bond (detectors support indexing but not iteration)
+            UB=r0.rhoz.max(1)#Upper and lower bounds for fitting
+            LB=r0.rhoz.min(1)
+            R-=data.sens[k].R0 #Offsets if applying an effective sensitivity
+            if 'inclS2' in r0.opt_pars['options']: #Append S2 if used for detectors
+                R=np.concatenate((R,[1-data.S2[k]]))
+                Rstd=np.concatenate((Rstd,[data.S2std[k]]))
+            R/=Rstd     #Normalize data by its standard deviation
+            r=(r0.r.T/Rstd).T   #Also normalize R matrix
+        
+            X.append((r,R,(LB,UB) if bounds else None,Rstd))
+        
+        "Perform fitting"
+        if parallel:
+            nc=parallel if isinstance(parallel,int) else mp.cpu_count()
+            with mp.Pool(processes=nc) as pool:
+                Y=pool.map(fit0,X)
+        else:
+            Y=[fit0(x) for x in X]
     
     "Extract data into output"
     out.R=np.zeros([len(Y),detect.r.shape[1]],dtype=dtype)
@@ -64,7 +91,7 @@ def fit(data,bounds=True,parallel=False):
     for k,y in enumerate(Y):
         out.R[k],out.Rstd[k],Rc0=y
         out.R[k]+=detect[k].R0
-        out.Rc[k]=Rc0*X[k][3]
+        out.Rc[k]=Rc0*(Rstd if simple_fit else X[k][3]) 
         
     if 'inclS2' in detect.opt_pars['options']:
         out.S2c,out.Rc=1-out.Rc[:,-1],out.Rc[:,:-1]
@@ -116,6 +143,7 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
 #    out.sens.lock() #Lock the detectors in sens since these shouldn't be edited after fitting
     out.select=data.select
     out.source=copy(data.source)
+    out.source.saved_filename=None
     out.source.status='opt_fit'
     out.Rstd=data.Rstd
     out.R=np.zeros(data.R.shape)

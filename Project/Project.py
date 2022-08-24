@@ -15,6 +15,7 @@ import re
 from copy import copy
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
+import gc
 decode=bytes.decode
 
 
@@ -666,6 +667,7 @@ class Project():
         None
 
         """
+        self._index=None
         self.name = directory   #todo maybe create the name otherwise?
         self._directory = os.path.abspath(directory) if directory is not None else None
         if self.directory and not(os.path.exists(self.directory)) and create:
@@ -685,7 +687,16 @@ class Project():
         return self._directory
     #%% setattr        
     def __setattr__(self,name,value):
-        if name=='current_plot':
+        if name=='_index':
+            super().__setattr__(name,value)
+
+        if len(self)==1 and not(hasattr(self.__class__,name)) and hasattr(self[0],name):
+            #Only one data object in project, and the data object has attribute name, but the project does not
+            setattr(self[0],name,value) #Set the attribute for the data object, not the project
+            return
+        
+        "Special behavior for current plot"
+        if name=='current_plot':  
             self._current_plot[0]=value
             if value:
                 while len(self.plots)<value:
@@ -720,7 +731,31 @@ class Project():
     @property
     def detect(self):
         return DetectMngr(self)
-    
+    #%% Clear memory
+    def clear_memory(self,include_rawMD=False):
+        """
+        Moves the project from memory onto the drive, thus freeing up memory
+        that is taken up by data objects currently stored in memory. Note that 
+        this operation will remove any raw MD data permanently from the project.
+        One may set include_rawMD to True to save this data to file
+
+        Parameters
+        ----------
+        include_rawMD : bool, optional
+            Saves raw MD data in the project. The default is False.
+
+        Returns
+        -------
+        None.
+
+        """
+        assert self.directory is not None,"clear_memory can only run if the project has a directory for saving"
+        self.save(include_rawMD)
+        self.data=DataMngr(self)
+        gc.collect() #Garbage collect (get rid of the old data object)
+        
+        
+        
     #%% Read/write project file
     def read_proj(self):
         info=clsDict['Info']()
@@ -750,24 +785,24 @@ class Project():
                 dct['filename']=file
                 info.new_exper(**dct)
         
-        self._index=list()
+        _index=list()
         for file in info['filename']:
             if file in self.data.saved_files:
-                self._index.append(self.data.saved_files.index(file))
+                _index.append(self.data.saved_files.index(file))
             else:
-                self._index.append(None)
+                _index.append(None)
                 print('File:\n{0}\n was missing from project'.format(file))
         
-        while None in self._index: #Delete all missing data
-            i=self._index.index(None)
-            self._index.pop(i)
+        while None in _index: #Delete all missing data
+            i=_index.index(None)
+            _index.pop(i)
 
         self.info=clsDict['Info']()
         for f in flds:self.info.new_parameter(f)
         
-        for k in range(len(self._index)):
-            self.info.new_exper(**info[self._index.index(k)])
-        self._index=np.array(self._index,dtype=int)
+        for k in range(len(_index)):
+            self.info.new_exper(**info[_index.index(k)])
+        self._index=np.array(_index,dtype=int)
                 
     def write_proj(self):
         self.update_info()
@@ -794,7 +829,10 @@ class Project():
             if self.data.data_objs[i] is not None:
                 for k in self.info.keys:
                     if k=='filename':
-                        self.info[k,i]=os.path.split(self.data.save_name[i])[1]
+                        if self.data.directory is not None:
+                            self.info[k,i]=os.path.split(self.data.save_name[i])[1]
+                        else:
+                            self.info[k,i]=None
                     else:
                         self.info[k,i]=getattr(self.data.data_objs[i].source,k)
             
@@ -842,6 +880,8 @@ class Project():
                 self.data.remove_data(index=i,delete=delete)
                 self._index=self._index[self._index!=i]
                 self._index[self._index>i]-=1
+            if delete: #We need to save– otherwise the project file will be corrupted if the user doesn't do this
+                self.save()
 
     def __iter__(self):
         def gen():
@@ -850,8 +890,7 @@ class Project():
         return gen()
     
     def __len__(self) -> int:
-        return self._index.size
-
+        return self._index.size if self._index is not None else 0
 
     @property
     def size(self) -> int:
@@ -872,9 +911,11 @@ class Project():
             assert index < self.__len__(), "index too large for project of length {}".format(self.__len__())
             return self.data[self._index[index]]
         
+        if len(self)==0:return copy(self) #If the project is already empty, then return the same empty project
+        
         proj=copy(self)
         proj._subproject=True
-        proj._parent=self
+        proj._parent=self._parent if self._subproject else self
         proj._current_plot=self._current_plot #This line and the next should let us control plots from subproject
         proj.plots=self.plots
         proj.chimera=copy(self.chimera)
@@ -1122,7 +1163,8 @@ class Project():
         """
         if isinstance(fig,str) and fig.lower()=='all':
             for i in range(len(self.plots)):self.close_fig(i)
-            self.plots=[None]
+            self.plots.clear()
+            self.plots.append(None)
             return
         fig-=1
         if len(self.plots) > fig and self.plots[fig] is not None:
@@ -1253,7 +1295,7 @@ class Project():
                         detect.append(clsDict['Detector'](fit.sens))
         print('Optimized {0} data objects'.format(count))
     
-    def fit(self, bounds: bool = True, parallel: bool = False) -> None:
+    def fit(self, bounds: bool = 'auto', parallel: bool = False) -> None:
         """
         Fit all data in the project that has optimized detectors.
         """

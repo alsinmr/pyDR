@@ -379,7 +379,7 @@ def side_chain_chi(molecule,n_bonds=1,Nuc=None,resids=None,segids=None,filter_st
     def sub():
         box=molecule.box
         vZ=sel1.positions-sel2.positions
-        vXZ=sel3.positions-sel2.positions
+        vXZ=sel2.positions-sel3.positions
         vZ=vft.pbc_corr(vZ.T,box)
         vXZ=vft.pbc_corr(vXZ.T,box)
         return vZ,vXZ

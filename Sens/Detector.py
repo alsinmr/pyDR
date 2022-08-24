@@ -163,8 +163,9 @@ class Detector(Sens.Sens):
         self.info.new_parameter(z0=np.array([(self.z*rz).sum()/rz.sum() for rz in self.rhoz]))
         self.info.new_parameter(zmax=np.array([self.z[np.argmax(rz)] for rz in self.rhoz]))
         self.info.new_parameter(Del_z=np.array([rz.sum()*dz/rz.max() for rz in self.rhoz]))
-        self.info.new_parameter(stdev=((np.linalg.pinv(self.__r)**2)@self.sens.info['stdev']**2)**0.5)
-    
+        # self.info.new_parameter(stdev=((np.linalg.pinv(self.__r)**2)@self.sens.info['stdev']**2)**0.5)
+        self.info.new_parameter(stdev=((np.linalg.pinv((self.__r.T/self.sens.info['stdev'].astype(float)).T)**2).sum(1))**0.5)
+        
     #%% Detector optimization
     def _rho(self):
         """

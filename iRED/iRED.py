@@ -448,7 +448,7 @@ class iRED():
             out.R=self.DelCt[self.M.shape[0]-self.mat_rank:]
             out.Rstd=np.repeat(np.array([out.sens.info['stdev']],dtype=dtype),self.mat_rank,axis=0)
         else:
-            out.R=self.DelCt
+            out.R=np.array(self.DelCt,dtype=dtype)
             out.Rstd=np.repeat(np.array([out.sens.info['stdev']],dtype=dtype),self.M.shape[0],axis=0)
         out.iRED={'M':self.M,'m':self.m,'Lambda':self.Lambda,'rank':self.rank,'mat_rank':self.mat_rank}
         if self.project is not None:
@@ -584,6 +584,7 @@ class Data_iRED(Data):
         assert 'Lambda' in self.iRED.keys(),'This iRED data object has already been converted to bonds'
         
         out=self.__class__(sens=self.sens,src_data=self)
+        out.details.extend(self.details)
         out.details.append('Converted from iRED modes to iRED bond data')
         out.source.Type=self.source.Type.replace('mode','bond') #Mode analysis converted to bond analysis
         out.source.n_det=self.source.n_det

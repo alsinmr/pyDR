@@ -99,17 +99,25 @@ class MolSys():
     def _hash(self):
         return hash(self.topo)
 
-    @property
-    def select_atoms(self):
+    
+    def select_atoms(self,select_str:str):
         """
-        Quick link to the MDAnalysis universe select_atoms function. 
+        Runs the MDAnalysis universe select_atoms function.
+
+        Parameters
+        ----------
+        select_str : str
+            Selection string to be called on the mdanalyis universe select_atoms
+            function.
 
         Returns
         -------
-        function
-            MDAnalysis select_atoms called from the full universe.
+        AtomGroup
+            MDAnalysis atom group.
+
         """
-        return self.uni.atoms.select_atoms
+        
+        return self.uni.atoms.select_atoms(select_str)
     
     def select_filter(self,resids=None,segids=None,filter_str=None) -> AtomGroup:
         """
@@ -280,13 +288,13 @@ class Trajectory():
             def iterate():
                 for k in range(start,stop,step):
                     if self.ProgressBar:ProgressBar((k+1-start)*step,stop-step,'Loading:','',0,40)
-                    yield self.mda_traj[k]
+                    yield self[k]
             return iterate()
         elif hasattr(index,'__iter__'):
             def iterate():
                 for m,k in enumerate(index):
                     if self.ProgressBar and hasattr(index,'__len__'):ProgressBar(m+1,len(index),'Loading:','',0,40)
-                    yield self.mda_traj[k]
+                    yield self[k]
             return iterate()
         else:
             assert index<self.__len__(),"index must be less than the truncated trajectory length"
@@ -403,6 +411,7 @@ class MolSelect():
             self._mdmode=False
             name='_'+name
             if value is None:
+                self._mdmode=_mdmode
                 return
             elif isinstance(value,AtomGroup):
                 sel=np.zeros(len(value),dtype=object)
@@ -418,6 +427,12 @@ class MolSelect():
             return
         
         super().__setattr__(name,value)
+    
+    def clear_sel(self):
+        self._sel1=None
+        self._sel2=None
+        self._repr_sel=None
+        self._label=None
     
     @property
     def sel1(self):
@@ -438,7 +453,7 @@ class MolSelect():
             pyDR Project object
 
         """
-        return self._project if self._project else self.molsys.project
+        return self._project if self._project is not None else self.molsys.project
     
     def __copy__(self):
         cls = self.__class__
@@ -497,6 +512,8 @@ class MolSelect():
         else:
             self.sel1,self.sel2=selt.protein_defaults(Nuc=Nuc,mol=self,resids=resids,segids=segids,filter_str=filter_str)
         
+        _mdmode=self._mdmode
+        self._mdmode=False
         repr_sel=list()        
         if hasattr(Nuc,'lower') and Nuc.lower() in ['15n','n15','n','co','13co','co13']:
             for s in self.sel1:
@@ -515,6 +532,7 @@ class MolSelect():
                 repr_sel.append(s1+s2)
         self.repr_sel=repr_sel
         self.set_label(label)
+        self._mdmode=_mdmode
 
     @property
     def repr_sel(self):

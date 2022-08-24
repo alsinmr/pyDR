@@ -179,6 +179,7 @@ def chi_hop(molecule,n_bonds=1,Nuc=None,resids=None,segids=None,filter_str=None,
             v12s=vft.norm(v12s)
             sc=vft.getFrame(v23s,v34s)
             v12s=vft.R(v12s,*vft.pass2act(*sc))    #Into frame defined by v23,v34
+            # print((v12s*vr).sum(axis=1)[:,0])
             i=np.argmax((v12s*vr).sum(axis=1),axis=0)   #Index of best fit to reference vectors (product is cosine, which has max at nearest value)
             v12s=vr[i,:,np.arange(v12s.shape[1])] #Replace v12 with one of the three reference vectors
             return vft.R(v12s.T,*sc),v23s  #Rotate back into original frame        

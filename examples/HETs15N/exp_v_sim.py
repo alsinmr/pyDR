@@ -24,6 +24,7 @@ import pyDR
 
 #%% Create a project
 proj=pyDR.Project('N15data',create=True)    
+proj=pyDR.Project()
 
 #%% Load the experimental data
 proj.append_data('HETs_15N.txt')
@@ -173,7 +174,7 @@ sub=proj['NMR']['proc']+proj['MD'][1:3]
 mdsel=pyDR.MolSelect(molsys) #A separate selection object for the MDdata
 mdsel.select_bond(Nuc='15N',segids='B') #Process all residues in segment B (no resids specified)
 
-# molsys.traj.step=10 #Uncomment to get faster results (lower resolution at shorter correlation times!)
+molsys.traj.step=10 #Uncomment to get faster results (lower resolution at shorter correlation times!)
 from time import time
 t0=time()
 proj.append_data(pyDR.md2data(mdsel)) #Calculate correlation functions for HN motion. Append result to project
