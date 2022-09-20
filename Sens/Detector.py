@@ -462,8 +462,8 @@ class Detector(Sens.Sens):
 
         assert 'n' in self.opt_pars.keys(),'First perform initial detector optimization before including S2'
         
-        if 'inclS2' in self.opt_pars['options']:self.removeS2
-        if 'inclS2' in self.opt_pars['options']:return #Function already run
+        if 'inclS2' in self.opt_pars['options']:self.removeS2()
+        # if 'inclS2' in self.opt_pars['options']:return #Function already run
         self.opt_pars['options'].append('inclS2')
         
         norm=Normalization if Normalization is not None else self.opt_pars['Normalization']
