@@ -96,7 +96,8 @@ def set_color_radius_CC(atoms,x:np.array,color:list,ids:list,sc:float=4) -> None
     else:
         k=np.argmax(r)
         x=x[k]
-    x/=x[k]
+    # x/=x[k]
+    x[k]=1
     set_color_radius(atoms,x,color,ids,sc)
     atoms[np.array(ids[k],dtype=int)].colors=color_calc(np.ones(ids[k].shape),colors=[[0,0,0,255],[0,0,0,255]])
 

@@ -63,9 +63,11 @@ class PCA():
             MDAnalysis atom group
         """
         
+        a0=self.atoms
         atoms=self.select.molsys.select_atoms(select_string)
         self.sel0=atoms
-        self.clear()
+        if a0 is None or a0!=self.atoms:
+            self.clear()
         return atoms            
 
     @property
@@ -390,14 +392,15 @@ class PCA():
             self._pcamp=(mat0@self.PC).T
         return self._pcamp
     
-    def plot(self,n0:int=0,n1:int=1,ax=None,maxbin:float=None,yrange:tuple=None,nbins:int=None):
+    def plot(self,n0:int=0,n1:int=1,ax=None,maxbin:float=None,nbins:int=None,**kwargs):
         if ax is None:ax=plt.figure().add_subplot(111)
         if maxbin is None:
             maxbin=np.max(np.abs(self.PCamp[min([n0,n1])])) 
         if nbins is None:
             nbins=min([100,self.pos.shape[0]//4])
         
-        ax.hist2d(self.PCamp[n0],self.PCamp[n1],bins=np.linspace(-maxbin,maxbin,nbins))
+        return ax.hist2d(self.PCamp[n0],self.PCamp[n1],bins=np.linspace(-maxbin,maxbin,nbins),**kwargs)
+        
         
     @property
     def t(self):
@@ -479,7 +482,92 @@ class PCA():
         fit=fit0.fit()
         z,A,_,fit1=model_free(fit,nz=2,fixz=[-14,None])
         
-        self._MFfit={'z':z,'A':A,'data':fit,'fit':fit1}        
+        self._MFfit={'z':z,'A':A,'data':fit,'fit':fit1}    
+        
+        
+    @property
+    def S2direct(self):
+        """
+        Calculates the order parameters for the bond selections using the usual
+        approach.
+
+        Returns
+        -------
+        np.array
+            Array of order parameters
+
+        """
+        if self.select.sel1 is None or self.select.sel2 is None:return None
+        
+        v=(self.pos[:,self.sel1index]-self.pos[:,self.sel2index]).T
+        v/=np.sqrt((v**2).sum(0))      
+        
+        S2=np.ones(v.shape[1])*(-1/2)
+        for k in range(3):
+            for j in range(k,3):
+                S2+=(v[k]*v[j]).mean(-1)**2*(3/2 if k==j else 3)
+        return S2
+    
+    def S2pca(self,n='all'):
+        """
+        Calculates the order parameters for the bond selections via principle
+        component analysis
+
+        Returns
+        -------
+        None.
+
+        """
+        if n=='all':n=self.pos.shape[1]*3
+        
+        if self._PC is None or self._PC.shape[1]<n:self.runPCA(n)
+        
+        # v0=(self.pos[:,self.sel1index]-self.pos[:,self.sel2index]).mean(0)
+        # len2=(v0**2).sum(-1)
+        v0=self.pos[:,self.sel1index]-self.pos[:,self.sel2index]
+        len2=np.sqrt((v0**2).sum(-1)).mean(0)**2
+        
+        
+        
+        Delta=[self.PC[k::3][self.sel1index]-self.PC[k::3][self.sel2index] for k in range(3)]
+        
+        S2=np.ones(len2.shape)*(-1/2)
+        for k in range(3):
+            for j in range(k,3):
+                S2+=(((Delta[k]*Delta[j])*self.Lambda).T/len2).sum(0)**2*(3/2 if k==j else 3)
+                
+        return S2
+    
+    def S2covar(self):
+        """
+        Calculates S2 from the covariance matrix.
+
+        Returns
+        -------
+        np.array
+            Array of order parameters
+
+        """
+        
+        v0=self.pos[:,self.sel1index]-self.pos[:,self.sel2index]
+        len2=np.sqrt((v0**2).sum(-1)).mean(0)**2
+        
+        S2=np.ones(len2.shape)*(-1/2)
+        M=self.CoVar
+        
+        for k in range(3):
+            for j in range(k,3):
+                S2+=M[k::3,j::3][self.sel1index][:,self.sel2index] #Not correct yet
+                """
+                We need cov(k_1,j_1)+cov(k_2,j_2)-cov(k_1,j_2)-cov(k_2,j_1)+
+                            +(<k_1>-<k_2>)*(<j_1>-<j_2>)
+                            
+                We should also work out the impact of the length normalization,
+                which may not be so simple.
+                """
+        
+        
+        
             
 class Data_PCA(Data):
     @property

@@ -164,7 +164,10 @@ class Detector(Sens.Sens):
         self.info.new_parameter(zmax=np.array([self.z[np.argmax(rz)] for rz in self.rhoz]))
         self.info.new_parameter(Del_z=np.array([rz.sum()*dz/rz.max() for rz in self.rhoz]))
         # self.info.new_parameter(stdev=((np.linalg.pinv(self.__r)**2)@self.sens.info['stdev']**2)**0.5)
-        self.info.new_parameter(stdev=((np.linalg.pinv((self.__r.T/self.sens.info['stdev'].astype(float)).T)**2).sum(1))**0.5)
+        if not(np.any(self.sens.info['stdev']==0)):
+            self.info.new_parameter(stdev=((np.linalg.pinv((self.__r.T/self.sens.info['stdev'].astype(float)).T)**2).sum(1))**0.5)
+        else:
+            self.info.new_parameter(stdev=np.zeros(self.rhoz.shape[0]))
         
     #%% Detector optimization
     def _rho(self):
@@ -464,7 +467,7 @@ class Detector(Sens.Sens):
         self.opt_pars['options'].append('inclS2')
         
         norm=Normalization if Normalization is not None else self.opt_pars['Normalization']
-        if norm.lower()!=self.opt_pars['Normalization'].lower():
+        if norm is not None:
             self.ApplyNorm(norm)
             self.opt_pars['Normalization']=norm.upper()
 
@@ -676,7 +679,7 @@ class SVD():
                 self._U=((X@V)@np.diag(1/self.S)).real
                 self._Vt=V.real.T
             else:
-                self._U,self._S,self._Vt=[x.real for x in np.linalg.svd(X)] #Full calculation
+                self._U,self._S,self._Vt=np.linalg.svd(X) #Full calculation
             
             self._VtCSA=np.diag(1/self._S)@(self._U.T@(self.sens._rho_effCSA[0].T*self.sens.norm).T)
             

@@ -483,6 +483,7 @@ class Chimera():
                 self._CMXids[value]=self.CMX.launch()
                 if self.CMX.isConnected(self._CMXids[value]):
                     self._current[0]=value
+            self._current[0]=value
             return
         super().__setattr__(name,value)
     
@@ -566,6 +567,7 @@ class Chimera():
                 cmd=input('ChimeraX>')
                 if cmd.strip()=='exit':break
                 self.CMX.send_command(CMXid,cmd)
+                
     def close(self,ID:int=None) -> None:
         """
         Closes all models in the current or specified chimeraX session.

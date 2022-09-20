@@ -21,9 +21,9 @@ import numpy as np
 from pyDR.Sens.Info import Info
 from pyDR.misc.disp_tools import set_plot_attr,NiceStr
 import matplotlib.pyplot as plt
-from matplotlib import ticker
+# from matplotlib import ticker
 from copy import deepcopy,copy
-from pyDR import Defaults
+from pyDR import Defaults,clsDict
 zrange=Defaults['zrange'] #Program defaults for correlation times
 # from pyDR._Data._Data import write_file
 
@@ -97,6 +97,17 @@ class Sens():
     
     # def save(self,filename,overwrite=False):
     #     write_file(filename,self,overwrite)
+    
+    def Detector(self):
+        """
+        Returns a detector created from the sensitivity object
+
+        Returns
+        -------
+        pyDR.Sens.Detector
+
+        """
+        return clsDict['Detector'](self)
     
     @property
     def norm(self):

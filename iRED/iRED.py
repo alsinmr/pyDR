@@ -768,7 +768,6 @@ class Data_iRED(Data):
         #TODO add some options for including the sign of the correlation (??)
         R=np.abs(getattr(self,'CCnorm' if norm else 'CC')[:,index][:,:,index].T)
         R *= 1/R.T[rho_index].max() if scaling is None else scaling
-        
         R[R < 0] = 0
 
         if self.source.project is not None:
@@ -800,7 +799,6 @@ class Data_iRED(Data):
         CMXRemote.send_command(ID,'show sel')
         CMXRemote.send_command(ID,'color sel tan')
         CMXRemote.send_command(ID,'~sel')
-
 
         out=dict(R=R,rho_index=rho_index,ids=ids)
         # CMXRemote.remove_event(ID,'Detectors')
