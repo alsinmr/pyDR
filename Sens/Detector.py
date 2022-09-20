@@ -467,16 +467,17 @@ class Detector(Sens.Sens):
         self.opt_pars['options'].append('inclS2')
         
         norm=Normalization if Normalization is not None else self.opt_pars['Normalization']
-        if norm is not None:
-            self.ApplyNorm(norm)
-            self.opt_pars['Normalization']=norm.upper()
+        if norm is None:norm='MP'
+        # if norm is not None:
+        #     self.ApplyNorm(norm)
+        #     self.opt_pars['Normalization']=norm.upper()
 
         if norm.lower()=='mp' or norm.lower()=='i':
             wt=linprog(-(self.rhoz.sum(axis=1)).T,self.rhoz.T,np.ones(self.rhoz.shape[1]),\
                         bounds=(-500,500),method='interior-point',options={'disp' :False,})['x']
             rhoz0=[1-(self.rhoz.T@wt).T]
             rhoz0CSA=[1-(self._rhozCSA.T@wt).T]
-            sc=np.atleast_1d(rhoz0[0].max()) if norm.lower()=='mp' else rhoz0[0].sum()*(self.z[1]-self.z[0])
+            sc=np.atleast_1d(rhoz0[0].max() if norm.lower()=='mp' else rhoz0[0].sum()*(self.z[1]-self.z[0]))
             self._Sens__rho=np.concatenate((rhoz0/sc,self.rhoz))
             self._Sens__rhoCSA=np.concatenate((rhoz0CSA/sc,self._rhozCSA))
             mat1=np.concatenate((np.zeros([self.__r.shape[0],1]),self.__r),axis=1)
@@ -487,7 +488,7 @@ class Detector(Sens.Sens):
                          np.concatenate((np.zeros([self.__r.shape[0],1]),self.__r),axis=1),\
                                np.ones([1,self.__r.shape[1]+1])),axis=0)
             self._Sens__rho=np.concatenate(([1-self._Sens__rho.sum(0)],self._Sens__rho),axis=0)
-            self._Sens__rhoCDA=np.concatenate(([1-self._Sens__rhoCSA.sum(0)],self._Sens__rhoCSA),axis=0)
+            self._Sens__rhoCSA=np.concatenate(([1-self._Sens__rhoCSA.sum(0)],self._Sens__rhoCSA),axis=0)
         else:
             assert 0,"Unknown normalization (use 'M','MP', or 'I')"
             
@@ -504,6 +505,7 @@ class Detector(Sens.Sens):
             print('S2 not included')
             return
         self._Sens__rho=self.rhoz[1:]
+        self._Sens__rhoCSA=self._Sens__rhoCSA[1:]
         self.__r=self.r[:-1,1:]
         self.opt_pars['options'].remove('inclS2')
     
