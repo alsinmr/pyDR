@@ -15,7 +15,7 @@ def fit0(X):
     Used for parallel fitting of data. Single argument in the input should
     include data, the r matrix, and the upper and lower bounds
     """
-    if X[2] is None or True:
+    if X[2] is None:
         pinv=PINV(X[0])   #Simple pinv fit if no bounds required
         rho=pinv@X[1]
         Rc=X[0]@rho
