@@ -362,6 +362,8 @@ class DetectMngr():
         self.unify_detect(chk_sens_only=True)
         for r in self:r.r_auto(n,Normalization=Normalization,NegAllow=NegAllow)
         
+        return self
+        
     def r_target(self,target:np.ndarray,n:int=None) -> None:
         """
         Optimizes detector sensitivities to some target function for all data
@@ -386,6 +388,8 @@ class DetectMngr():
         """
         self.unify_detect(chk_sens_only=True)
         for r in self:r.r_target(target,n=n)
+        
+        return self
     
     def inclS2(self):
         """
@@ -414,6 +418,8 @@ class DetectMngr():
         """
         self.unify_detect(chk_sens_only=True)
         for r in self:r.r_no_opt(n)
+        
+        return self
     
     def r_zmax(self,zmax,Normalization:str='MP',NegAllow:bool=False) -> None:
         """
@@ -441,6 +447,8 @@ class DetectMngr():
         """
         self.unify_detect(chk_sens_only=True)
         for r in self:r.r_zmax(zmax,Normalization=Normalization,NegAllow=NegAllow)
+        
+        return self
 
 
 #%% ChimeraX Manager

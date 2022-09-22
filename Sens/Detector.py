@@ -238,6 +238,8 @@ class Detector(Sens.Sens):
         if NegAllow:self.allowNeg()
         
         if Normalization:self.ApplyNorm(Normalization)
+        
+        return self
     
     def r_no_opt(self,n):
         """
@@ -250,6 +252,8 @@ class Detector(Sens.Sens):
         self.T=np.eye(n) #No optimization
         self.opt_pars={'n':n,'Type':'no_opt','Normalization':None,'NegAllow':False,'options':[]}
         self.update_det() ##Re-calculate detectors based on the new T matrix
+        
+        return self
         
     
     def r_target(self,target,n=None,Normalization=None):
@@ -285,6 +289,8 @@ class Detector(Sens.Sens):
         self.opt_pars={'n':n,'Type':'target','Normalization':None,'NegAllow':False,'options':[]}
         self.update_det()    #Re-calculate detectors based on the new T matrix
         if Normalization:self.ApplyNorm(Normalization)
+        
+        return self
     
     def r_auto(self,n,Normalization='MP',NegAllow=False, mode=None):
         """
@@ -317,6 +323,7 @@ class Detector(Sens.Sens):
                 x = np.ones(n)
             return x
         """
+        
         
         def true_range(k,untried):
             "Find the range around k in untried where all values are True"
@@ -424,6 +431,8 @@ class Detector(Sens.Sens):
 
         if NegAllow:self.allowNeg()
         if Normalization:self.ApplyNorm(Normalization)
+        
+        return self
         
     def allowNeg(self):
         """

@@ -83,7 +83,7 @@ def read_INFO(f):
     pars=dict()
     for line in f:
         if line.strip()=='END':break
-        key,*values=line.strip().split('\t')
+        key,*values=line.strip().split()
         out=list()
         for v in values:
             if ',' in v:
