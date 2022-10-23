@@ -287,7 +287,7 @@ class Trajectory():
             
             def iterate():
                 for k in range(start,stop,step):
-                    if self.ProgressBar:ProgressBar((k+1-start)*step,stop-step,'Loading:','',0,40)
+                    if self.ProgressBar:ProgressBar((k+1-start),stop-start,'Loading:','',0,40)
                     yield self[k]
             return iterate()
         elif hasattr(index,'__iter__'):
@@ -527,6 +527,9 @@ class MolSelect():
         elif hasattr(Nuc,'lower') and Nuc.lower()=='cacb':
             for s in self.sel1:
                 repr_sel.append(s.residues[0].atoms.select_atoms('name N CA C CB'))
+        elif hasattr(Nuc,'lower') and Nuc.lower()=='sidechain':
+            for s in self.sel1:
+                repr_sel.append(s.residues[0].atoms.select_atoms('not name N O H HN C'))
         else:
             for s1,s2 in zip(self.sel1,self.sel2):
                 repr_sel.append(s1+s2)
@@ -796,7 +799,7 @@ class MolSelect():
         in21=self.compare(sel,mode='auto')[1]
         return len(in21)==len(self) and np.all(in21==np.sort(in21))
 
-    def chimera(self,color:tuple=(1.,0.,0.,1.),x=None,norm:bool=False,repr_sel=False):
+    def chimera(self,color:tuple=(1.,0.,0.,1.),x=None,index=None,norm:bool=False):
         """
         Opens the molecule in chimera. One may either highlight the selection
         (optionally provide color) or one may plot some data onto the molecule,
@@ -810,6 +813,10 @@ class MolSelect():
             Parameter to encode onto the molecule. Length should match the length
             of the selection object. Typically, x is normalized to a maximum
             of 1, although this is not requred. The default is None.
+        index : list-like, optional
+            Select which elements of selection on which to plot data. Should
+            have the same length as x.
+            The default is None.
         norm : bool, optional
             Determine whether to renormalize x, such that it spans from 0 to 1.
 
@@ -842,6 +849,8 @@ class MolSelect():
         CMXRemote.send_command(ID,'color sel tan')
         CMXRemote.send_command(ID,'~sel')
         
+        if index is None:index=np.arange(len(self))
+        
         if np.max(color)>1:color=[float(c/255) for c in color]
         
         if self.project is not None and self.project.chimera.saved_commands is not None:
@@ -849,18 +858,18 @@ class MolSelect():
                 CMXRemote.send_command(ID,cmd)
         
         if self.sel1 is not None:
-            ids=np.concatenate([s.indices for s in self.repr_sel],dtype=int)
+            ids=np.concatenate([s.indices for s in self.repr_sel[index]],dtype=int)
         
         if x is None:
             CMXRemote.show_sel(ID,ids=ids,color=color)
         else:
-            assert len(x)==len(self),'Length of x must match the length of the selection'
+            assert len(x)==len(self.sel1[index]),'Length of x must match the length of the selection'
             x=np.array(x)
             if x.ndim==1:x=np.atleast_2d(x).T
             if norm:
                 x-=x.min()
                 x/=x.max()
-            ids=np.array([s.indices for s in self.repr_sel],dtype=object)
+            ids=np.array([s.indices for s in self.repr_sel[index]],dtype=object)
             out=dict(R=np.abs(x),rho_index=np.arange(x.shape[1]),ids=ids,color=[int(c*255) for c in color])
             CMXRemote.add_event(ID,'Detectors',out)
 

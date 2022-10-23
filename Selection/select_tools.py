@@ -264,6 +264,31 @@ def protein_defaults(Nuc:str,mol,resids:list=None,segids:list=None,filter_str:st
     elif Nuc.lower()=='cacb':
         sel1=sel0.select_atoms('name CA and around 1.7 name CB')
         sel2=sel0.select_atoms('name CB and around 1.7 name CA')
+    elif Nuc.lower()=='sidechain':
+        sel1=sel0.select_atoms('resname GLY ALA and name HA1 CB')+\
+            sel0.select_atoms('resname PHE TYR and name CZ')+\
+            sel0.select_atoms('resname HSD HIS and name NE2')+\
+            sel0.select_atoms('resname TRP and name CZ2')+\
+            sel0.select_atoms('resname CYS and name SG')+\
+            sel0.select_atoms('resname PRO ILE LEU and name CD CD1')+\
+            sel0.select_atoms('resname MET GLN and name CE NE2')+\
+            sel0.select_atoms('resname GLU and name OE1')+\
+            sel0.select_atoms('resname SER SERO and name OG')+\
+            sel0.select_atoms('resname ASN THR and name ND ND2')+\
+            sel0.select_atoms('resname ARG and name NH1')+\
+            sel0.select_atoms('resname LYS and name NZ')+\
+            sel0.select_atoms('resname ASP and name OD1')+\
+            sel0.select_atoms('resname VAL and name CG1')+\
+            sel0.select_atoms('resname THR and name CG2')
+            
+        sel1=sel1[np.argsort(sel1.resids)]
+        sel2=sel0.select_atoms('resname GLY ALA and name CA')+sel0.select_atoms('not resname GLY ALA and name CB')
+        sel2=sel2[np.argsort(sel2.resids)]
+        
+        i=np.isin(sel2.resids,sel1.resids)
+        sel2=sel2[i]
+        i=np.isin(sel1.resids,sel2.resids)
+        sel1=sel1[i]
     elif Nuc[:3].lower()=='ivl' or Nuc[:3].lower()=='ch3':
         if Nuc[:4].lower()=='ivla':
             fs0='resname ILE Ile ile VAL val Val LEU Leu leu ALA Ala ala'

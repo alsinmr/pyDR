@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 # from matplotlib import ticker
 from copy import deepcopy,copy
 from pyDR import Defaults,clsDict
-zrange=Defaults['zrange'] #Program defaults for correlation times
+
 # from pyDR._Data._Data import write_file
 
 class Sens():
@@ -39,7 +39,7 @@ class Sens():
             N: Provide the full axis
         
         """
-
+        zrange=Defaults['zrange'] #Program defaults for correlation times
         if tc is not None:
             if len(tc)==2:
                 self.__z=np.linspace(np.log10(tc[0]),np.log10(tc[1]),zrange[2])

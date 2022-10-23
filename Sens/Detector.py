@@ -5,18 +5,24 @@ Created on Sat Nov 13 15:32:58 2021
 
 @author: albertsmith
 """
-import warnings
 
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import ticker
 from pyDR.misc.disp_tools import set_plot_attr,NiceStr
+from pyDR.misc import ProgressBar
 from pyDR import Sens
 from scipy.sparse.linalg import eigs
 from scipy.optimize import lsq_linear as lsqlin
 from scipy.optimize import linprog
 from pyDR.misc.tools import linear_ex
 from copy import copy
+
+import warnings
+from scipy.linalg import LinAlgWarning
+from scipy.optimize import OptimizeWarning
+warnings.filterwarnings(action='ignore', category=LinAlgWarning)
+warnings.filterwarnings(action='ignore', category=OptimizeWarning)
 
 class Detector(Sens.Sens):
     def __init__(self,sens):
@@ -355,8 +361,10 @@ class Detector(Sens.Sens):
                 rhoz0=(self.SVD.Vt.T@x).T
                 maxi=np.argmax(np.abs(rhoz0))
                 error[k]=np.abs(k-maxi)
-                if k<=maxi:untried[k:maxi+1]=False  #Update the untried index
-                else:untried[maxi:k+1]=False
+                if k<=maxi:
+                    untried[k:maxi+1]=False  #Update the untried index
+                else:
+                    untried[maxi:k+1]=False
                 test=maxi
             
             if (k<=left or k>=right-1) and not(endpoints):
@@ -382,6 +390,22 @@ class Detector(Sens.Sens):
                     break
             return biggest
         
+        def sweep(error):
+            print('Standard optimization failed: ')
+            rhoz=list()
+            X=list()
+            for k in range(len(self.z)):
+                ProgressBar(k+1,ntc,'Optimizing:','',0,40)
+                x=self.opt_z(n=n,index=k)
+                rhoz0=(self.SVD.Vt.T@x).T
+                maxi=np.argmax(np.abs(rhoz0))
+                error[k]=np.abs(k-maxi)
+                X.append(x)
+                rhoz.append(rhoz0)
+            
+            index=np.argsort(error)[:n]
+            return index,[X[i] for i in index]
+            
         #Locate where the Vt are sufficiently large for maxima
         i0=np.nonzero(np.any(np.abs(Vt.T)>(np.abs(Vt).max(1)*.75),1))[0]
         ntc=self.z.size
@@ -394,36 +418,38 @@ class Detector(Sens.Sens):
         X=list()        #Columns of the T-matrix
         err=np.ones(ntc,dtype=int)*ntc #Keep track of error at all time points tried
             
-        "Locate the left-most detector"
-        if untried[0]:
-            rhoz0,x,k=find_nearest(Vt,0,untried,error=err,endpoints=True)
-            rhoz.append(rhoz0)
-            X.append(x)
-            index.append(k)
-            count+=1
-        "Locate the right-most detector"
-        if untried[-1] and n>1:
-            rhoz0,x,k=find_nearest(Vt,ntc-1,untried,error=err,endpoints=True)
-            rhoz.append(rhoz0)
-            X.append(x)
-            index.append(k)
-            count+=1
-        "Locate remaining detectors"
-        while count<n:  
-            "Look in the middle of the first untried range"
-            k=biggest_gap(untried)
-            out=find_nearest(Vt,k,untried,error=err)  #Try to find detectors
-            if out: #Store if succesful
-                rhoz.append(out[0])
-                X.append(out[1])
-                index.append(out[2])
-#                untried[out[2]-1:out[2]+2]=False #No neighboring detectors
+        try:
+            "Locate the left-most detector"
+            if untried[0]:
+                rhoz0,x,k=find_nearest(Vt,0,untried,error=err,endpoints=True)
+                rhoz.append(rhoz0)
+                X.append(x)
+                index.append(k)
                 count+=1
-        
+            "Locate the right-most detector"
+            if untried[-1] and n>1:
+                rhoz0,x,k=find_nearest(Vt,ntc-1,untried,error=err,endpoints=True)
+                rhoz.append(rhoz0)
+                X.append(x)
+                index.append(k)
+                count+=1
+            "Locate remaining detectors"
+            while count<n:  
+                "Look in the middle of the first untried range"
+                k=biggest_gap(untried)
+                out=find_nearest(Vt,k,untried,error=err)  #Try to find detectors
+                if out: #Store if succesful
+                    rhoz.append(out[0])
+                    X.append(out[1])
+                    index.append(out[2])
+    #                untried[out[2]-1:out[2]+2]=False #No neighboring detectors
+                    count+=1
+        except:
+            index,X=sweep(err)
         
         i=np.argsort(index).astype(int)
 #        pks=np.array(index)[i]
-        rhoz=np.array(rhoz)[i]
+        # rhoz=np.array(rhoz)[i]
         self.T=np.array(X)[i]    
         self.opt_pars={'n':n,'Type':'auto','Normalization':None,'NegAllow':False,'options':[]}
         self.update_det()
@@ -507,6 +533,8 @@ class Detector(Sens.Sens):
         ne=len(self.info)
         self.info._Info__values=self.info._Info__values.T[np.concatenate(([-1],np.arange(ne-1)))].T
     
+        return self
+    
     def removeS2(self):
         if self._islocked:return
         
@@ -517,6 +545,8 @@ class Detector(Sens.Sens):
         self._Sens__rhoCSA=self._Sens__rhoCSA[1:]
         self.__r=self.r[:-1,1:]
         self.opt_pars['options'].remove('inclS2')
+        
+        return self
     
     def R2ex(self):
         pass

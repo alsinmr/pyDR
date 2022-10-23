@@ -734,7 +734,7 @@ class Data_iRED(Data):
                 
         return ax
         
-    def CCchimera(self,index=None,rho_index:int=None,scaling:float=None,norm=True) -> None:
+    def CCchimera(self,index=None,rho_index:int=None,indexCC:int=None,scaling:float=None,norm:bool=True) -> None:
         """
         Plots the cross correlation of motion for a given detector window in 
         chimera. 
@@ -744,12 +744,19 @@ class Data_iRED(Data):
         index : list-like, optional
             Select which residues to plot. The default is None.
         rho_index : int, optional
-            Select which detector to initiall show. The default is None.
-            NOT IMPLEMENTED
+            Select which detector to initially show. The default is None.
+        indexCC : int,optional
+            Select which row of the CC matrix to show. Must be used in combination
+            with rho_index. Note that if index is also used, indexCC is applied
+            AFTER index.
         scaling : float, optional
             Scale the display size of the detectors. If not provided, a scaling
             will be automatically selected based on the size of the detectors.
             The default is None.
+        norm : bool, optional
+            Normalizes the data to the amplitude of the corresponding detector
+            responses (makes diagonal of CC matrix equal to 1).
+            The default is True
 
         Returns
         -------
@@ -768,7 +775,7 @@ class Data_iRED(Data):
         #TODO add some options for including the sign of the correlation (??)
         R=np.abs(getattr(self,'CCnorm' if norm else 'CC')[:,index][:,:,index].T)
         R *= 1/R.T[rho_index].max() if scaling is None else scaling
-        R[R < 0] = 0
+        # R[R < 0] = 0 
 
         if self.source.project is not None:
             ID=self.source.project.chimera.CMXid
@@ -786,26 +793,36 @@ class Data_iRED(Data):
 
 
         # CMXRemote.send_command(ID,'close')
-        CMXRemote.send_command(ID,'open "{0}"  maxModels 1'.format(self.select.molsys.topo))
-        mn=CMXRemote.valid_models(ID)[-1]
-        CMXRemote.command_line(ID,'sel #{0}'.format(mn))
 
 
-        CMXRemote.send_command(ID,'set bgColor gray')
-        CMXRemote.send_command(ID,'style sel ball')
-        CMXRemote.send_command(ID,'size sel stickRadius 0.2')
-        CMXRemote.send_command(ID,'size sel atomRadius 0.8')
-        CMXRemote.send_command(ID,'~ribbon')
-        CMXRemote.send_command(ID,'show sel')
-        CMXRemote.send_command(ID,'color sel tan')
-        CMXRemote.send_command(ID,'~sel')
-
-        out=dict(R=R,rho_index=rho_index,ids=ids)
-        # CMXRemote.remove_event(ID,'Detectors')
-        CMXRemote.add_event(ID,'DetCC',out)
         
-        if self.source.project is not None:
-            self.source.project.chimera.command_line(self.source.project.chimera.saved_commands)
+        if len(rho_index)==1 and indexCC is not None:
+            x=R[indexCC][:,rho_index].squeeze()
+            self.select.chimera(color=plt.get_cmap('tab10')(rho_index[0]),x=x,index=index)
+            sel0=self.select.repr_sel[index][indexCC]
+            mn=CMXRemote.valid_models(ID)[-1]
+            CMXRemote.send_command(ID,'color '+'|'.join(['#{0}/{1}:{2}@{3}'.format(mn,s.segid,s.resid,s.name) for s in sel0])+' black')
+            return sel0
+        else:
+            CMXRemote.send_command(ID,'open "{0}"  maxModels 1'.format(self.select.molsys.topo))
+            mn=CMXRemote.valid_models(ID)[-1]
+            CMXRemote.command_line(ID,'sel #{0}'.format(mn))
+
+
+            CMXRemote.send_command(ID,'set bgColor gray')
+            CMXRemote.send_command(ID,'style sel ball')
+            CMXRemote.send_command(ID,'size sel stickRadius 0.2')
+            CMXRemote.send_command(ID,'size sel atomRadius 0.8')
+            CMXRemote.send_command(ID,'~ribbon')
+            CMXRemote.send_command(ID,'show sel')
+            CMXRemote.send_command(ID,'color sel tan')
+            CMXRemote.send_command(ID,'~sel')
+            
+            out=dict(R=R,rho_index=rho_index,ids=ids)
+            CMXRemote.add_event(ID,'DetCC',out)
+        
+            if self.source.project is not None:
+                self.source.project.chimera.command_line(self.source.project.chimera.saved_commands)
         
                 
         
