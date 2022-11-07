@@ -133,7 +133,7 @@ def avg2sel(data:Data,sel:MolSelect) -> Data:
     
     return out
         
-            
+
 def avgData(data:Data,index:list,wt:list=None)->Data:
     """
     Averages data points in a data object together according to an index.
@@ -149,14 +149,21 @@ def avgData(data:Data,index:list,wt:list=None)->Data:
         an MD trajectory, which does not have ambiguity in its assignment)
     
     index : list/np.ndarray
-        List of indices to define which data points to average together. Should
-        be the same length as the original data object, where the returned data
-        will have length equal to the number of uniqe values in index.
+        List of indices to define which data points to average together. 
+        Option 1) Should be the same length as the original data object, 
+        where the returned data will have length equal to the number of unique 
+        values in index.
+        Option 2) Should be a list of lists, where the length of the outer list
+        is the length of the resulting data object and each inner list specifies
+        which elements to average together.
+                                             
         
     wt : list
-        List of weightings for each unique element in index. For example, if
-        index=[0,0,0,0,1,1,2], uniform weighting is given by
+        List of weightings for elements in index. For option 1), weight should
+        have the same length as the number of unique elements in index. For 
+        example, if index=[0,0,0,0,1,1,2], uniform weighting is given by
         wt=[[0.25,0.25,0.25,0.25],[0.5,0.5],[1]]
+        Otherwise, weighting should be a list of lists the same length as 
         Note that uniform weighting is implemented by default
         Default is None
     
@@ -167,11 +174,30 @@ def avgData(data:Data,index:list,wt:list=None)->Data:
 
     """
     
+    if not(np.any([hasattr(i,'__len__') for i in index])) and len(index)==len(data):
+        i0=list()
+        for k,i in np.unique(index):
+            i0.append(np.argwhere(i==index)[:,0])
+        index=i0
+            
+
     if str(data.__class__)==str(clsDict['Project']):
         return [avgData(d,index=index,wt=wt) for d in data]
-        
     
-    out=clsDict['Data'](sens=data.sens) #Create output data with sensitivity as input detectors
+    
+    index=[i if hasattr(i,'__len__') else [i] for i in index]  #Make sure all elements of index are lists
+    assert np.all(np.isin(np.concatenate(index),range(len(data)))),"Values in index must all be less than len(data)"
+    
+    #Set up weight if not provided (verify its validity)
+    if wt is None:
+        wt=[np.ones(len(i))/len(i) for i in index]
+    else:
+        assert len(wt)==len(index),"index and wt need to have the same length"
+        wt=[wt0 if hasattr(wt0,'__len__') else [wt0] for wt0 in wt]  #Ensure list of lists
+        wt=[wt0/sum(wt0) for wt0 in wt] #Ensure normalization
+    
+    #Create the output dta
+    out=data.__class__(sens=data.sens) #Create output data with sensitivity as input detectors
     out.detect=data.detect
     out.source=copy(data.source)
     out.src_data=None   #We get some values from data for source, but it is not "fit"  data in the usual sense
@@ -181,24 +207,8 @@ def avgData(data:Data,index:list,wt:list=None)->Data:
     else:
         out.source.additional_info='Avg_'+out.source.additional_info
 
-    n=np.unique(index).size
+    n=len(index)
     
-    index=np.array(index)
-    
-    #Setup or check the weighting
-    if wt is None:
-        wt=list()
-        for i in np.unique(index):
-            ni=(index==i).sum()
-            wt.append(np.repeat([1/ni],ni))
-    else:
-        for k,(i,wt0) in enumerate(zip(np.unique(index),wt)):
-            ni=(index==i).sum()
-            assert len(wt0)==0,'The number of weights provided for index {0} did not match the number of occurences of index {0}'.format(k)
-            wt[k]=np.array(wt0)/np.sum(wt0) #Normalize weighting
-            
-            
-            
     #Pre-allocate the data storage
     flds=['R','Rstd','S2','S2std','label']
     for f in flds:
@@ -209,45 +219,177 @@ def avgData(data:Data,index:list,wt:list=None)->Data:
                 setattr(out,f,np.zeros([n,nd],dtype=dtype))
             else:
                 setattr(out,f,np.zeros(n,dtype=dtype))
-    
-    sel1=list() #Storage for the new selection
+
+
+
+
+    sel1=list()
     sel2=list()
-    for k,(i,wt0) in enumerate(zip(np.unique(index),wt)):
-        for f in flds[:-1]:
+    for k,(i,wt0) in enumerate(zip(index,wt)):  #Sweep over the values in index, weight
+        for f in flds[:-1]:  #Sweep over fields
             if hasattr(data,f) and getattr(data,f) is not None:
-                getattr(out,f)[k]=(getattr(data,f)[index==i].T*wt0).sum(-1)
+                getattr(out,f)[k]=(getattr(data,f)[i].T*wt0).sum(-1)
         
-        ids=np.argwhere(i==index)[:,0]
-        label=data.label[ids[0]]
-        for q in ids[1:]:
+        #Append to the selection
+        if data.select is not None:
+            sel1.append(sum(data.select.sel1[i]))
+            sel2.append(sum(data.select.sel2[i]))
+            
+
+        label=data.label[i[0]]
+        for q in i[1:]:
             match=SequenceMatcher(a=label,b=data.label[q]).find_longest_match(0,len(label),0,len(data.label[q]))
             label=label[match.a:match.a+match.size]
             
-        out.label[k]=label if len(label) else data.label[ids[0]]    
-        
-        if data.select is not None:
-            s1,s2=data.select.uni.atoms[:0],data.select.uni.atoms[:0] #Empty atom groups
-            for q in ids:
-                s1+=data.select.sel1[q]
-                s2+=data.select.sel2[q]
-            sel1.append(s1)
-            sel2.append(s2)
-    
+        out.label[k]=label if len(label) else data.label[i[0]]  
+            
     if data.select is not None:
         out.select.sel1=sel1
         out.select.sel2=sel2
     
-    
     if np.all([l[0]=='_' for l in out.label]):
-        out.label=np.array([l[1:] for l in out.label],dtype=out.label.dtype)
-    
+        out.label=np.array([l[1:] for l in out.label],dtype=out.label.dtype)            
+        
     out.details=data.details.copy()
     out.details.append('Data was averaged using an index')
-    out.details.append('index=('+', '.join(str(i) for i in index)+')')
+    string='index=('
+    for i in index:
+        if hasattr(i,'__len__'):
+            string+='('+','.join([str(i0) for i0 in i])+'),'
+        else:
+            string+=str(i)
+    string=string[:-1]+')'
+    out.details.append(string)
     
     if data.source.project is not None:data.source.project.append_data(out)
     
     return out
+
+
+
+# def avgData2(data:Data,index:list,wt:list=None)->Data:
+#     """
+#     Averages data points in a data object together according to an index.
+    
+#     One may instead provide a project, in which case the operation is performed 
+#     on all data in that project (returns None, but appends results to project)
+
+#     Parameters
+#     ----------
+#     data : pyDR.Data
+#         Data object to be averaged. Must have its selection specified. We assume
+#         that this selection consists of single bonds (usually we're averaging 
+#         an MD trajectory, which does not have ambiguity in its assignment)
+    
+#     index : list/np.ndarray
+#         List of indices to define which data points to average together. 
+#         Option 1) Should be the same length as the original data object, 
+#         where the returned data will have length equal to the number of unique 
+#         values in index.
+#         Option 2) Should be a list of lists, where the length of the outer list
+#         is the length of the resulting data object and each inner list specifies
+#         which elements to average together.
+                                             
+        
+#     wt : list
+#         List of weightings for each unique element in index. For example, if
+#         index=[0,0,0,0,1,1,2], uniform weighting is given by
+#         wt=[[0.25,0.25,0.25,0.25],[0.5,0.5],[1]]
+#         Note that uniform weighting is implemented by default
+#         Default is None
+    
+#     Returns
+#     -------
+#     pyDR.Data
+#         Averaged data object.
+
+#     """
+    
+#     if str(data.__class__)==str(clsDict['Project']):
+#         return [avgData2(d,index=index,wt=wt) for d in data]
+        
+    
+#     out=data.__class__(sens=data.sens) #Create output data with sensitivity as input detectors
+#     out.detect=data.detect
+#     out.source=copy(data.source)
+#     out.src_data=None   #We get some values from data for source, but it is not "fit"  data in the usual sense
+#     out.select=clsDict['MolSelect'](data.select.molsys) if data.select is not None else None
+#     if out.source.additional_info is None:
+#         out.source.additional_info='Avg' 
+#     else:
+#         out.source.additional_info='Avg_'+out.source.additional_info
+
+#     n=np.unique(index).size
+    
+#     index=np.array(index)
+    
+#     #Setup or check the weighting
+#     if wt is None:
+#         wt=list()
+#         for i in np.unique(index):
+#             ni=(index==i).sum()
+#             wt.append(np.repeat([1/ni],ni))
+#     else:
+#         for k,(i,wt0) in enumerate(zip(np.unique(index),wt)):
+#             ni=(index==i).sum()
+#             assert len(wt0)==0,'The number of weights provided for index {0} did not match the number of occurences of index {0}'.format(k)
+#             wt[k]=np.array(wt0)/np.sum(wt0) #Normalize weighting
+            
+            
+            
+#     #Pre-allocate the data storage
+#     flds=['R','Rstd','S2','S2std','label']
+#     for f in flds:
+#         if hasattr(data,f) and getattr(data,f) is not None:
+#             dtype=getattr(data,f).dtype
+#             if getattr(data,f).ndim==2:
+#                 nd=getattr(data,f).shape[1]
+#                 setattr(out,f,np.zeros([n,nd],dtype=dtype))
+#             else:
+#                 setattr(out,f,np.zeros(n,dtype=dtype))
+    
+    
+
+
+        
+#     sel1=list() #Storage for the new selection
+#     sel2=list()
+#     for k,(i,wt0) in enumerate(zip(np.unique(index),wt)):
+#         for f in flds[:-1]:
+#             if hasattr(data,f) and getattr(data,f) is not None:
+#                 getattr(out,f)[k]=(getattr(data,f)[index==i].T*wt0).sum(-1)
+        
+#         ids=np.argwhere(i==index)[:,0]
+#         label=data.label[ids[0]]
+#         for q in ids[1:]:
+#             match=SequenceMatcher(a=label,b=data.label[q]).find_longest_match(0,len(label),0,len(data.label[q]))
+#             label=label[match.a:match.a+match.size]
+            
+#         out.label[k]=label if len(label) else data.label[ids[0]]    
+        
+#         if data.select is not None:
+#             s1,s2=data.select.uni.atoms[:0],data.select.uni.atoms[:0] #Empty atom groups
+#             for q in ids:
+#                 s1+=data.select.sel1[q]
+#                 s2+=data.select.sel2[q]
+#             sel1.append(s1)
+#             sel2.append(s2)
+    
+#     if data.select is not None:
+#         out.select.sel1=sel1
+#         out.select.sel2=sel2
+    
+    
+#     if np.all([l[0]=='_' for l in out.label]):
+#         out.label=np.array([l[1:] for l in out.label],dtype=out.label.dtype)
+    
+#     out.details=data.details.copy()
+#     out.details.append('Data was averaged using an index')
+#     out.details.append('index=('+', '.join(str(i) for i in index)+')')
+    
+#     if data.source.project is not None:data.source.project.append_data(out)
+    
+#     return out
     
         
 def avgMethyl(data:Data) -> None:

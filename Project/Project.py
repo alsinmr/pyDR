@@ -1017,6 +1017,7 @@ class Project():
     def __or__(self,obj):    
         proj=copy(self)
         proj._subproject=True
+        proj._parent=self._parent if self._subproject else self
         proj.chimera=copy(self.chimera)
         proj.chimera.project=proj
         
@@ -1041,6 +1042,7 @@ class Project():
     def __sub__(self,obj):
         proj=copy(self)
         proj._subproject=True
+        proj._parent=self._parent if self._subproject else self
         proj.chimera=copy(self.chimera)
         proj.chimera.project=proj
         
@@ -1065,6 +1067,7 @@ class Project():
     def __and__(self,obj):
         proj=copy(self)
         proj._subproject=True
+        proj._parent=self._parent if self._subproject else self
         proj.chimera=copy(self.chimera)
         proj.chimera.project=proj
         

@@ -318,6 +318,7 @@ class Data():
             return obj+self
         proj=copy(self.source.project)
         proj._subproject=True
+        proj._parent=self.source.project
         proj._index=np.array([],dtype=int)  #Make an empty subproject
         proj=proj+obj           #
         return proj+self
