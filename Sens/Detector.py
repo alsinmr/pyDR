@@ -722,6 +722,19 @@ class SVD():
             else:
                 self._U,self._S,self._Vt=np.linalg.svd(X) #Full calculation
             
+            #Below returns the sign of the first time each V exceeds 
+            sign=[np.sign(V[np.argwhere(np.abs(V)>np.abs(V).max()*0.5)[0,0]]) for V in self._Vt]
+            #By default, the SVD (or eigs) does not return vectors with consistent signs
+            #It's basically random. This wastes a lot of time for us, since we
+            #can't average together data using r_no_opt. Furthermore, we can't
+            #use the same optimization of detectors resulting from different runs
+            #of r_no_opt. So, we come up with some means of always having the same
+            #sign. It does not matter what it is, as long as it's consistent. Then,
+            #we say that the first time the abs(Vt) exceeds half the max(abs(Vt)),
+            #the sign of Vt should always be positive.
+            self._Vt=(self._Vt.T/sign).T
+            self._U/=sign
+            
             self._VtCSA=np.diag(1/self._S)@(self._U.T@(self.sens._rho_effCSA[0].T*self.sens.norm).T)
             
             self._sens_hash=self.sens._hash     #Store the current hash value of the sensitivity

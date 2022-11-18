@@ -66,7 +66,7 @@ class Data():
     @property
     def Rc(self):
         if self._Rc is None and hasattr(self.sens,'opt_pars') and 'n' in self.sens.opt_pars:
-            print("Don't forget to check that this returns the right results")
+            # print("Don't forget to check that this returns the right results")
             #TODO check that this calculation is correct
             self.sens.reload()
             Rc=(self.sens.r@self.R.T).T

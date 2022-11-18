@@ -863,6 +863,8 @@ class Project():
         # assert not(self._subproject),"Data cannot be removed from subprojects"
         
         if not(hasattr(index,'__len__')):index=[index]
+        index=np.array(index,dtype=int)
+        assert np.all(index<len(self)),'index must be less than len(proj)'
         
         if self._subproject:
             i=[self.parent_index[i] for i in index]
@@ -872,7 +874,7 @@ class Project():
                 self._index=self._index[self._index!=i]
                 self._index[self._index>i]-=1
         else:
-            
+            index=np.mod(index,len(self))
             index=np.sort([self._index[i] for i in index])[::-1] #Convert to data index
             
             # proj=self[index]

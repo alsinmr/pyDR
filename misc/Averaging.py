@@ -232,16 +232,24 @@ def avgData(data:Data,index:list,wt:list=None)->Data:
         
         #Append to the selection
         if data.select is not None:
-            sel1.append(sum(data.select.sel1[i]))
-            sel2.append(sum(data.select.sel2[i]))
+            if len(i):
+                sel1.append(sum(data.select.sel1[i]))
+                sel2.append(sum(data.select.sel2[i]))
+            else:
+                sel1.append(data.select.molsys.uni.atoms[:0]) #Empty atom groups
+                sel2.append(data.select.molsys.uni.atoms[:0])
             
 
-        label=data.label[i[0]]
-        for q in i[1:]:
-            match=SequenceMatcher(a=label,b=data.label[q]).find_longest_match(0,len(label),0,len(data.label[q]))
-            label=label[match.a:match.a+match.size]
+        if len(i):
+            label=data.label[i[0]]
+            for q in i[1:]:
+                match=SequenceMatcher(a=label,b=data.label[q]).find_longest_match(0,len(label),0,len(data.label[q]))
+                label=label[match.a:match.a+match.size]
+                
+            out.label[k]=label if len(label) else data.label[i[0]]  
+        else:
+            out.label[k]=None
             
-        out.label[k]=label if len(label) else data.label[i[0]]  
             
     if data.select is not None:
         out.select.sel1=sel1
@@ -265,7 +273,169 @@ def avgData(data:Data,index:list,wt:list=None)->Data:
     
     return out
 
+def avgDataObjs(*args,wt:list=None):
+    """
+    Currently a very simple averaging of data objects with identical sizes.
+    Labels and selections will come from the first data object. R, S2 will come
+    from averaging. Rstd, S2std will be averaged and scaled according to 
+    propagation of error rules.
+    
+    Later, we may implement averaging of data objects with non-matching selections,
+    where only matched elements of the selection are returned in the final object.
 
+    Parameters
+    ----------
+    *args : Positional arguments (data)
+        All data objects to be averaged (can also be provided as a single list/tuple).
+    wt : list-like, optional
+        Weighting for each data object (length equal to number of data objects).
+        Will be automatically normalized to sum to 1
+
+    Returns
+    -------
+    pyDR.Data
+        Averaged data object.
+
+    """
+    if len(args)==1 and hasattr(args[0],'__len__') and hasattr(args[0][0],'Rstd'): #args[0] is a list of data objects?
+        data=args[0]
+    else:
+        data=args
+    N=len(data)
+
+    # Weighting defaults
+    if wt is None:wt=np.ones(N,dtype=float)/N
+    wt=np.array(wt,dtype=float)
+    wt/=wt.sum()
+    
+    for d in data[1:]:
+        assert len(d)==len(data[0]),"All data must have the same length"
+    
+    out=copy(data[0])
+    
+    #Clear some calculations made in the iRED data object
+    if hasattr(out,'_CCnorm'):out._CCnorm=None
+    if hasattr(out,'_totalCCnorm'):out._totalCCnorm=None
+    
+    #Sweep over all fields that require averaging
+    flds=['R','S2','CC','totalCC','Rstd','S2std']
+    for f in flds:
+        if hasattr(data[0],f):
+            if getattr(data[0],f) is None:
+                setattr(out,f,None)
+            else:
+                if 'std' in f:
+                    v=np.sqrt(np.sum([(getattr(d,f)*w)**2 for d,w in zip(data,wt)],axis=0))
+                    setattr(out,f,v)
+                else:
+                    setattr(out,f,np.sum([getattr(d,f)*w for d,w in zip(data,wt)],axis=0))
+    
+    #Update the processing details               
+    details=list()
+    details.append(f'Average of {N} data objects')
+    details.append('Warning: Selection, labels, and information in source correspond to the first data object')
+    
+    for k,d in enumerate(data):
+        details.append(f'START DATA OBJECT {k}')
+        for det in d.details:details.append(det)
+        details.append(f'END DATA OBJECT {k}')
+        
+    out.details=details
+    out.source.additional_info='AvOb' if out.source.additional_info is None else \
+        'AvOb_'+out.source.additional_info
+        
+    #Also average the source data
+    if not(np.any([d.src_data is None for d in data])):
+        out.src_data=avgDataObjs([d.src_data for d in data],wt=wt)
+        
+    #Append results to project
+    if data[0].project is not None:data[0].project.append_data(out)
+    
+    return out
+        
+def appendDataObjs(*args,check_sens:bool=True):
+    """
+    Appends several data objects together. Note that this means the sensitivities
+    of the detectors must be the same (can be overridden).
+    
+    Note this method will not append cross-correlation information (from iRED)
+    
+    Parameters
+    ----------
+    *args : TYPE
+        All data objects to be appended (can also be provided as a single list/tuple).
+    check_sens : bool
+        Set to False to ignore sensitivities that do not match. Note that in 
+        any case, the number of detectors must be the same.
+
+    Returns
+    -------
+    pyDR.Data
+        Appended data object.
+
+    """
+    if len(args)==1 and hasattr(args[0],'__len__') and hasattr(args[0][0],'Rstd'): #args[0] is a list of data objects?
+        data=args[0]
+    else:
+        data=args
+    
+    N=len(data)  
+    
+    #Assert sensitivities the same
+    for k,d in enumerate(data[1:]):
+        if check_sens:
+            assert d.sens==data[0].sens,f"Data object {k} has a different sensitivity than data object 0"
+        else:
+            assert d.R.shape[1]==data[0].R.shape[1],\
+            "All data must have the same number of detectors"
+            
+    out=copy(data[0])
+    
+    #Sweep over all fields that require averaging
+    flds=['R','S2','Rstd','S2std','label']
+    for f in flds:
+        if hasattr(data[0],f):
+            if getattr(data[0],f) is None:
+                setattr(out,f,None)
+            else:
+                setattr(out,f,np.concatenate([getattr(d,f) for d in data],axis=0))
+                
+    #Append selections
+    if not(np.any([d.select is None for d in data])):
+        mdmode=[d.select._mdmode for d in data]
+        for d in data:d.select._mdmode=False
+        sel1=np.concatenate([d.select.sel1 for d in data])
+        sel2=np.concatenate([d.select.sel2 for d in data])
+        out.select.sel1=sel1
+        out.select.sel2=sel2
+        for d,mm in zip(data,mdmode):d.select._mdmode=mm
+        out.select._mdmode=mdmode[0]
+        
+    #Update the processing details               
+    details=list()
+    details.append(f'Appending {N} data objects')
+    details.append('Warning: Information in source corresponds to the first data object')
+    
+    for k,d in enumerate(data):
+        details.append(f'START DATA OBJECT {k}')
+        for det in d.details:details.append(det)
+        details.append(f'END DATA OBJECT {k}')
+        
+    out.details=details
+    out.source.additional_info='ApOb' if out.source.additional_info is None else \
+        'ApOb_'+out.source.additional_info
+        
+    #Also average the source data
+    if not(np.any([d.src_data is None for d in data])):
+        out.src_data=appendDataObjs([d.src_data for d in data])
+        
+    #Append results to project
+    if data[0].project is not None:data[0].project.append_data(out)
+    
+    return out
+    
+    
+    
 
 # def avgData2(data:Data,index:list,wt:list=None)->Data:
 #     """
@@ -416,7 +586,10 @@ def avgMethyl(data:Data) -> None:
         for d in data:avgMethyl(d)
         return
     
-    index=np.repeat(np.arange(data.R.shape[0]//3),3)
+    # index=np.repeat(np.arange(data.R.shape[0]//3),3)
+    
+    index=[[m for m in range(k,k+3)] for k in range(0,data.R.shape[0],3)]
+    
     out=avgData(data,index)
     out.details.pop(-1)
     out.details[-1]='Data averaging was applied over every 3 data points (methyl averaging)'

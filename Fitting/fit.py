@@ -208,6 +208,8 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
                     ind=np.argwhere(ind2)[-1,0]+1
                     rhoz[:ind]=0         
             rhoz[rhoz<0]=0 #Eliminate negative values
+            if 'Normalization' in data.sens.opt_pars and data.sens.opt_pars['Normalization']=='I':
+                rhoz/=rhoz.sum()*data.sens.dz
             rhoz_clean.append(rhoz)
             
         out.sens=copy(out.sens)
@@ -229,8 +231,9 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
     #         Rc.append(np.dot(sens[k].r,out.R[k,:])+sens.sens[k].R0)
     # out.Rc=np.array(Rc)
     if data.S2c is not None:
-        out.S2c=np.array([d.sum() for d in dist])
-        
+        out.S2c=1-np.array([d.sum() for d in dist])
+        # for k in range(len(out.R)):
+        #     out.R[k]-=out.sens[k].rhoz[:,-1]*out.S2c[k]
         
     out.details=data.details.copy()
     out.details.append('Data fit optimized with opt2dist (rhoz_cleanup:{0})'.format(rhoz_cleanup))
