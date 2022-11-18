@@ -135,6 +135,7 @@ class Source():
                         self._src_data=self.project[-1] #Also copy into self._src_data
                     else:
                         print('Warning: source data not found at location {}'.format(self._src_data))
+                        self._src_data=None
             else: #No project
                 if os.path.exists(self._src_data):
                     self._src_data=read_file(self._src_data)

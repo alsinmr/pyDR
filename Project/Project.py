@@ -761,6 +761,22 @@ class Project():
         """
         assert self.directory is not None,"clear_memory can only run if the project has a directory for saving"
         self.save(include_rawMD)
+        # self=Project(self.directory)
+        del_ind=list()
+        del_file=list()
+        for k,i in enumerate(self._index):
+            if self.info[k]['status']=='raw' \
+                and str(self.data[i].sens.__class__).split('.')[-1][:-2]=='MD' \
+                and self.data.filenames[i] is None: #Raw and loaded and MD data and not saved
+                del_ind.append(k)  #These get deleted during clear_memory
+        
+        self.remove_data(del_ind,delete=True)
+        
+        # for i in self._index:
+        #     if self.data.data_objs[i] is not None \
+        #         and not(os.path.exists(self.data[i].source._src_data)):
+        #             self.data[i].src_data=None
+        
         self.data=DataMngr(self)
         gc.collect() #Garbage collect (get rid of the old data object)
         
@@ -866,6 +882,7 @@ class Project():
         index=np.array(index,dtype=int)
         assert np.all(index<len(self)),'index must be less than len(proj)'
         
+        index=np.mod(index,len(self))
         if self._subproject:
             i=[self.parent_index[i] for i in index]
             self._parent.remove_data(i,delete=delete)
@@ -874,7 +891,6 @@ class Project():
                 self._index=self._index[self._index!=i]
                 self._index[self._index>i]-=1
         else:
-            index=np.mod(index,len(self))
             index=np.sort([self._index[i] for i in index])[::-1] #Convert to data index
             
             # proj=self[index]
@@ -889,9 +905,10 @@ class Project():
             #     return
             
             for i in index:
-                self.data.remove_data(index=i,delete=delete)
                 self._index=self._index[self._index!=i]
                 self._index[self._index>i]-=1
+                self.data.remove_data(index=i,delete=delete)
+
             if delete: #We need to save– otherwise the project file will be corrupted if the user doesn't do this
                 self.save()
 

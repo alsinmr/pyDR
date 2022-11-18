@@ -426,7 +426,7 @@ def appendDataObjs(*args,check_sens:bool=True):
         'ApOb_'+out.source.additional_info
         
     #Also average the source data
-    if not(np.any([d.src_data is None for d in data])):
+    if not(np.any([d.src_data is None or d.src_data.__class__==str for d in data])):
         out.src_data=appendDataObjs([d.src_data for d in data])
         
     #Append results to project
