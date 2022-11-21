@@ -1089,31 +1089,32 @@ class Project():
           
         with open(os.path.join(pdb_dir,'pdb_list.txt'),'w') as f:
             for d,filename in zip(self.data.data_objs,self.data.saved_files):
-                filename=os.path.split(filename)[1]  #Make sure just the file
-                if d is None and filename is not None:  #Unloaded data 
-                    if filename in data_loc:  #And that data has a previously saved pdb
-                        i=data_loc.index(filename)
-                        f.write(f'{filename}:{saved_pdb[i]}:{origin[i]}\n')
-                elif d is not None and filename is not None:  #Loaded data
-                    sel=d.source.select
-                    if sel.uni is None:  #no selection loaded
-                        pass
-                    elif sel.uni.filename in origin:  #pdb already saved
-                        i=origin.index(sel.uni.filename)
-                        f.write(f'{filename}:{saved_pdb[i]}:{origin[i]}\n')
-                    else: #We need to save the pdb
-                        fileout=os.path.split(sel.uni.filename)[1].rsplit('.',maxsplit=-1)[0]
-                        count=0
-                        while fileout in saved_pdb: #Ensure unique save location
-                            count+=1
-                            if count==1:fileout+='1'
-                            else:fileout=fileout[:-1]+str(count)
-                        
-                        sel.uni.atoms.write(os.path.join(pdb_dir,fileout+'.pdb')) #write the pdb
-                        data_loc.append(filename)
-                        saved_pdb.append(fileout)
-                        origin.append(sel.uni.filename)
-                        f.write(f'{data_loc[-1]}:{saved_pdb[-1]}:{origin[-1]}\n')
+                if filename is not None:
+                    filename=os.path.split(filename)[1]  #Make sure just the file
+                    if d is None:  #Unloaded data 
+                        if filename in data_loc:  #And that data has a previously saved pdb
+                            i=data_loc.index(filename)
+                            f.write(f'{filename}:{saved_pdb[i]}:{origin[i]}\n')
+                    elif d is not None and filename is not None:  #Loaded data
+                        sel=d.source.select
+                        if sel.uni is None:  #no selection loaded
+                            pass
+                        elif sel.uni.filename in origin:  #pdb already saved
+                            i=origin.index(sel.uni.filename)
+                            f.write(f'{filename}:{saved_pdb[i]}:{origin[i]}\n')
+                        else: #We need to save the pdb
+                            fileout=os.path.split(sel.uni.filename)[1].rsplit('.',maxsplit=-1)[0]
+                            count=0
+                            while fileout in saved_pdb: #Ensure unique save location
+                                count+=1
+                                if count==1:fileout+='1'
+                                else:fileout=fileout[:-1]+str(count)
+                            
+                            sel.uni.atoms.write(os.path.join(pdb_dir,fileout+'.pdb')) #write the pdb
+                            data_loc.append(filename)
+                            saved_pdb.append(fileout)
+                            origin.append(sel.uni.filename)
+                            f.write(f'{data_loc[-1]}:{saved_pdb[-1]}:{origin[-1]}\n')
                         
                     
 
