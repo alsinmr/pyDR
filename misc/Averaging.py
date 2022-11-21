@@ -404,10 +404,12 @@ def appendDataObjs(*args,check_sens:bool=True):
     if not(np.any([d.select is None for d in data])):
         mdmode=[d.select._mdmode for d in data]
         for d in data:d.select._mdmode=False
-        sel1=np.concatenate([d.select.sel1 for d in data])
-        sel2=np.concatenate([d.select.sel2 for d in data])
+        sel1=np.concatenate([d.select.sel1 for d in data],axis=0)
+        sel2=np.concatenate([d.select.sel2 for d in data],axis=0)
+        repr_sel=np.concatenate([d.select._repr_sel for d in data],axis=0)
         out.select.sel1=sel1
         out.select.sel2=sel2
+        out.select.repr_sel=repr_sel
         for d,mm in zip(data,mdmode):d.select._mdmode=mm
         out.select._mdmode=mdmode[0]
         
