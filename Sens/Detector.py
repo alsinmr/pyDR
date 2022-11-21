@@ -717,12 +717,12 @@ class SVD():
             if np.shape(X)[0]>np.shape(X)[1]: #Use sparse version of SVD
                 S2,V=eigs(X.T@X,k=n)
                 self._S=np.sqrt(S2.real)
-                self._U=((X@V)@np.diag(1/self.S)).real
+                self._U=((X@V)@np.diag(1/self._S)).real
                 self._Vt=V.real.T
             else:
                 self._U,self._S,self._Vt=np.linalg.svd(X) #Full calculation
+                self._Vt=self._Vt[:X.shape[0]]
             
-            #Below returns the sign of the first time each V exceeds 
             sign=[np.sign(V[np.argwhere(np.abs(V)>np.abs(V).max()*0.5)[0,0]]) for V in self._Vt]
             #By default, the SVD (or eigs) does not return vectors with consistent signs
             #It's basically random. This wastes a lot of time for us, since we
