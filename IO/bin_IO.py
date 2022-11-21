@@ -73,7 +73,7 @@ def read_file(filename:str,directory:str='')->object:
             out.source.saved_filename=os.path.abspath(filename)
             return out
         if l=='OBJECT:DATA_IRED':
-            out=read_Data_iRED(f)
+            out=read_Data_iRED(f,directory=directory)
             out.source.saved_filename=os.path.abspath(filename)
             return out
         if l=='OBJECT:MOLSELECT':
