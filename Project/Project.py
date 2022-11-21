@@ -1094,30 +1094,25 @@ class Project():
                         i=data_loc.index(filename)
                         f.write(f'{filename}:{saved_pdb[i]}:origin[i]\n')
                 elif d is not None:  #Loaded data
-                    if d.select.uni is None:  #no selection loaded
+                    sel=d.source.select
+                    if sel.uni is None:  #no selection loaded
                         pass
-                    elif d.select.uni.filename in origin:  #pdb already saved
-                        i=origin.index(d.select.uni.filename)
+                    elif sel.uni.filename in origin:  #pdb already saved
+                        i=origin.index(sel.uni.filename)
                         f.write(f'{filename}:{saved_pdb[i]}:{origin[i]}\n')
                     else: #We need to save the pdb
-                        fileout=os.path.split(d.select.uni.filename)[1].rsplit('.',maxsplit=-1)[0]
+                        fileout=os.path.split(sel.uni.filename)[1].rsplit('.',maxsplit=-1)[0]
                         count=0
                         while fileout in saved_pdb: #Ensure unique save location
                             count+=1
                             if count==1:fileout+='1'
                             else:fileout=fileout[:-1]+str(count)
                         
-                        d.select.uni.atoms.write(os.path.join(pdb_dir,fileout+'.pdb')) #write the pdb
+                        sel.uni.atoms.write(os.path.join(pdb_dir,fileout+'.pdb')) #write the pdb
                         data_loc.append(filename)
                         saved_pdb.append(fileout)
-                        origin.append(d.select.uni.filename)
+                        origin.append(sel.uni.filename)
                         f.write(f'{data_loc[-1]}:{saved_pdb[-1]}:{origin[-1]}\n')
-                        
-                        
-                    
-                        
-                        
-                
                         
                     
 

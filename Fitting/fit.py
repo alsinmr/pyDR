@@ -239,7 +239,7 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
     out.details.append('Data fit optimized with opt2dist (rhoz_cleanup:{0})'.format(rhoz_cleanup))
     
     if data.source.project is not None:data.source.project.append_data(out)
-    
+
     return out
 
 

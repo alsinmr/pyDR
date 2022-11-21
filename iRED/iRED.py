@@ -497,7 +497,7 @@ class Data_iRED(Data):
         # print('checkpoint')
         out=super().opt2dist(rhoz_cleanup=rhoz_cleanup,parallel=parallel)
         out.iRED=self.iRED
-        return 
+        return out
         
     
     @property

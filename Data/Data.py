@@ -230,6 +230,7 @@ class Data():
         data object
     
         """
+
         return opt2dist(self,rhoz_cleanup=rhoz_cleanup,parallel=parallel)
     
     def save(self, filename, overwrite: bool = False, save_src: bool = True, src_fname=None):
