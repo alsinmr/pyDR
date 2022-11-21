@@ -1023,10 +1023,103 @@ class Project():
         return np.array([np.argwhere(i==self._parent._index)[0,0] for i in self._index],dtype=int)
         
         
-    def save(self,include_rawMD=False):
+    def save(self,include_rawMD:bool=False,include_pdbs:bool=True):
+        """
+        Saves the project. By default, raw MD correlation functions will not be
+        saved, and pdbs will be created and saved for each selection object in
+        the project (pdbs for data not in memory will not be saved!)
+
+        Parameters
+        ----------
+        include_rawMD : bool, optional
+            Determines whether or not to save raw MD data, i.e. the full 
+            correlation functions. The default is False.
+        include_pdbs : bool, optional
+            Determines whether or not to create a pdb for each selection object.
+            Creating a pdb will allow one to load the project on a computer
+            where the original structural data is not stored. 
+            The default is True.
+
+        Returns
+        -------
+        None.
+
+        """
         assert not(self._subproject),"Sub-projects cannot be saved"
         self.data.save(include_rawMD=include_rawMD)
         self.write_proj()
+        if include_pdbs:self.save_pdbs()
+        
+    def save_pdbs(self,load_all:bool=False):
+        """
+        Saves a pdb for every selection object that is currently loaded and 
+        saved in the project. Note, this operation acts on the full project,
+        not the subproject.
+
+        Parameters
+        ----------
+        load_all : bool, optional
+            Force load all data in the project to ensure a pdb from each. 
+            Can be time/memory consuming. The default is False.
+
+        Returns
+        -------
+        None.
+
+        """
+        pdb_dir=os.path.join(self.directory,'pdbs')  #Directory for storing pdbs
+        if not(os.path.exists(pdb_dir)):
+            os.mkdir(pdb_dir)
+        
+        
+        #Load list of existing pdbs
+        data_loc=[]
+        saved_pdb=[]
+        origin=[]
+        if os.path.exists(os.path.join(pdb_dir,'pdb_list.txt')):
+            with open(os.path.join(pdb_dir,'pdb_list.txt'),'r') as f:
+                for line in f:
+                    data_file,pdb_file,pdb_orig=line.strip().split(':')
+                    data_loc.append(data_file)
+                    saved_pdb.append(pdb_file)
+                    origin.append(pdb_orig)
+        
+        if load_all:
+            for d in self.data:pass  #Loads all data
+          
+        with open(os.path.join(pdb_dir,'pdb_list.txt'),'w') as f:
+            for d,filename in zip(self.data.data_objs,self.data.saved_files):
+                if d is None and filename is not None:  #Unloaded data 
+                    if filename in data_loc:  #And that data has a previously saved pdb
+                        i=data_loc.index(filename)
+                        f.write(f'{filename}:{saved_pdb[i]}:origin[i]\n')
+                elif d is not None:  #Loaded data
+                    if d.select.uni is None:  #no selection loaded
+                        pass
+                    elif d.select.uni.filename in origin:  #pdb already saved
+                        i=origin.index(d.select.uni.filename)
+                        f.write(f'{filename}:{saved_pdb[i]}:{origin[i]}\n')
+                    else: #We need to save the pdb
+                        fileout=os.path.split(d.select.uni.filename)[1].rsplit('.',maxsplit=-1)[0]
+                        count=0
+                        while fileout in saved_pdb: #Ensure unique save location
+                            count+=1
+                            if count==1:fileout+='1'
+                            else:fileout=fileout[:-1]+str(count)
+                        
+                        d.select.uni.atoms.write(os.path.join(pdb_dir,fileout+'.pdb')) #write the pdb
+                        data_loc.append(filename)
+                        saved_pdb.append(fileout)
+                        origin.append(d.select.uni.filename)
+                        f.write(f'{data_loc[-1]}:{saved_pdb[-1]}:{origin[-1]}\n')
+                        
+                        
+                    
+                        
+                        
+                
+                        
+                    
 
     #%% Project operations (|,&,-, i.e. Union, Intersection, and Difference)
     def __add__(self,obj):

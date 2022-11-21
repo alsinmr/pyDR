@@ -52,18 +52,19 @@ class MolSys():
         MolSys.
 
         """
-        if traj_files is not None and not(isinstance(traj_files,list) and len(traj_files)==0):
+        if topo is None:
+            self._uni=None
+            self._traj=None
+            return
+        elif traj_files is not None and not(isinstance(traj_files,list) and len(traj_files)==0):
             if isinstance(traj_files,list):
                 traj_files=[os.path.abspath(tf) for tf in traj_files]
             else:
                 traj_files=os.path.abspath(traj_files)
             self._uni=Universe(os.path.abspath(topo),traj_files)
-        elif topo is not None:
-            self._uni=Universe(topo)
         else:
-            self._uni=None
-            self._traj=None
-            return
+            self._uni=Universe(topo)
+
         
         self._orig_topo=topo
         
@@ -86,7 +87,8 @@ class MolSys():
         return self._traj
     @property
     def topo(self):
-        return self.uni.filename
+        if self.uni is not None:
+            return self.uni.filename
 
     @property
     def details(self):

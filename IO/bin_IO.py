@@ -418,12 +418,12 @@ def read_MolSelect(f,directory=''):
     line=decode(f.readline())[:-1]
     if line!='TOPO':print('Warning: First entry of MolSelect object should be topo')
     topo=decode(f.readline())[:-1]  #First try provided full path
-    topo=find_file(topo,directory=directory)
+    topo=find_file(topo,directory=directory,f=f)   #Find the topology file
     
     line=decode(f.readline())[:-1]
     tr_files=list()
     t0,tf,step,dt=0,-1,1,None
-    if line=='TRAJ':
+    if line=='TRAJ':   #Collect the trajectory files
         line=decode(f.readline())[:-1]
         t0,tf,step,dt=[float(line.split(':')[k+1] if k==3 else line.split(':')[k+1].split(',')[0]) for k in range(4)]
         line=decode(f.readline())[:-1]
@@ -436,19 +436,27 @@ def read_MolSelect(f,directory=''):
     molsys=clsDict['MolSys'](topo,tr_files,t0=t0,tf=tf,step=step,dt=dt)
     select=clsDict['MolSelect'](molsys)
     line=decode(f.readline())[:-1]
-    if line=='LABEL':
+    if line=='LABEL':  #Load the label
         select.label=np.load(f,allow_pickle=False)
         line=decode(f.readline())[:-1]
     while line!='END:OBJECT':
         fld=line.split(':')[0]
         if len(line.split(':'))==3:
+        
             nr=int(line.split(':')[-1])
             out=np.zeros(nr,dtype=object)
             for k in range(nr):
-                out[k]=molsys.uni.atoms[np.load(f,allow_pickle=False)]
-            setattr(select,fld,out)
+                if topo is not None:  #Next line throws error if topo not found
+                    out[k]=molsys.uni.atoms[np.load(f,allow_pickle=False)]
+                else:
+                    _=np.load(f,allow_pickle=False)
+            if topo is not None:
+                setattr(select,fld,out)
         else:
-            setattr(select,fld,molsys.uni.atoms[np.load(f,allow_pickle=False)])
+            if topo is not None:
+                setattr(select,fld,molsys.uni.atoms[np.load(f,allow_pickle=False)])
+            else:
+                _=np.load(f,allow_pickle=False) #We still need to get past the binary numpy array
         line=decode(f.readline())[:-1]
     return select
 
@@ -496,9 +504,18 @@ def read_np_object(f):
         pos=f.tell()
     return np.array(out,dtype=object).reshape(shape)
 
-def find_file(filename,directory:str=''):
+def find_file(filename,directory:str='',f=None):
     if os.path.exists(filename):    #Full path correctly given (could be in current folder)
         return os.path.abspath(filename)
+    if f is not None and len(directory):  #See if topo is in pdbs
+        pdb_dir=os.path.join(directory,'pdbs')  #Directory for storing pdbs
+        data_file=os.path.split(f.name)[1]
+        if os.path.exists(os.path.join(pdb_dir,'pdb_list.txt')):
+            with open(os.path.join(pdb_dir,'pdb_list.txt'),'r') as f:
+                for line in f:
+                    if line.strip().split(':')[0]==data_file:
+                        return os.path.join(pdb_dir,line.strip().split(':')[1]+'.pdb')
+        
     if os.path.exists(os.path.split(filename)[1]): #File in current folder (but wrong full path given)
         return os.path.abspath(os.path.split(filename)[1])
     if os.path.exists(os.path.join(directory,os.path.split(filename)[1])): #File in the project directory
