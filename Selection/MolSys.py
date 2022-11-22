@@ -269,7 +269,9 @@ class Trajectory():
         if name in ['t0','tf','step']:
             value=int(value)
         if name=='tf':
-            assert value<=self.__tf,"tf must be less than or equal to the original trajectory length ({} frames)".format(self.__tf)
+            if value>self.__tf:
+                print(f'Warning: tf={value} is greater than the original trajectory length, setting to {self.__tf}')
+                value=self.__tf
             value=(value-1)%self.__tf+1 #Take care of negative indices
         super().__setattr__(name,value)
         
@@ -498,7 +500,7 @@ class MolSelect():
 
         Returns
         -------
-        None.
+        self
 
         """
         
@@ -538,6 +540,8 @@ class MolSelect():
         self.repr_sel=repr_sel
         self.set_label(label)
         self._mdmode=_mdmode
+        
+        return self
 
     @property
     def repr_sel(self):

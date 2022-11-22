@@ -40,7 +40,7 @@ class PCA():
         None.
 
         """
-        keys=['_pos','_covar','_sel1index','_sel2index','_lambda','_PC','_pcamp','_Ct','_data']
+        keys=['_pos','_covar','_sel1index','_sel2index','_lambda','_PC','_pcamp','_Ct','_data','_mean']
         for k in keys:setattr(self,k,None)
     
     def select_atoms(self,select_string:str):
@@ -59,8 +59,8 @@ class PCA():
 
         Returns
         -------
-        AtomGroup
-            MDAnalysis atom group
+        self
+        
         """
         
         a0=self.atoms
@@ -68,7 +68,7 @@ class PCA():
         self.sel0=atoms
         if a0 is None or a0!=self.atoms:
             self.clear()
-        return atoms            
+        return self          
 
     @property
     def project(self):
@@ -226,7 +226,13 @@ class PCA():
             pos[k]=(R@pos0.T).T
         
         self._pos=pos
-        
+    
+    @property
+    def mean(self):
+        if self._mean is None:
+            self._mean=self.pos.mean(0)
+        return self._mean
+    
     @property    
     def CoVar(self):
         """
@@ -242,7 +248,7 @@ class PCA():
         if self._covar is None:
             # step=1
             # mat0=(self.pos[::step]-self.pos[::step].mean(0)).reshape([self.pos[::step].shape[0],self.pos.shape[1]*self.pos.shape[2]])
-            mat0=(self.pos-self.pos.mean(0)).reshape([self.pos.shape[0],self.pos.shape[1]*self.pos.shape[2]])
+            mat0=(self.pos-self.mean).reshape([self.pos.shape[0],self.pos.shape[1]*self.pos.shape[2]])
             self._covar=mat0.T@mat0       
             # self._covar/=(self.pos[::step].shape[0]-1)
             self._covar/=(self.pos.shape[0]-1)
@@ -260,7 +266,7 @@ class PCA():
 
         Returns
         -------
-        None.
+        self
 
         """
         if isinstance(n,str) and n.lower()=='all':
@@ -276,6 +282,7 @@ class PCA():
         self._Ct=None
         self._pcamp=None
         self._data=None
+        return self
     
     @property    
     def Lambda(self):
@@ -327,7 +334,7 @@ class PCA():
         """
         if sigma is None:sigma=np.sqrt(self.Lambda[n])
         i=np.arange(len(self.atoms)) if sel is None else (self.sel1index if sel==1 else self.sel2index)
-        pos0=self.pos.mean(0)[i]
+        pos0=self.mean[i]
         
         pos0+=sigma*self.PC[:,n].reshape([self.pos.shape[1],3])
         return pos0
@@ -388,7 +395,7 @@ class PCA():
 
         """
         if self._pcamp is None:
-            mat0=(self.pos-self.pos.mean(0)).reshape([self.pos.shape[0],self.pos.shape[1]*self.pos.shape[2]])
+            mat0=(self.pos-self.mean).reshape([self.pos.shape[0],self.pos.shape[1]*self.pos.shape[2]])
             self._pcamp=(mat0@self.PC).T
         return self._pcamp
     
