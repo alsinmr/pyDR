@@ -406,7 +406,7 @@ class MolSelect():
                     for k in range(len(self._sel2)):sel2[k]=self._sel2[k:k+1]
                     self._sel2=sel2
                     
-        if name=='repr_sel':
+        if name=='repr_sel' and value is not None:
             if self.sel1 is not None and len(self.sel1)!=len(value):
                 print('Warning: length of sel1 and repr_sel are not equal. This will cause errors in ChimeraX')
         if name in ['sel1','sel2','repr_sel']:
