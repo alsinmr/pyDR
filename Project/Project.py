@@ -1489,9 +1489,10 @@ class Project():
                 if v not in out:
                     out.append(v)
         for v0 in self.short_files:
-            v=v0.rsplit('.',1)[0]
-            if v not in out:
-                out.append(v)
+            if v0 is not None:
+                v=v0.rsplit('.',1)[0]
+                if v not in out and v is not None:
+                    out.append(v)
             
         return out
  
