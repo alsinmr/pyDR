@@ -428,7 +428,7 @@ def read_MolSelect(f,directory=''):
         t0,tf,step,dt=[float(line.split(':')[k+1] if k==3 else line.split(':')[k+1].split(',')[0]) for k in range(4)]
         line=decode(f.readline())[:-1]
         while line!='END:TRAJ':
-            tr_files.append(find_file(line,directory=directory))
+            tr_files.append(find_file(line,directory=directory,f=f))
             line=decode(f.readline())[:-1]
         if None in tr_files:
             tr_files=None
