@@ -1416,6 +1416,7 @@ class Project():
                         sens.append(fit.sens)
                         detect.append(clsDict['Detector'](fit.sens))
         print('Optimized {0} data objects'.format(count))
+        return self
     
     def fit(self, bounds: bool = 'auto', parallel: bool = False) -> None:
         """
@@ -1436,6 +1437,7 @@ class Project():
                     sens.append(fit.sens)
                     detect.append(fit.detect)
         print('Fitted {0} data objects'.format(count))
+        return self
         
     def modes2bonds(self,includeOverall:bool=False,calcCC='auto'):
         """
@@ -1469,6 +1471,7 @@ class Project():
                 count+=1
                 d.modes2bonds()
         print('Converted {0} iRED data objects from modes to bonds'.format(count))
+        return self
                 
 
     #%% iPython stuff   
