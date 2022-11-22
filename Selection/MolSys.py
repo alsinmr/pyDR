@@ -393,7 +393,7 @@ class MolSelect():
                         sel=sel0[0][:0]
                         for s in sel0:
                             sel+=s
-                            setattr(self,f,sel)
+                        setattr(self,f,sel)
             elif value==False and self._mdmode:
                 if self._sel1 is not None:
                     sel1=np.zeros(len(self._sel1),dtype=object)

@@ -402,16 +402,31 @@ def appendDataObjs(*args,check_sens:bool=True):
                 
     #Append selections
     if not(np.any([d.select is None for d in data])):
-        mdmode=[d.select._mdmode for d in data]
-        for d in data:d.select._mdmode=False
-        sel1=np.concatenate([d.select.sel1 for d in data],axis=0)
-        sel2=np.concatenate([d.select.sel2 for d in data],axis=0)
-        repr_sel=np.concatenate([d.select._repr_sel for d in data],axis=0)
-        out.select.sel1=sel1
-        out.select.sel2=sel2
-        out.select.repr_sel=repr_sel
-        for d,mm in zip(data,mdmode):d.select._mdmode=mm
-        out.select._mdmode=mdmode[0]
+        lengths=[d.select.uni.atoms.__len__() for d in data]
+        #We use the # of atoms in the universe to determine if the indexing is compatible
+        #Is this really ok? Can we think of a probable coincident universe size but with different indices?
+        if len(np.unique(lengths))>1:
+            print('Warning: Data is being appended where selections come from different topologies')
+            print('Selections will not be saved in the appended data')
+            out.select.sel1=None
+            out.select.sel2=None
+            out.select.repr_sel=None
+        else:
+            mdmode=[d.select._mdmode for d in data]
+            for d in data:d.select._mdmode=False
+            atoms=None
+            for f in ['sel1','sel2','repr_sel']:
+                if not(np.any([getattr(d.select,f) is None for d in data])):
+                    if atoms is None:atoms=data[0].select.uni.atoms
+                    l=[len(d.select) for d in data]
+                    sel=np.zeros(sum(l),dtype=object)
+                    for k,d in enumerate(data):
+                        sel[sum(l[:k]):sum(l[:k+1])]=[atoms[s.indices] for s in getattr(d.select,f)]
+                    setattr(out.select,f,sel)
+                else:
+                    setattr(out.select,f,None)
+            for d,mm in zip(data,mdmode):d.select._mdmode=mm
+            out.select._mdmode=mdmode[0]
         
     #Update the processing details               
     details=list()

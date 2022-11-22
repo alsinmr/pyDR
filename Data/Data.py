@@ -199,7 +199,7 @@ class Data():
     def __eq__(self, data) -> bool:
         "Using string means this doesn't break when we do updates. Maybe delete when finalized"
         if str(self.__class__) != str(data.__class__): return False
-        return self._hash == data._hash
+        return self.__hash__() == data.__hash__()
     
     def fit(self, bounds: bool = 'auto', parallel: bool = False):
         # todo I was a little confused by that, might be useful to rename the return function? -K
