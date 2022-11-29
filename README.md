@@ -16,7 +16,7 @@ https://doi.org/10.1063/1.5111081
 
 "Interpreting NMR dynamic parameters via the separation of reorientational motion in MD simulation"<br />
 A.A. Smith<br />
-https://arxiv.org/abs/2111.09224
+https://doi.org/10.1016/j.jmro.2022.100045
 
 "Model-free or Not?"<br />
 K. Zumpfe, A.A. Smith<br />
