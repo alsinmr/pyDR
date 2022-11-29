@@ -231,7 +231,7 @@ class PCA():
     def mean(self):
         if self._mean is None:
             self._mean=self.pos.mean(0)
-        return self._mean
+        return copy(self._mean)
     
     @property    
     def CoVar(self):
@@ -256,13 +256,13 @@ class PCA():
     
     def runPCA(self,n:int=10):
         """
-        Runs the PCA with n principle components. Set n to all to obtain all
-        principle components
+        Runs the PCA with n principal components. Set n to all to obtain all
+        principal components
 
         Parameters
         ----------
         n : int (or 'all')
-            Number of principle components to calculate.
+            Number of principal components to calculate.
 
         Returns
         -------
@@ -288,7 +288,7 @@ class PCA():
     def Lambda(self):
         """
         Returns the eigenvalues (variance) corresponding to each of the 
-        principle components
+        principal components
 
         Returns
         -------
@@ -307,21 +307,21 @@ class PCA():
             self.runPCA()
         return self._PC
     
-    def PC2pos(self,n:int=0,sigma:float=None,sel:int=None):
+    def PC2pos(self,n:int=0,A:float=None,sel:int=None):
         """
-        Calculates the motion on atoms resulting from the nth principle component
+        Calculates the motion on atoms resulting from the nth principal component
         deviating from the mean position by sigma standard deviations. One
-        may which principle component to apply (n), how many standard deviations
+        may which principal component to apply (n), how many standard deviations
         (sigma, defaults to np.sqrt(pca.Lambda(n))), and which atoms (either sel=
         None, which is all atoms in pca.atoms, or 1 (sel1) or 2 (sel2))
 
         Parameters
         ----------
         n : int, optional
-            Which principle component to use. The default is 0.
-        sigma : float, optional
-            How many standard deviations (can be negative) to calculate. Default
-            is equal to the standard deviation for that component (set to None).
+            Which principal component to use. The default is 0.
+        A : float, optional
+            Amplitude of the principal component to calculate. If set to None,
+            then we use one standard deviation (np.sqrt(self.Lambda[n]))
         sel : int, optional
             Which group of atoms to use. 1 selects atoms in PCA.select.sel1,
             2 selects atoms in PCA.select.sel2, None takes atoms in PCA.atoms.
@@ -332,27 +332,30 @@ class PCA():
         None.
 
         """
-        if sigma is None:sigma=np.sqrt(self.Lambda[n])
+        if A is None:A=np.sqrt(self.Lambda[n])
         i=np.arange(len(self.atoms)) if sel is None else (self.sel1index if sel==1 else self.sel2index)
         pos0=self.mean[i]
         
-        pos0+=sigma*self.PC[:,n].reshape([self.pos.shape[1],3])
+        pos0+=A*self.PC[:,n].reshape([self.pos.shape[1],3])
         return pos0
     
-    def write_pdb(self,n:int=0,sigma:float=None,filename:str=None):
+    def write_pdb(self,n:int=0,A:float=None,PCamp:list=None,filename:str=None):
         """
         
 
         Parameters
         ----------
         n : int, optional
-            Which principle component to use. The default is 0.
-        sigma : float, optional
-            How many standard deviations (can be negative) to calculate. Default
-            is equal to the standard deviation for that component (set to None).
+            Which principal component to use. The default is 0.
+        A : float, optional
+            Amplitude of the principal component to plot 
         filename : str, optional
             Location of the pdb. Defaults to pca.pdb in the project folder if
             it exists or in the same folder as the original topology.
+        PCamp : list-like, optional
+            List of amplitudes for the first len(PCamp) principal components. 
+            If this is provided, then 'n' and 'std' are ignored.
+            The default is None.
 
         Returns
         -------
@@ -363,35 +366,81 @@ class PCA():
             folder=self.project.directory if self.project is not None and self.project.directory is not None \
                 else os.path.split(self.select.molsys.topo)[0]
             filename=os.path.join(folder,'pca.pdb')
-        self.atoms.positions=self.PC2pos(n=n,sigma=sigma)
+        if PCamp is not None:
+            pos=self.mean
+            for k,A in enumerate(PCamp):
+                pos+=A*self.PC[:,k].reshape([self.PC.shape[0]//3,3])
+            self.atoms.positions=pos
+        else:
+            self.atoms.positions=self.PC2pos(n=n,A=A)
         self.atoms.write(filename)
         return filename
         
-    def chimera(self,n:int=0,std=2):
+    def chimera(self,n:int=0,std:float=1,PCamp:list=None):
+        """
+        Plots the change in a structure for a given principal component. That is,
+        if n=0, then we plot the mean structure with +/-sigma for the n=0 
+        principal component to see how that component changes.
+        
+        Alternatively, one may provide a list of amplitudes in PCamp, where
+        these correspond to the first len(PCamp) principal components to 
+        determine the appearance of the molecule for a given position in the
+        PCA histograms. If PCamp is provided, then 'n' and 'std' are ignored.
+        
+
+        Parameters
+        ----------
+        n : int, optional
+            principal component to plot. The default is 0.
+        std : float, optional
+            Number of standard deviations away from the mean to plot. 
+            The default is 1.
+        PCamp : list, optional
+            List of amplitudes for the first len(PCamp) principal components. 
+            If this is provided, then 'n' and 'std' are ignored.
+            The default is None.
+
+        Returns
+        -------
+        None.
+
+        """            
+        if PCamp is not None:
+            filename=self.write_pdb(n=n,PCamp=PCamp)
+            if self.project.chimera.current is None:self.project.chimera.current=0
+            self.project.chimera.command_line('open "{0}"'.format(filename))
+            mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
+            clr=[int(c*100) for c in plt.get_cmap('tab10')(mdls-1)[:-1]]
+            self.project.chimera.command_line(['~ribbon','show','color #{0} {1},{2},{3}'.format(mdls,clr[0],clr[1],clr[2])])
+            self.project.chimera.command_line(self.project.chimera.saved_commands)
+            return
+        
+            
         if not(hasattr(std,'__len__')):
-            sigma=np.array([-std,std])*np.sqrt(self.Lambda[n])
+            A=np.array([-std,std])*np.sqrt(self.Lambda[n])
         elif hasattr(std,'__len__') and len(std)==1:
-            sigma=np.array([-std[0],std[0]])*np.sqrt(self.Lambda[n])
+            A=np.array([-std[0],std[0]])*np.sqrt(self.Lambda[n])
         else:
-            sigma=np.array(std)*np.sqrt(self.Lambda[n])
+            A=np.array(std)*np.sqrt(self.Lambda[n])
         if self.project.chimera.current is None:
             self.project.chimera.current=0
-        for sigma0 in sigma:
-            filename=self.write_pdb(n=n,sigma=sigma0)
+        for A0 in A:
+            filename=self.write_pdb(n=n,A=A0,PCamp=PCamp)
+            if self.project.chimera.current is None:self.project.chimera.current=0
             self.project.chimera.command_line('open "{0}"'.format(filename))       
             mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
             clr=[int(c*100) for c in plt.get_cmap('tab10')(mdls-1)[:-1]]
             self.project.chimera.command_line(['~ribbon','show','color #{0} {1},{2},{3}'.format(mdls,clr[0],clr[1],clr[2])])
-    
+        self.project.chimera.command_line(self.project.chimera.saved_commands)
     @property
     def PCamp(self):
         """
-        Projects the position onto the principle components
+        Projects the position onto the principal components
 
         Returns
         -------
         array.
-            Time dependent amplitude of the principle components
+            Time dependent amplitude of the principal components
 
         """
         if self._pcamp is None:
@@ -400,15 +449,123 @@ class PCA():
         return self._pcamp
     
     def plot(self,n0:int=0,n1:int=1,ax=None,maxbin:float=None,nbins:int=None,**kwargs):
+        """
+        Creates a 2D histogram of two principal components. Specify the desired
+        components (n0,n1=0,1 by default)
+
+        Parameters
+        ----------
+        n0 : int, optional
+            1st PC to be plotted. The default is 0.
+        n1 : int, optional
+            2nd PC to be plotted. The default is 1.
+        ax : TYPE, optional
+            Axis object to plot into. The default is None.
+        maxbin : float, optional
+            Largest bin. The default is None.
+        nbins : int, optional
+            Number of bins. The default is None.
+        **kwargs : TYPE
+            Plotting arguments to be passed to hist2d.
+
+        Returns
+        -------
+        TYPE
+            Handle for the hist2d object
+
+        """
         if ax is None:ax=plt.figure().add_subplot(111)
         if maxbin is None:
             maxbin=np.max(np.abs(self.PCamp[min([n0,n1])])) 
         if nbins is None:
-            nbins=min([100,self.pos.shape[0]//4])
+            nbins=min([100,self.PCamp.shape[1]//4])
         
-        return ax.hist2d(self.PCamp[n0],self.PCamp[n1],bins=np.linspace(-maxbin,maxbin,nbins),**kwargs)
+        out=ax.hist2d(self.PCamp[n0],self.PCamp[n1],bins=np.linspace(-maxbin,maxbin,nbins),**kwargs)
+        ax.set_xlabel(f'PC {n0}')
+        ax.set_ylabel(f'PC {n1}')
+        return out
         
+    
+    def hist2struct(self,nmax:int=4,ref_struct:bool=True,**kwargs):
+        """
+        Interactively view structures corresponding to positions on the 
+        histogram plots. Specify the maximum principle component to display. Then,
+        click on the plots until all principle components are specified. The
+        corresponding structure will then be displayed in chimeraX. Subsequent
+        clicks will add new structures to chimeraX.
+
+        Parameters
+        ----------
+        nmax : int, optional
+            Maximum principal component to show. The default is 6.
+        ref_struct : bool, optional
+            Show a reference structure in chimera (mean structure)
+        **kwargs : TYPE
+            Keyword arguments to be passed to the PCA.plot function.
+
+        Returns
+        -------
+        None.
+
+        """
+        x,y=int(np.ceil(np.sqrt(nmax))),int(np.ceil(np.sqrt(nmax)))
+        if (x-1)*y>=nmax:x-=1
+        fig=plt.figure()
+        ax=[fig.add_subplot(x,y,k+1) for k in range(nmax)]
+        hdls=list()
+        for k,a in enumerate(ax):
+            self.plot(n0=k,n1=k+1,ax=a,**kwargs)
+            hdls.append([a.plot([0,0],[0,0],color='black',linestyle=':',visible=False)[0] for _ in range(2)])
         
+        fig.tight_layout()    
+        
+        if ref_struct:
+            self.chimera(PCamp=[0])
+            mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
+            clr=plt.get_cmap('tab10')(mdls-1)
+            for k,a in enumerate(ax):
+                a.scatter(0,0,marker='x',color=clr)
+        
+        PCamp=[None for _ in range(nmax+1)]
+        def onclick(event):
+            if event.inaxes:
+                ax0=event.inaxes
+                i=ax.index(ax0)
+                PCamp[i]=event.xdata
+                PCamp[i+1]=event.ydata
+                hdls[i][0].set_xdata([event.xdata,event.xdata])
+                hdls[i][0].set_ydata(ax0.get_ylim())
+                hdls[i][0].set_visible(True)
+                hdls[i][1].set_xdata(ax0.get_xlim())
+                hdls[i][1].set_ydata([event.ydata,event.ydata])
+                hdls[i][1].set_visible(True)
+                if i+1<len(hdls):
+                    ax0=ax[i+1]
+                    hdls[i+1][0].set_xdata([event.ydata,event.ydata])
+                    hdls[i+1][0].set_ydata(ax0.get_ylim())
+                    hdls[i+1][0].set_visible(True)
+                if i>0:
+                    ax0=ax[i-1]
+                    hdls[i-1][1].set_xdata(ax0.get_ylim())
+                    hdls[i-1][1].set_ydata([event.xdata,event.xdata])
+                    hdls[i-1][1].set_visible(True)
+                
+                if not(None in PCamp):
+                    self.chimera(PCamp=PCamp)
+                    for k,a in enumerate(ax):
+                        mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
+                        clr=plt.get_cmap('tab10')(mdls-1)
+                        a.scatter(PCamp[k],PCamp[k+1],marker='x',color=clr)
+                plt.pause(0.01)
+            else:
+                for k in range(len(PCamp)):PCamp[k]=None
+                for h in hdls:
+                    for h0 in h:
+                        h0.set_visible(False)
+                plt.pause(0.01)
+        
+        fig.canvas.mpl_connect('button_press_event', onclick)
+    
     @property
     def t(self):
         """
@@ -425,14 +582,14 @@ class PCA():
     @property
     def Ct(self):
         """
-        Calculates the linear correlation functions for each principle component.
+        Calculates the linear correlation functions for each principal component.
         Correlation functions are normalized to start from 1, and decay towards
         zero.
 
         Returns
         -------
         np.ndarray
-            nxnt array with each row corresponding to a different principle 
+            nxnt array with each row corresponding to a different principal 
             component.
 
         """
@@ -447,7 +604,7 @@ class PCA():
         
     def PCA2data(self):
         """
-        Exports correlation functions for the principle components to a data
+        Exports correlation functions for the principal components to a data
         object
 
         Returns
@@ -459,7 +616,7 @@ class PCA():
         if self._data is None:
             out=Data_PCA(sens=clsDict['MD'](t=self.t))
             out.source=copy(self.source)
-            out.source.details.append('PCA exported to data with {0} principle components'.format(len(self.Lambda)))
+            out.source.details.append('PCA exported to data with {0} principal components'.format(len(self.Lambda)))
         
             out.R=np.array(self.Ct,dtype=dtype)
             out.Rstd=np.repeat(np.array([out.sens.info['stdev']],dtype=dtype),self.Ct.shape[0],axis=0)
@@ -471,7 +628,7 @@ class PCA():
     
     def tot_z_dist(self,nd=8):
         """
-        Takes the PCA and calculates ALL principle components
+        Takes the PCA and calculates ALL principal components
 
         Returns
         -------
@@ -517,7 +674,7 @@ class PCA():
     
     def S2pca(self,n='all'):
         """
-        Calculates the order parameters for the bond selections via principle
+        Calculates the order parameters for the bond selections via principal
         component analysis
 
         Returns
