@@ -730,7 +730,7 @@ class Data_iRED(Data):
         if rho_index is not None:
             ax.set_title(r'Cross-correlation for $\rho_{}$'.format(rho_index))
         else:
-            ax.set_title(r'Totall cross-correlation')
+            ax.set_title(r'Total cross-correlation')
                 
         return ax
         

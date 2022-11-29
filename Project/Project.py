@@ -1099,9 +1099,13 @@ class Project():
                         sel=d.source.select
                         if sel.uni is None:  #no selection loaded
                             pass
-                        elif sel.uni.filename in origin:  #pdb already saved
+                        elif os.path.abspath(sel.uni.filename) in origin:  #pdb already saved
                             i=origin.index(sel.uni.filename)
                             f.write(f'{filename}:{saved_pdb[i]}:{origin[i]}\n')
+                        elif os.path.split(os.path.abspath(sel.uni.filename))[0]==os.path.join(self.directory,'pdbs')\
+                            and os.path.split(sel.uni.filename)[1] in saved_pdb: #pdb created on previous save
+                            i=saved_pdb.index(os.path.split(sel.uni.filename)[1])
+                            f.write(f'{filename}:{saved_pdb[i]}:{origin[1]}\n')
                         else: #We need to save the pdb
                             fileout=os.path.split(sel.uni.filename)[1].rsplit('.',maxsplit=-1)[0]
                             count=0
@@ -1110,17 +1114,18 @@ class Project():
                                 if count==1:fileout+='1'
                                 else:fileout=fileout[:-1]+str(count)
                             
+                            sel.traj[0]  #Rewind the trajectory before writing
                             sel.uni.atoms.write(os.path.join(pdb_dir,fileout+'.pdb')) #write the pdb
                             data_loc.append(filename)
                             saved_pdb.append(fileout)
-                            origin.append(sel.uni.filename)
+                            origin.append(os.path.abspath(sel.uni.filename))
                             f.write(f'{data_loc[-1]}:{saved_pdb[-1]}:{origin[-1]}\n')
                         
                     
 
     #%% Project operations (|,&,-, i.e. Union, Intersection, and Difference)
     def __add__(self,obj):
-        "Can't make up my mind about this...the | operation is sort of like adding two sets"
+        "Can't make up my mind about this...the or operation is sort of like adding two sets"
         return self.__or__(obj)
     
     def __or__(self,obj):    
