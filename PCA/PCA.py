@@ -555,7 +555,7 @@ class PCA():
                     for k,a in enumerate(ax):
                         mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
                         clr=plt.get_cmap('tab10')(mdls-1)
-                        a.scatter(PCamp[k],PCamp[k+1],marker='x',color=clr)
+                        a.scatter(PCamp[k],PCamp[k+1],150,marker='x',linewidth=5,color=clr)
                 plt.pause(0.01)
             else:
                 for k in range(len(PCamp)):PCamp[k]=None
@@ -565,6 +565,7 @@ class PCA():
                 plt.pause(0.01)
         
         fig.canvas.mpl_connect('button_press_event', onclick)
+        return fig
     
     @property
     def t(self):
