@@ -182,7 +182,7 @@ class Data():
     
 
     def __hash__(self):
-        flds = ['R', 'Rstd', 'S2', 'S2std', 'sens', "select"]
+        flds = ['R', 'Rstd', 'S2', 'S2std', 'sens']
         out = 0
         for f in flds:
             if hasattr(self, f) and getattr(self, f) is not None:
@@ -191,6 +191,8 @@ class Data():
                     out += hash(x.tobytes())
                 else:
                     out += hash(x)
+        if self.source.select is not None:
+            out+=hash(self.source.select)
         return out
     
     def __len__(self):

@@ -280,8 +280,10 @@ class Info():
         """
         
         if hasattr(index,'__len__'):
-            for i in np.sort(index)[::-1]:
-                self.del_exp(i)
+            i=np.ones(self.N,dtype=bool)
+            i[index]=False
+            self.__values=self.__values[:,i]
+            self.N=i.sum()
         else:
             assert index<self.N,"Index must be less than the number of experiments ({0})".format(self.N)
             self.__values=np.concatenate((self.__values[:,:index],self.__values[:,index+1:]),axis=1)

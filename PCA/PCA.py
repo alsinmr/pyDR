@@ -28,8 +28,12 @@ class PCA():
         self.select._mdmode=True
         self.sel0=None
         self.clear()
-        self.source=None
+        self._source=clsDict['Source']('PCAmode')
         assert self.select._mdmode==True,'select._mdmode could not be set to True. Multi-atom selections are not allowed in PCA'
+    
+    @property
+    def source(self):
+        return self._source
     
     def clear(self):
         """
@@ -527,6 +531,7 @@ class PCA():
                 a.scatter(0,0,marker='x',color=clr)
         
         PCamp=[None for _ in range(nmax+1)]
+        markers=['x','o','+','v','>','s','1','*']
         def onclick(event):
             if event.inaxes:
                 ax0=event.inaxes
@@ -550,14 +555,20 @@ class PCA():
                     hdls[i-1][1].set_ydata([event.xdata,event.xdata])
                     hdls[i-1][1].set_visible(True)
                 
-                if not(None in PCamp):
+                if not(None in PCamp):  #All positions defined. Add new molecule in chimera
                     self.chimera(PCamp=PCamp)
                     for k,a in enumerate(ax):
                         mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
-                        clr=plt.get_cmap('tab10')(mdls-1)
-                        a.scatter(PCamp[k],PCamp[k+1],150,marker='x',linewidth=5,color=clr)
+                        clr=plt.get_cmap('tab10')((mdls-1)%10)
+                        a.scatter(PCamp[k],PCamp[k+1],100,marker=markers[(mdls-1)%len(markers)],linewidth=3,color=clr)
+                        
+                    #Clear the positions in the plot
+                    for k in range(len(PCamp)):PCamp[k]=None
+                    for h in hdls:
+                        for h0 in h:
+                            h0.set_visible(False)
                 plt.pause(0.01)
-            else:
+            else: #Clicking outside the axes clears out the positions
                 for k in range(len(PCamp)):PCamp[k]=None
                 for h in hdls:
                     for h0 in h:
@@ -565,7 +576,60 @@ class PCA():
                 plt.pause(0.01)
         
         fig.canvas.mpl_connect('button_press_event', onclick)
-        return fig
+        
+        self.h2s_ax=ax
+        return ax
+    
+    def load_points(self,pts):
+        """
+        After running hist2struct, one may load points in from an array instead
+        of interactive selective (e.g. for reproducibility of structures)
+
+        Parameters
+        ----------
+        pts : array
+            Should have dimensions of (nmax+1) X npoints.
+
+        Returns
+        -------
+        None.
+
+        """
+        assert hasattr(self,'h2s_ax'),'One must first run hist2struct before running load_points'
+        ax=self.h2s_ax
+        nmax=len(ax)
+        
+        pts=np.array(pts).T
+        
+        cmap=plt.get_cmap('tab10')
+        markers=['x','o','+','v','>','s','1','*']
+        for pt in pts:
+            self.chimera(PCamp=pt)
+            mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
+            for a,n0,n1 in zip(ax,range(nmax),range(1,nmax+1)):
+                a.scatter(pt[n0],pt[n1],100,marker=markers[mdls%len(markers)],linewidth=3,color=cmap(mdls%10))
+                
+    def get_points(self):
+        """
+        After running hist2struct, return the points set interactively in the 
+        various plots.
+
+        Returns
+        -------
+        np.array
+
+        """
+        assert hasattr(self,'h2s_ax'),'One must first run hist2struct before running load_points'
+        ax=self.h2s_ax
+        nmax=len(ax)
+        
+        pts=list()
+        for n in range(nmax):
+            pts.append([h.get_offsets().data[0,0] for h in ax[n].collections[1:]])
+        pts.append([h.get_offsets().data[0,1] for h in ax[-1].collections[1:]])
+            
+        return np.array(pts)
+        
     
     @property
     def t(self):
@@ -578,10 +642,10 @@ class PCA():
             Time axis in ns.
 
         """
+        if hasattr(self,'_t') and self._t is not None:return self._t
         return np.arange(self.pos.shape[0])*self.traj.dt/1e3
         
-    @property
-    def Ct(self):
+    def Ct(self,t0:int=0,tf:int=None):
         """
         Calculates the linear correlation functions for each principal component.
         Correlation functions are normalized to start from 1, and decay towards
@@ -594,38 +658,56 @@ class PCA():
             component.
 
         """
-        if self._Ct is None:
+        t0=t0%self.PCamp.shape[1]
+        tf=self.PCamp.shape[1] if tf is None else tf%self.PCamp.shape[1]
+        if self._Ct is None or t0!=self._Ct[0] or tf!=self._Ct[1]:
             ctc=Ctcalc()
-            ctc.a=self.PCamp
+            ctc.a=self.PCamp[:,t0:tf]
             ctc.add()
             ct=ctc.Return()[0]
             ct=ct.T/self.Lambda
-            self._Ct=ct.T
-        return self._Ct
+            self._Ct=t0,tf,ct.T
+        return self._Ct[-1]
         
-    def PCA2data(self):
+    def PCA2data(self,norm:bool=True,t0:int=0,tf:int=None):
         """
         Exports correlation functions for the principal components to a data
         object
+        
+        Parameters
+        ----------
+        norm : bool
+            Normalize correlation functions to have an initial value of 1.
+            Otherwise, correlation functions will have an initial value of
+            sqrt(Lambda). Default is True
 
         Returns
         -------
         None.
 
         """
+        t0=t0%self.PCamp.shape[1]
+        tf=self.PCamp.shape[1] if tf is None else tf%self.PCamp.shape[1]
         
-        if self._data is None:
-            out=Data_PCA(sens=clsDict['MD'](t=self.t))
-            out.source=copy(self.source)
-            out.source.details.append('PCA exported to data with {0} principal components'.format(len(self.Lambda)))
+        if self._data is None or t0!=self._data[0] or tf!=self._data[1]:
+            sens=clsDict['MD'](t=self.t[t0:tf]-self.t[t0])
+            out=Data_PCA(R=self.Ct(t0,tf).astype(dtype) if norm else self.Ct(t0,tf).astype(dtype).T*np.sqrt(self.Lambda).T,
+                         Rstd=np.repeat(np.array([sens.info['stdev']],dtype=dtype),self.Ct(t0,tf).shape[0],axis=0),
+                         sens=sens,
+                         select=self.select,Type='PCAmode')
+            out.source.filename=self.select.traj.files
+            out.source.status='raw'
+            out.source.details=self.select.details
+            out.source.details.append(f'PCA based on analysis of {self.atoms.__len__()}')
+            out.source.details.append(f'PCA exported to data with {len(self.Lambda)} principal components')
         
-            out.R=np.array(self.Ct,dtype=dtype)
-            out.Rstd=np.repeat(np.array([out.sens.info['stdev']],dtype=dtype),self.Ct.shape[0],axis=0)
+            out.R=np.array(self.Ct(t0,tf),dtype=dtype)
+            out.Rstd=np.repeat(np.array([out.sens.info['stdev']],dtype=dtype),self.Ct(t0,tf).shape[0],axis=0)
             out.label=np.arange(out.R.shape[0],dtype=object)
-            self._data=out
+            self._data=t0,tf,out
             self.project.append_data(out)
             
-        return self._data
+        return copy(self._data[2])
     
     def tot_z_dist(self,nd=8):
         """

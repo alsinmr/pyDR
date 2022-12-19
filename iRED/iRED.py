@@ -39,7 +39,7 @@ dtype=Defaults['dtype']
 
 class iRED():
     """
-    Object for managing iRED analysis of 
+    Object for managing iRED analysis of MD trajectories
     """
     def __init__(self,vec,rank=2,auto_exclude=True):
         self.rank=rank
