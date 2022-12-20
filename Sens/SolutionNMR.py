@@ -258,6 +258,8 @@ def AnisoDif(tM,zeta=1,eta=0,euler=[0,0,0],v=[0,0,1]):
     and the asymmetry, eta
     """
         
+    v=np.array(v,dtype=float)
+    v/=np.sqrt((v**2).sum())
     
     Diso=1/(6*tM)
     Dzz=3*Diso*zeta/(2+zeta)
