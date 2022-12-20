@@ -658,8 +658,10 @@ class PCA():
             component.
 
         """
+        assert t0<self.PCamp.shape[1],f"t0 must be less than the trajectory length ({self.PCamp.shape[1]})"
+        tf=min(tf,self.PCamp.shape[1])
         t0=t0%self.PCamp.shape[1]
-        tf=self.PCamp.shape[1] if tf is None else tf%self.PCamp.shape[1]
+        tf=self.PCamp.shape[1] if tf is None else (((tf-1)%self.PCamp.shape[1])+1 if tf else 0)
         if self._Ct is None or t0!=self._Ct[0] or tf!=self._Ct[1]:
             ctc=Ctcalc()
             ctc.a=self.PCamp[:,t0:tf]
@@ -687,7 +689,7 @@ class PCA():
 
         """
         t0=t0%self.PCamp.shape[1]
-        tf=self.PCamp.shape[1] if tf is None else tf%self.PCamp.shape[1]
+        tf=self.PCamp.shape[1] if tf is None else (((tf-1)%self.PCamp.shape[1])+1 if tf else 0)
         
         if self._data is None or t0!=self._data[0] or tf!=self._data[1]:
             sens=clsDict['MD'](t=self.t[t0:tf]-self.t[t0])

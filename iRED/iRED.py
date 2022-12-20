@@ -551,7 +551,7 @@ class Data_iRED(Data):
             print('Warning: Cross-correlation not calculated for this data object')
             return
         if self._totalCCnorm is None:
-            dg=np.sqrt(np.diag(self.totalCC))
+            dg=np.sqrt([np.diag(self.totalCC)])
             self._totalCCnorm=self.totalCC/(dg.T@dg)
         return self._totalCCnorm
     
@@ -676,8 +676,8 @@ class Data_iRED(Data):
             # def empty_formatter(a,b):
             #     return ''
             # for a in ax:
-            #     if not(a.is_first_row()):a.xaxis.set_major_formatter(empty_formatter)
-            #     if not(a.is_last_col()):a.yaxis.set_major_formatter(empty_formatter)
+            #     if not(a.get_subplotspec().is_first_row()):a.xaxis.set_major_formatter(empty_formatter)
+            #     if not(a.get_subplotspec().is_last_col()):a.yaxis.set_major_formatter(empty_formatter)
                     
                     
             return ax

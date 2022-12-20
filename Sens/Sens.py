@@ -64,7 +64,9 @@ class Sens():
         self._parent=None  #If this is a child, keep track of the parent sensitivity
         self.__index=-1     #Index for iterating
         self.__norm=None
+
     
+
     def del_exp(self,index:int):
         """
         Deletes an experiment or experiment (provide a list)
@@ -247,7 +249,7 @@ class Sens():
 #%% Properties relating to iteration over bond-specific sensitivities
     def __len__(self):
         """
-        1 or number of items in self.__bonds
+        1 or number of items in self._bonds
         """
         return 1 if len(self._bonds)==0 else len(self._bonds)
     
@@ -261,14 +263,14 @@ class Sens():
         if len(self._bonds)==0:
             return self
         else:
-            assert index<len(self.__bonds),"index must be less than the number of stored sensitivity objects ({})".format(len(self.__bonds))
-            return self.__bonds[index]
+            assert index<len(self._bonds),"index must be less than the number of stored sensitivity objects ({})".format(len(self._bonds))
+            return self._bonds[index]
 
     def __setitem__(self,index,value):
         """
         Set bond-specific sensitivities for a given index
         """
-        assert index<self._bonds,"index must be less than the number of stored sensitivity objects ({})".format(len(self.__bonds))
+        assert index<self._bonds,"index must be less than the number of stored sensitivity objects ({})".format(len(self._bonds))
         assert isinstance(value,self.__class__),"Bond-specific sensitivities must have the same class as their parent sensitivity"
         self._bonds[index]=value
         self._bonds[index]._parent=self
@@ -359,3 +361,8 @@ class Sens():
         ax.set_ylabel(r'$\rho_n(z)$')
                 
         return hdl
+
+        
+        
+    
+    

@@ -332,7 +332,7 @@ for a,ttl,l,txt in zip(ax,titles,legends,text):
 
     a.set_xticks(np.logspace(-3,3,7))
     a.set_xlim([1e-3,t[n2]])
-    if a.is_last_row():
+    if a.get_subplotspec().is_last_row():
         a.set_xlabel('t')
         a.set_xticklabels(['0 s','','100 ps','','10 ns','',r'1 $\mu$s'])
     else:
