@@ -33,7 +33,6 @@ pyQT5  (for GUI usage)
 
 Recommended (for speed in processing MD trajectories): <br />
 pyFFTW <br />
-numba <br />
 
 We recommend installing Anaconda: https://docs.continuum.io/anaconda/install/ <br />
 The Anaconda installation includes Python, numpy, scipy, pandas, and matplotlib. 
