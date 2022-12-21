@@ -22,7 +22,7 @@ https://doi.org/10.1016/j.jmro.2022.100045
 K. Zumpfe, A.A. Smith<br />
 https://doi.org/10.3389/fmolb.2021.727553
 
-There is no installation required for this module. Just place in a folder, navigate there and run. However, python3 and the following modules are required. <br />
+There is no installation required for this module. Just place in a folder, navigate there (or place on the path) and run. However, python3 and the following modules are required. <br />
 Python v. 3.7.3 <br />
 numpy v. 1.17.2 <br />
 scipy v. 1.3.0 <br />
