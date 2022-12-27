@@ -124,6 +124,7 @@ class Detector(Sens.Sens):
         Obtain the r matrix for fitting with detectors
         """
         self.reload()
+        self.match_parent()
         assert self.__r is not None,"First optimize detectors (r_auto, r_target, r_no_opt)"
         
         if not(self.SVD.up2date):
@@ -148,6 +149,34 @@ class Detector(Sens.Sens):
             self.opt_pars['options']=[]
             for o in opt_pars['options']:
                 getattr(self,o)()
+                
+    def match_parent(self):
+        """
+        If this is a detector sub-object, then match_parent can be run in order
+        when the sensitivities or r-matrix is required of the object.
+
+        Returns
+        -------
+        self
+
+        """
+        if self._parent is None:return
+        
+        self.opt_pars=opts=self._parent.opt_pars
+        
+        inclS2='inclS2' in opts['options']
+        R2ex='R2ex' in opts
+        
+        Type=opts['Type']
+        if Type in ['auto','target','zmax']:
+            target=self._parent.rhoz[inclS2:-1] if R2ex else self._parent.rhoz[inclS2:]
+            self.r_target(target)
+        else:
+            self.r_no_opt(opts['n'])
+        
+        o0=copy(opts['options'])  #What options are used?
+        opts['options']=[]   #Clear the list (options only run if not already in list)
+        for o in o0:getattr(self,o)()  #Run the option (adds back to the list)
             
     
     def update_det(self):
@@ -181,6 +210,7 @@ class Detector(Sens.Sens):
         This works differently than the other sub-classes. update_det finalizes
         the value of _rho, and this function just returns that value.
         """
+        self.match_parent()
         assert 'n' in self.opt_pars,"First, optimize detectors before calling Detector._rho"
         if not(self.SVD.up2date):
             print('Warning: detector sensitivities should be updated due to a change in the input sensitivities')
@@ -570,6 +600,7 @@ class Detector(Sens.Sens):
                 self.T[k]/=rhoz.sum()*self.dz
         self.opt_pars['Normalization']=Normalization
         self.update_det()  
+        
         
     def plot_fit(self,index=None,ax=None,norm=False,**kwargs):
         """

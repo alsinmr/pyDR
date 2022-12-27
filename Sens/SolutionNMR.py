@@ -159,7 +159,7 @@ class SolnNMR(NMR):
         return self.vecsCSA[self.index]
     
     def __len__(self):
-        if self.vecs is None:return 1
+        if self.vecs is None or self.index is not None:return 1
         return self.vecs.shape[0]
     
     
@@ -223,9 +223,9 @@ class SolnNMR(NMR):
         """
         Return the sensitivities due to CSA relaxation in this sensitivity object
         """
-        self._update_rho()
-        return self.__rhoCSA.copy()
-    
+        # self._update_rho()
+        # return self.__rhoCSA.copy()
+        return np.zeros([len(self.info),len(self.z)])
     @property
     def _rho_eff(self):
         """
