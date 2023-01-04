@@ -735,7 +735,9 @@ class Project():
         """
         if len(self)==1 and hasattr(self[0],name):
             return getattr(self[0],name)
-        return super(object).__getattr__(self,name)
+        elif len(self)==1:
+            assert False,f'Neither project nor data object has attribute "{name}"'
+        assert False,f'Project object has no attribute "{name}"'
         
     #%% Detector manager
     @property

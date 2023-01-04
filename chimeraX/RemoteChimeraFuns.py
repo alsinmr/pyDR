@@ -238,4 +238,50 @@ class DetFader():
             # self.model.set_colors(clrs)
             self.i=i
         
+#%% THe functions below will typically be used outside of event loops.
+#cmx (the CMXReceiver instance) should always be the first argument!!
+    
+
+
+def draw_tensors(cmx,A,colors=((1,.39,.39,1),(.39,.39,1,1)),pos=None):
+    """
+    Draws tensors in chimeraX. A is an Nx5 list of tensors. These may be placed
+    along bonds, identified by an atom 
+
+    Parameters
+    ----------
+    session : TYPE
+        DESCRIPTION.
+    A : array
+        Nx5 (or 5 elements) array containing the tensors to be plotted.
+    colors : tuple,optional
+        Two colors defining positive and negative parts of tensors. Each of
+        the two elements should be a list/tuple with 4 elements on a scale
+        from 0 to 1 (R,G,B,alpha).
+    atoms : TYPE, optional
+        DESCRIPTION. The default is None.
+    pos : TYPE, optional
+        Nx3 list of positions for the tensors. 
+        The default is None, which will space the tensors every 1.5 Angstroms along the x-axis
+
+    Returns
+    -------
+    None.
+
+    """
+    from Surfaces import load_surface
+    A=np.atleast_2d(A).astype(float)
+    assert A.shape[1]==5,"A must be an Nx5 array"
+    N=A.shape[0]
+    
+    
+    session=cmx.session
+    if pos is None:
+        pos=np.zeros((N,3),dtype=float)
+        pos[:,0]=np.arange(N)*1.5
+    
+
+    load_surface(session, A, pos)
+        
+    
         

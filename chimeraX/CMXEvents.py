@@ -5,9 +5,20 @@ Created on Wed Nov 24 11:49:56 2021
 
 @author: albertsmith
 """
-from PyQt5.QtWidgets import QMouseEventTransition, QApplication
-from PyQt5.QtCore import Qt
-from PyQt5 import QtGui
+
+from pkg_resources import working_set
+if 'pyqt5' in [pkg.key for pkg in working_set]:
+    # from PyQt5.QtWidgets import QMouseEventTransition, QApplication
+    from PyQt5.QtWidgets import QApplication
+    from PyQt5.QtCore import Qt
+    # from PyQt5 import QtGui
+else:
+    # from PyQt6.QtWidgets import QMouseEventTransition, QApplication
+    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtCore import Qt
+    # from PyQt6 import QtGui
+
+
 import numpy as np
 from matplotlib.pyplot import get_cmap
 from RemoteChimeraFuns import set_color_radius,set_color_radius_CC,DetFader

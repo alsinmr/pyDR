@@ -9,14 +9,13 @@ Created on Mon Nov 22 11:02:59 2021
 
 import numpy as np
 import os
-from multiprocessing.connection import Listener,Client
+from multiprocessing.connection import Listener
 from pyDR.chimeraX.chimeraX_funs import get_path,py_line,WrCC,chimera_path,run_command
 from threading import Thread
 from time import time,sleep
 from platform import platform
 from subprocess import Popen,check_output,DEVNULL
 from pyDR import clsDict
-import socket
 
 #%% Functions to run in pyDR
 class CMXRemote():
@@ -65,6 +64,7 @@ class CMXRemote():
             py_line(f,run_command())
             WrCC(f,'remotecontrol rest start port {0}'.format(ID+cls.rc_port0))
             py_line(f,'sys.path.append("{}")'.format(cls.path))
+            py_line(f,f'sys.path.append("{os.path.split(cls.path)[0]}")')
             py_line(f,'from RemoteCMXside import CMXReceiver as CMXR')
             py_line(f,'import RemoteCMXside')
             py_line(f,'cmxr=CMXR(session,{},rc_port0={})'.format(cls.ports[ID],cls.rc_port0+ID))
@@ -333,9 +333,23 @@ class CMXRemote():
         while time()-t0<1:
             if tr.response:
                 return tr.response
+#%% Execute function (not in event loop)
+    @classmethod
+    def run_function(cls,ID,name,*args):
+        if cls.how_many_models(ID,w_atoms=False)==0:
+            path=os.path.join(cls.path,'dummy.pdb')
+            cls.send_command(ID,f'open {path}')
+            cls.send_command(ID,f'open {path}')
+            cls.send_command(ID,'close #1')
+            cls.conn[ID].send(('run_function',name,*args))
+            sleep(1)
+            cls.send_command(ID,'close #2')
+        else:
+            cls.conn[ID].send(('run_function',name,*args))
+        
 #%% Various queries    
     @classmethod
-    def how_many_models(cls,ID:int)->int:
+    def how_many_models(cls,ID:int,w_atoms=True)->int:
         """
         Queries chimeraX to determine how many atom-containing models are 
         currently loaded in chimeraX.
@@ -353,7 +367,7 @@ class CMXRemote():
 
         """
         try:
-            cls.conn[ID].send(('how_many_models',))
+            cls.conn[ID].send(('how_many_models',w_atoms))
         except:
             print('Connection failed')
             return None

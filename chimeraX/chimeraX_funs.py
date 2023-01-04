@@ -33,17 +33,12 @@ def clean_up():
     """
     
     names=[fn for fn in os.listdir(get_path()) \
-           if fn.startswith('chimera_script') and fn.endswith('.py') and len(fn)==23]
-    
-    tensors=[fn for fn in os.listdir(get_path()) \
-           if fn.startswith('tensors') and fn.endswith('.txt') and len(fn)==18]
+           if fn.startswith('chimera_script') and fn.endswith('.py') and len(fn)==19]
     
     for n in names:
         os.remove(os.path.join(get_path(),n))
-    for t in tensors:
-        os.remove(os.path.join(get_path(),t))
     
-    print('{0} files removed'.format(len(names)+len(tensors)))
+    print(f'{len(names)} files removed')
 
 def set_chimera_path(path):
     """

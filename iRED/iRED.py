@@ -443,13 +443,14 @@ class iRED():
         else:
             out.source.additional_info='rk{0}_'.format(self.rank)+out.source.additional_info
         
-        out.label=np.arange(self.M.shape[0])
+        
         if self.auto_exclude:
             out.R=self.DelCt[self.M.shape[0]-self.mat_rank:]
             out.Rstd=np.repeat(np.array([out.sens.info['stdev']],dtype=dtype),self.mat_rank,axis=0)
         else:
             out.R=np.array(self.DelCt,dtype=dtype)
             out.Rstd=np.repeat(np.array([out.sens.info['stdev']],dtype=dtype),self.M.shape[0],axis=0)
+        out.label=np.arange(out.R.shape[0])
         out.iRED={'M':self.M,'m':self.m,'Lambda':self.Lambda,'rank':self.rank,'mat_rank':self.mat_rank}
         if self.project is not None:
             self.project.append_data(out)

@@ -572,7 +572,7 @@ class FrameObj():
         Parameters
         ----------
         rank : int, optional
-            1 or 2, giving the rank of the iRED analysis
+            1 or 2, giving the rank of the iRED analysis. The default is 2.
         include : list, optional
             List of logicals the same length as the number of loaded frames, 
             used to determine whether or not to include each frame.
@@ -581,9 +581,8 @@ class FrameObj():
         Returns
         -------
         list
-            Contains a list of the vectors for further analysis with iRED, as
-            well as information about sampling of the time axis – each list
-            element is a dictionary
+            Contains a list of the iRED objects corresponding to the total 
+            motion, and the frame-separated motions (total motion first).
 
         """
         if not(self.__frames_loaded):self.load_frames() #Load the frames if not already done

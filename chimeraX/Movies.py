@@ -250,6 +250,7 @@ class Movies():
 
         """
         sel0=read_file(os.path.join(self.directory,self.valid_xtcs[i][:-4]+'.sel'))
+        sel0._mdmode=True
         ids=list()
         for sel in self.data.select.repr_sel:
             ids.append(list())

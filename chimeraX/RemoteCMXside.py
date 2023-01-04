@@ -12,6 +12,7 @@ from chimerax.core.commands import run
 from threading import Thread
 from time import sleep
 import CMXEvents
+import RemoteChimeraFuns as RCF
 import os
 import numpy as np
 
@@ -230,7 +231,7 @@ class CMXReceiver():
                 sel[-1]['a'] = mdl.atoms[mdl.atoms.selected].coord_indices
         self.client.send(sel)
         
-    def how_many_models(self):
+    def how_many_models(self,w_atoms=True):
         """
         Tells pyDR how many atom-containing models are open in ChimeraX
 
@@ -241,7 +242,10 @@ class CMXReceiver():
         """
         count=0
         for k in range(len(self.session.models),0,-1):
-            if hasattr(self.session.models[k-1],'atoms'):count+=1
+            if w_atoms:
+                if hasattr(self.session.models[k-1],'atoms'):count+=1
+            else:
+                count+=1
         
         self.client.send(count)
         
@@ -279,7 +283,7 @@ class CMXReceiver():
         # todo it is still working
         if not(hasattr(CMXEvents,name)):
             print('Unknown event "{}", available events:\n'.format(name))
-            print([fun for fun in dir(CMXEvents) if fun[0] is not "_"])
+            print([fun for fun in dir(CMXEvents) if fun[0]!="_"])
             return
         event=getattr(CMXEvents,name)
         if event.__class__ is type: #Event is a class. First initialize
@@ -306,4 +310,31 @@ class CMXReceiver():
             event=self._events.pop(name) #Remove the event
             if hasattr(event,'cleanup'):event.cleanup()  
             self.Start()
+            
+    def run_function(self,name:str,*args):
+        """
+        Runs a function in ChimeraX that does not get added to the event loop.
+        This is used for one-time operations in ChimeraX
+        
+        For example, tensor display is currently implemented only as a one-time
+        event
+
+        Parameters
+        ----------
+        name : str
+            Name of the function to be run (should exist in RemoteChimeraFuns)
+        *args : TYPE
+            Arguments to be passed to the function.
+
+        Returns
+        -------
+        None.
+
+        """
+        if hasattr(RCF,name):
+            getattr(RCF,name)(self,*args)
+        else:
+            print(f'No function "{name}" found in RemoteChimeraFuns')
+        
+        
         
