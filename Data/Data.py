@@ -31,8 +31,9 @@ class Data():
         data object.
         """
 
-        if R is not None:R=np.array(R,dtype=dtype)
-        if Rstd is not None:Rstd=np.array(Rstd,dtype=dtype)
+        if R is not None and not(isinstance(R,np.ndarray)):R=np.array(R,dtype=dtype)
+        if Rstd is not None and not(isinstance(Rstd,np.ndarray)):Rstd=np.array(Rstd,dtype=dtype)
+        if Rc is not None and not(isinstance(Rc,np.ndarray)):Rc=np.array(Rc,dtype=dtype)
         
         "We start with some checks on the data sizes, etc"
         if R is not None and Rstd is not None:
@@ -40,11 +41,11 @@ class Data():
         if R is not None and sens is not None and len(sens.info):
             assert R.shape[1]==sens.rhoz.shape[0],"Shape of sensitivity object is not consistent with shape of R"
         
-        self.R=np.array(R) if R is not None else np.zeros([0,sens.rhoz.shape[0] if sens else 0],dtype=dtype)
-        self.Rstd=np.array(Rstd) if Rstd is not None else np.zeros(self.R.shape,dtype=dtype)
+        self.R=R if R is not None else np.zeros([0,sens.rhoz.shape[0] if sens else 0],dtype=dtype)
+        self.Rstd=Rstd if Rstd is not None else np.zeros(self.R.shape,dtype=dtype)
         self.S2=np.array(S2) if S2 is not None else None
         self.S2std=np.array(S2std) if S2std is not None else None
-        self._Rc=np.array(Rc) if Rc is not None else None
+        self._Rc=Rc if Rc is not None else None
         self._S2c=None
         self.label=np.array(label) if label is not None else None
         if self.label is None:
@@ -204,8 +205,31 @@ class Data():
         return self.__hash__() == data.__hash__()
     
     def fit(self, bounds: bool = 'auto', parallel: bool = False):
-        # todo I was a little confused by that, might be useful to rename the return function? -K
-        return fit(self, bounds=bounds, parallel=parallel)
+        """
+        Fits the data set using the attached detector object.
+
+        Parameters
+        ----------
+        bounds : bool, optional
+            Restrict detector responses to not exceed the minima or maxima of
+            the corresponding detector sensitivity. The default is 'auto', which
+            will be False for unoptimized (no_opt) detectors and True otherwise
+        parallel : bool, optional
+            Determines whether to use parallel processing for fitting. Often,
+            the overhead for parallel processing is higher than gains, so not
+            currently recommended. The default is False.
+
+        Returns
+        -------
+        data
+
+        """
+        out=fit(self, bounds=bounds, parallel=parallel)
+        if Defaults['reduced_mem']:  #Destroy the original data object
+            out.src_data=None
+        return out
+                
+        
     
     def opt2dist(self,rhoz_cleanup:bool = False,parallel:bool = False):
         """

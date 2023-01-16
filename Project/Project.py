@@ -169,10 +169,10 @@ class DataMngr():
             else:
                 name=os.path.split(d.source.default_save_location)[1]
             if name in names:
-                name=name[:-5]+'1'+name[-5:]
-                k=2
+                name0=name[:-5]+'{}'+name[-5:]
+                k=1
                 while name in names:
-                    name=name[:-5]+'{}'.format(k)+name[-5:]
+                    name=name0.format(k)
                     k+=1
             names.append(name)
         names=[os.path.join(self.directory,name) for name in names]
@@ -620,15 +620,22 @@ class Chimera():
         """
         CMXid=self._CMXid[ID] if ID is not None else self.CMXid
         assert CMXid is not None,"No active sessions, save not completed"
-        
-        if not(os.path.exists(os.path.join(self.project.directory,'figures'))):
-            os.mkdir(os.path.join(self.project.directory,'figures'))
-        
-        filename=os.path.join(os.path.join(self.project.directory,'figures'),filename)
+
+        if self.project is not None:        
+            if not(os.path.exists(os.path.join(self.project.directory,'figures'))):
+                os.mkdir(os.path.join(self.project.directory,'figures'))
+            
+    
+            filename=os.path.join(os.path.join(self.project.directory,'figures'),filename)
         if len(filename.split('.'))<2:filename+='.png'
         
         
         self.command_line('save "{0}" {1}'.format(filename,options))
+        
+    def draw_tensors(self,A,pos=None,colors=((1,.39,.39,1),(.39,.39,1,1)),Aiso=None,comp='Azz'):
+        if self.current is None:self.current=0
+        self.CMX.run_function(self.CMXid,'draw_tensors',A,Aiso,pos,colors,comp)
+
 
 #%% Numpy nice display
 
@@ -735,9 +742,7 @@ class Project():
         """
         if len(self)==1 and hasattr(self[0],name):
             return getattr(self[0],name)
-        elif len(self)==1:
-            assert False,f'Neither project nor data object has attribute "{name}"'
-        assert False,f'Project object has no attribute "{name}"'
+        raise AttributeError(f"'Proj' object has no attribute '{name}'")
         
     #%% Detector manager
     @property
@@ -1432,6 +1437,7 @@ class Project():
         sens = list()
         detect = list()
         count = 0
+        to_delete=list()
         for d in self:
             if 'n' in d.detect.opt_pars:
                 count += 1
@@ -1443,6 +1449,13 @@ class Project():
                 else:
                     sens.append(fit.sens)
                     detect.append(fit.detect)
+                if Defaults['reduced_mem']:
+                    if d.source.status=='raw':
+                        i0=self.data.data_objs.index(d)
+                        self.data.data_objs[i0]=None
+                        to_delete.append(self._index.tolist().index(i0))
+        self.remove_data(to_delete)
+                    
         print('Fitted {0} data objects'.format(count))
         return self
         
@@ -1492,7 +1505,7 @@ class Project():
         for t in self.titles:out+=t+'\n'
         return out
         
-    def _ipython_key_completions_(self) -> list:
+    def _ipython_key_completions_(self):
         out = list()
         for k in ['Types','statuses','additional_info','titles','short_files']:
             for v in getattr(self, k):
@@ -1503,7 +1516,6 @@ class Project():
                 v=v0.rsplit('.',1)[0]
                 if v not in out and v is not None:
                     out.append(v)
-            
         return out
  
 

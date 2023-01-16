@@ -243,7 +243,7 @@ class DetFader():
     
 
 
-def draw_tensors(cmx,A,colors=((1,.39,.39,1),(.39,.39,1,1)),pos=None):
+def draw_tensors(cmx,A,Aiso=None,pos=None,colors=((1,.39,.39,1),(.39,.39,1,1)),comp='Azz'):
     """
     Draws tensors in chimeraX. A is an Nx5 list of tensors. These may be placed
     along bonds, identified by an atom 
@@ -270,18 +270,19 @@ def draw_tensors(cmx,A,colors=((1,.39,.39,1),(.39,.39,1,1)),pos=None):
 
     """
     from Surfaces import load_surface
-    A=np.atleast_2d(A).astype(float)
+    A=np.atleast_2d(A).astype(complex)
     assert A.shape[1]==5,"A must be an Nx5 array"
     N=A.shape[0]
+    if Aiso is None:Aiso=np.zeros(N)
     
     
     session=cmx.session
-    if pos is None:
-        pos=np.zeros((N,3),dtype=float)
-        pos[:,0]=np.arange(N)*1.5
+    # if pos is None:
+    #     pos=np.zeros((N,3),dtype=float)
+    #     pos[:,0]=np.arange(N)*1.5
     
 
-    load_surface(session, A, pos)
+    load_surface(session, A, Aiso,pos,colors,comp)
         
     
         

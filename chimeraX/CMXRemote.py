@@ -182,6 +182,9 @@ class CMXRemote():
             DESCRIPTION.
 
         """
+        # cls.conn[ID].send(('command_line',string))
+        # return
+        
         # string=string.replace(' ','+')
         
         #Entries in encoding were obtained at https://meyerweb.com/eric/tools/dencoder/. 
@@ -336,16 +339,7 @@ class CMXRemote():
 #%% Execute function (not in event loop)
     @classmethod
     def run_function(cls,ID,name,*args):
-        if cls.how_many_models(ID,w_atoms=False)==0:
-            path=os.path.join(cls.path,'dummy.pdb')
-            cls.send_command(ID,f'open {path}')
-            cls.send_command(ID,f'open {path}')
-            cls.send_command(ID,'close #1')
-            cls.conn[ID].send(('run_function',name,*args))
-            sleep(1)
-            cls.send_command(ID,'close #2')
-        else:
-            cls.conn[ID].send(('run_function',name,*args))
+        cls.conn[ID].send(('run_function',name,*args))
         
 #%% Various queries    
     @classmethod

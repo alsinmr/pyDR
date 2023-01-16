@@ -7,7 +7,7 @@ Created on Wed Nov 24 11:49:56 2021
 """
 
 from pkg_resources import working_set
-if 'pyqt5' in [pkg.key for pkg in working_set]:
+if 'pyqt5-commercial' in [pkg.key for pkg in working_set]:
     # from PyQt5.QtWidgets import QMouseEventTransition, QApplication
     from PyQt5.QtWidgets import QApplication
     from PyQt5.QtCore import Qt

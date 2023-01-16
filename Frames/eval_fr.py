@@ -48,7 +48,7 @@ def md2data(select):
 def md2iRED(select):
     return FrameObj(select).md2iRED()
 
-dtype=Defaults['dtype']
+
 flags={'ct_finF':True,'ct_m0_finF':False,'ct_0m_finF':False,'ct_0m_PASinF':False,\
         'A_m0_finF':False,'A_0m_finF':False,'A_0m_PASinF':False,\
         'ct_prod':True,'ct':True,'S2':True}
@@ -176,6 +176,7 @@ class FrameObj():
         self.S2=None
         self.__return_index=None
         self._project=None
+        self.reduced_mem=Defaults['reduced_mem']
     
     
     def __setattr__(self,name,value):
@@ -251,6 +252,18 @@ class FrameObj():
     @property
     def traj(self):
         return self.select.traj
+    
+    @property
+    def nf(self):
+        """
+        Number of frames
+
+        Returns
+        -------
+        int
+
+        """
+        return len(self.frame_info['info'])
     
     def new_frame(self,Type=None,frame_index=None,**kwargs):
         """
@@ -404,7 +417,7 @@ class FrameObj():
         variable 'include', which should be a list of logicals the same length
         as the number of frames (length of self.vf)
         """
-        if not(self.__frames_loaded):self.load_frames() #Load the frames if not already done
+        
         
         if mode=='auto':self.return_index.set2auto()
         if mode=='sym':self.return_index.set2sym()
@@ -414,12 +427,12 @@ class FrameObj():
         
         assert include is  None or len(include)==len(self.vf),\
         "include index must have the same length ({0}) as the number of frames({1})".format(len(include),len(self.vf))
-        include=np.ones(len(self.vf),dtype=bool) if include is None else np.array(include,dtype=bool)
+        include=np.ones(self.nf,dtype=bool) if include is None else np.array(include,dtype=bool)
         return_index=ReturnIndex(return_index) if return_index else self.return_index
         self.return_index=return_index
         
         "In the next lines, we determine whether the function needs to be run"
-        run=False
+        run=not(hasattr(self,'ct_out'))
         if self.include is None or np.logical_not(np.all(include==self.include)):run=True #Not run before/new frames loaded/different frames used
         if not(self.mode==mode):run=True
         if self.__return_index is not None:
@@ -428,12 +441,14 @@ class FrameObj():
 
         
         if run:
+            if not(self.__frames_loaded):self.load_frames() #Load the frames if not already done
+            
             self.__return_index=return_index.copy()
             
             "Here we check if post-processing is REQUIRED"
-            for v in self.vecs['v']:
+            for k,v in enumerate(self.vecs['v']):
                 if v.shape[0]>2:
-                    print('Post processing is required for some frames')
+                    print('Post processing is required for some frames (running post-processing)')
                     self.post_process()
             
             
@@ -441,6 +456,10 @@ class FrameObj():
             vecs=self.select_frames(include)
 
             out=frames2ct(v=vecs,return_index=return_index,mode=mode,rank=self.rank)
+            if self.reduced_mem:
+                self.vecs={}
+                self.__frames_loaded=False
+            
             self.mode=mode
             self.include=include
             
@@ -523,6 +542,9 @@ class FrameObj():
             for o in out:
                 self.project.append_data(o)
         
+        if self.reduced_mem:
+            delattr(self,'ct_out')
+            self.Ct={}
         return out
     
     def md2data(self,rank:int=None):
@@ -698,7 +720,7 @@ class FrameObj():
         else:
             assert hasattr(self,'vecs'),'No frames have been loaded (load frames before post processing)'
             assert hasattr(FPP,Type),'Unknown post-processing method'
-            if not(hasattr(self,'_vecs')):
+            if not(hasattr(self,'_vecs')) and not(self.reduced_mem):
                 self._vecs=deepcopy(self.vecs)
             getattr(FPP,Type)(self.vecs,*args,**kwargs)
             self.include=None
@@ -709,6 +731,8 @@ class FrameObj():
             self.vecs=self._vecs
             delattr(self,'_vecs')
             self.include=None
+        else:
+            print('No post-processing to remove (Is reduced_mem set to True?)')
         
         
     
@@ -762,7 +786,7 @@ def ct2data(ct_out,mol=None):
     out=list()
     
     md=clsDict['MD'](t=ct_out['t'])
-    stdev=np.repeat([md.info['stdev']],ct_out['ct'].shape[0],axis=0)
+    stdev=np.repeat([md.info['stdev'].astype(Defaults['dtype'])],ct_out['ct'].shape[0],axis=0)
     if 'ct' in ct_out:
         data=clsDict['Data'](R=ct_out['ct'],Rstd=stdev,sens=md,select=mol,Type='Frames')
 #        data.Rstd[:]=stdev #Copy stdev for every data point
@@ -1010,7 +1034,7 @@ def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=
                               cmpt='m0',mode='both',index=index,rank=rank)
             ct_m0_finF.append(a)
             A_m0_finF.append(b)
-        ct_m0_finF=np.array(ct_m0_finF)
+        # ct_m0_finF=np.array(ct_m0_finF)
         if ri.calc_A_m0_finF:
             A_m0_finF=np.array(A_m0_finF)
 
@@ -1029,7 +1053,8 @@ def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=
 
     if ri.ct_0m_finF:
         "ct_0m_finF are just the conjugates of ct_m0_finF"
-        ct_0m_finF=np.array([ct0.conj() for ct0 in ct_m0_finF])
+        # ct_0m_finF=np.array([ct0.conj() for ct0 in ct_m0_finF])
+        ct_0m_finF=[ct0.conj() for ct0 in ct_m0_finF]
     
     if ri.A_0m_finF:
         "A_0m_finF are just the conjugates of A_m0_finF"
@@ -1046,7 +1071,7 @@ def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=
                 a,b=Ct_D2inf(vZ=vZ,vXZ=vXZ,nuZ_F=nuZ[k],nuXZ_F=nuXZ[k],cmpt='0m',mode='both',index=index)
             ct_0m_PASinF.append(a)
             A_0m_PASinF.append(b)
-        ct_0m_PASinF=np.array(ct_0m_PASinF)
+        # ct_0m_PASinF=np.array(ct_0m_PASinF)
         A_0m_PASinF=np.array(A_0m_PASinF)
     elif ri.calc_A_0m_PASinF:
         "Calculate A_0m_PASinF if requested, if ct_prod requested, or if ct_finF requested"
@@ -1067,11 +1092,12 @@ def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=
                 ct_finF.append(ct_m0_finF[0][2].real)
             else:
                 ct_finF.append((np.moveaxis(ct_m0_finF[k],-1,0)*A_0m_PASinF[k-1]/A_0m_PASinF[k-1][2].real).sum(1).real.T)
-        ct_finF=np.array(ct_finF)
+        # ct_finF=np.array(ct_finF)
 
     if ri.ct_prod:
         "Calculate ct_prod"
-        ct_prod=ct_finF.prod(0)
+        # ct_prod=ct_finF.prod(0)
+        ct_prod=np.prod(ct_finF,0)
         
     if ri.ct:
         "Calculate ct if requested"

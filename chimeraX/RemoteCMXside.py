@@ -103,7 +103,7 @@ class CMXReceiver():
             fun, *args = self.LE.args
             if hasattr(self, fun): #If fun is in this class, then we run it with the provided args
                 try:
-                    getattr(self, fun)(*args)
+                    self.session.ui.thread_safe(getattr(self, fun),*args)
                 except:
                     print('Execution of {} failed'.format(fun))
         if self.LE is None:
@@ -117,8 +117,9 @@ class CMXReceiver():
     
     def command_line(self, string):
         '''running this from inside an event will cause a crash of chimerax'''
-        print("run command")
-        run(self.session, string)
+        # print("run command")
+        self.session.ui.thread_safe(run,self.session,string)
+        # run(self.session, string)
         
         
     def phone_home(self):
@@ -332,7 +333,9 @@ class CMXReceiver():
 
         """
         if hasattr(RCF,name):
-            getattr(RCF,name)(self,*args)
+            fun=getattr(RCF,name)
+            self.session.ui.thread_safe(fun,self,*args)
+            # getattr(RCF,name)(self,*args)
         else:
             print(f'No function "{name}" found in RemoteChimeraFuns')
         

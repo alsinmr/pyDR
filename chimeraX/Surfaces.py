@@ -10,6 +10,9 @@ Created on Tue Jan  3 17:22:29 2023
 Thanks to Tom Goddard at ChimeraX for explaining to me how to implement this!!
 https://rbvi.github.io/chimerax-recipes/spherical_harmonics/spherical_harmonics.html 
 
+and also for explaining a bit how threading works in ChimeraX and resolving 
+issues where it threading creates problems.
+
 """
 
 import numpy as np
@@ -40,11 +43,11 @@ def sphere_triangles(theta_steps=100,phi_steps=50):
     
     return theta,phi,triangles
 
-def spherical_surface(delta,eta=None,euler=None,pos=None,sc=2.09,
+def spherical_surface(delta,eta=None,euler=None,pos=None,Aiso=0,sc=2.09,
                       theta_steps = 100,
                       phi_steps = 50,
                       positive_color = (255,100,100,255), # red, green, blue, alpha, 0-255 
-                      negative_color = (100,100,255,255)):
+                      negative_color = (100,100,255,255),comp='Azz'):
     """
     Function for generating a surface in ChimeraX. delta, eta, and euler angles
     should be provided, as well positions for each tensor (length of all arrays
@@ -53,10 +56,13 @@ def spherical_surface(delta,eta=None,euler=None,pos=None,sc=2.09,
     Returns arrays with the vertices positions (Nx3), the triangles definitions
     (list of index triples, Nx3), and a list of colors (Nx4)
     
+    Component (comp) is by default the zz component. However, one may request
+    Axz,Ayz,Ayz, etc. or may request the component by index (-2,-1,0,1,2)
+    
     xyz,tri,colors=spherical_surface(delta,eta=None,euler=None,pos=None,
                                      theta_steps=100,phi_steps=50,
                                      positive_color=(255,100,100,255),
-                                     negative_color=(100,100,255,255))
+                                     negative_color=(100,100,255,255),comp='Azz')
     """
     # Compute vertices and vertex colors
     a,b,triangles=sphere_triangles(theta_steps,phi_steps)
@@ -71,21 +77,50 @@ def spherical_surface(delta,eta=None,euler=None,pos=None,sc=2.09,
     A=[-1/2*delta*eta,0,np.sqrt(3/2)*delta,0,-1/2*delta*eta]   #Components in PAS
     
     #0 component after rotation by a and b
-    A0=np.array([A[mp+2]*d2(b,m=0,mp=mp)*np.exp(1j*mp*a) for mp in range(-2,3)]).sum(axis=0).real
-    
+    if isinstance(comp,str):
+        if comp=='Azz':
+            APAS=np.sqrt(2/3)*np.array([A[mp+2]*d2(b,m=0,mp=mp)*np.exp(1j*mp*a) for mp in range(-2,3)]).sum(axis=0).real
+        else:
+            if comp=='Ayy':
+                weight=[-.5,0,-np.sqrt(1/6),0,-.5]
+            elif comp=='Axx':
+                weight=[0.5,0,-np.sqrt(1/6),0,0.5]
+            elif comp in ['Axy','Ayx']:
+                weight=[0.5*1j,0,0,0,-0.5*1j]
+            elif comp in ['Axz','Azx']:
+                weight=[0,0.5,0,-0.5,0]
+            elif comp in ['Ayz','Azy']:
+                weight=[0,0.5*1j,0,0.5*1j,0]
+            APAS=np.zeros(b.shape,dtype=complex)
+            for m,wt in zip(range(-2,3),weight):
+                APAS+=wt*np.array([A[mp+2]*d2(b,m=m,mp=mp)*np.exp(1j*mp*a) for mp in range(-2,3)]).sum(axis=0).real
+    else:
+        APAS=np.array([A[mp+2]*d2(b,m=comp,mp=mp)*np.exp(1j*mp*a) for mp in range(-2,3)]).sum(axis=0).real
+    APAS=APAS.astype(float)
     #Coordinates before rotation by alpha, beta, gamma
-    x0=np.cos(a)*np.sin(b)*np.abs(A0)*sc/2
-    y0=np.sin(a)*np.sin(b)*np.abs(A0)*sc/2
-    z0=np.cos(b)*np.abs(A0)*sc/2
+    x0=(np.cos(a)*np.sin(b)*np.abs(APAS+Aiso))*sc/2
+    y0=(np.sin(a)*np.sin(b)*np.abs(APAS+Aiso))*sc/2
+    z0=(np.cos(b)*np.abs(APAS+Aiso))*sc/2
 
+    # alpha,beta,gamma=euler
+    # alpha,beta,gamma=-alpha,-beta,-gamma    #Added 30.09.21 along with edits to vf_tools>R2euler
+    # #Rotate by alpha
+    # x1,y1,z1=x0*np.cos(alpha)+y0*np.sin(alpha),-x0*np.sin(alpha)+y0*np.cos(alpha),z0
+    # #Rotate by beta
+    # x2,y2,z2=x1*np.cos(beta)-z1*np.sin(beta),y1,np.sin(beta)*x1+np.cos(beta)*z1
+    # #Rotate by gamma
+    # x,y,z=x2*np.cos(gamma)+y2*np.sin(gamma),-x2*np.sin(gamma)+y2*np.cos(gamma),z2
+    
+    
     alpha,beta,gamma=euler
-    alpha,beta,gamma=-alpha,-beta,-gamma    #Added 30.09.21 along with edits to vf_tools>R2euler
+    # alpha,beta,gamma=-gamma,-beta,-alpha  #If you add this line back, you'll break your tensor_rotation class :-(
     #Rotate by alpha
-    x1,y1,z1=x0*np.cos(alpha)+y0*np.sin(alpha),-x0*np.sin(alpha)+y0*np.cos(alpha),z0
+    x1,y1,z1=x0*np.cos(alpha)-y0*np.sin(alpha),x0*np.sin(alpha)+y0*np.cos(alpha),z0
     #Rotate by beta
-    x2,y2,z2=x1*np.cos(beta)-z1*np.sin(beta),y1,np.sin(beta)*x1+np.cos(beta)*z1
+    x2,y2,z2=x1*np.cos(beta)+z1*np.sin(beta),y1,-np.sin(beta)*x1+np.cos(beta)*z1
     #Rotate by gamma
-    x,y,z=x2*np.cos(gamma)+y2*np.sin(gamma),-x2*np.sin(gamma)+y2*np.cos(gamma),z2
+    x,y,z=x2*np.cos(gamma)-y2*np.sin(gamma),x2*np.sin(gamma)+y2*np.cos(gamma),z2
+    
 
     x=x+pos[0]
     y=y+pos[1]
@@ -93,9 +128,9 @@ def spherical_surface(delta,eta=None,euler=None,pos=None,sc=2.09,
     
 #    xyz=[[x0,y0,z0] for x0,y0,z0 in zip(x,y,z)]
     #Determine colors
-    colors=np.zeros([A0.size,4],np.uint8)
-    colors[A0>=0]=positive_color
-    colors[A0<0]=negative_color
+    colors=np.zeros([APAS.size,4],np.uint8)
+    colors[(APAS+Aiso)>=0]=positive_color
+    colors[(APAS+Aiso)<0]=negative_color
     
 
     # Create numpy arrays
@@ -106,27 +141,30 @@ def spherical_surface(delta,eta=None,euler=None,pos=None,sc=2.09,
 
     return xyz,tri,colors
 
-def load_surface(session,A,Pos=None,color=((1,.39,.39,1),(.39,.39,1,1))):
+def load_surface(session,A,Aiso=None,Pos=None,colors=((1,.39,.39,1),(.39,.39,1,1)),comp='Azz'):
     
     theta_steps,phi_steps=100,50
-    pc,nc=[[int(c*255) for c in color0] for color0 in color]
+    pc,nc=[[int(c*255) for c in color0] for color0 in colors]
     A=np.atleast_2d(A)
     if Pos is None:
         Pos=np.zeros([A.shape[0],3])
-        Pos[:,0]=np.arange(A.shape[0],dtype=float)*1.5
+        Pos[:,0]=np.arange(A.shape[0],dtype=float)*2
+    Pos=np.atleast_2d(Pos)
 
     Delta,Eta,*Euler=Spher2pars(A.T,return_angles=True)  #Convert into parameters for better plotting
+
+    Aiso=np.zeros(A.shape[0]) if Aiso is None else np.atleast_1d(Aiso)
 
     from chimerax.core.models import Surface
     from chimerax.surface import calculate_vertex_normals,combine_geometry_vntc
 
     geom=list()
-    for k,(delta,eta,euler,pos) in enumerate(zip(Delta,Eta,np.array(Euler).T,Pos)):
-        xyz,tri,colors=spherical_surface(delta=delta,eta=eta,euler=euler,pos=pos,\
+    for k,(delta,eta,euler,pos,Aiso0) in enumerate(zip(Delta,Eta,np.array(Euler).T,Pos,Aiso)):
+        xyz,tri,colors=spherical_surface(delta=delta,eta=eta,euler=euler,pos=pos,Aiso=Aiso0,\
                                          theta_steps=theta_steps,\
                                          phi_steps=phi_steps,\
                                          positive_color=pc,\
-                                         negative_color=nc)
+                                         negative_color=nc,comp=comp)
 
         norm_vecs=calculate_vertex_normals(xyz,tri)
         

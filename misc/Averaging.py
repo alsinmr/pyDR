@@ -11,10 +11,7 @@ import numpy as np
 from copy import copy
 from difflib import SequenceMatcher
 
-Data=clsDict['Data']
-MolSelect=clsDict['MolSelect']
-
-def avg2sel(data:Data,sel:MolSelect) -> Data:
+def avg2sel(data,sel):
     """
     Averages data points in a data object together such that we may define a new
     data object whose selection matches a given input selection. 
@@ -134,7 +131,7 @@ def avg2sel(data:Data,sel:MolSelect) -> Data:
     return out
         
 
-def avgData(data:Data,index:list,wt:list=None)->Data:
+def avgData(data,index:list,wt:list=None):
     """
     Averages data points in a data object together according to an index.
     
@@ -579,7 +576,7 @@ def appendDataObjs(*args,check_sens:bool=True):
 #     return out
     
         
-def avgMethyl(data:Data) -> None:
+def avgMethyl(data):
     """
     Average together every three data points in a data object.    
     
