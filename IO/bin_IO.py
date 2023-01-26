@@ -50,7 +50,7 @@ def write_file(filename,ob,overwrite=False):
             write_Detector(f,ob)
         elif object_parent=='Sens':
             write_Sens(f,ob)
-        elif object_class=="Data":
+        elif object_class=="Data" or object_class=="Data_PCA":
             write_Data(f,ob)
         elif object_class=='Data_iRED':
             write_Data_iRED(f,ob)

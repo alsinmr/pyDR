@@ -605,7 +605,7 @@ class PCA():
         markers=['x','o','+','v','>','s','1','*']
         for pt in pts:
             self.chimera(PCamp=pt)
-            mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
+            mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)-1
             for a,n0,n1 in zip(ax,range(nmax),range(1,nmax+1)):
                 a.scatter(pt[n0],pt[n1],100,marker=markers[mdls%len(markers)],linewidth=3,color=cmap(mdls%10))
                 
@@ -705,7 +705,7 @@ class PCA():
         
             out.R=np.array(self.Ct(t0,tf),dtype=dtype)
             out.Rstd=np.repeat(np.array([out.sens.info['stdev']],dtype=dtype),self.Ct(t0,tf).shape[0],axis=0)
-            out.label=np.arange(out.R.shape[0],dtype=object)
+            out.label=np.arange(out.R.shape[0],dtype=int)
             self._data=t0,tf,out
             self.project.append_data(out)
             

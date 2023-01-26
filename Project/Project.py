@@ -216,17 +216,19 @@ class DataMngr():
             if not(self.saved[i]):
                 src_fname=None
                 if self[i].src_data is not None and not(isinstance(self[i].src_data,str)):
-                    k=np.argwhere([self[i].src_data==d for d in self.data_objs])[0,0]
+                    # k=np.argwhere([self[i].src_data==d for d in self.data_objs])[0,0]
+                    k=self.data_objs.index(self[i].src_data) if self[i].src_data in self.data_objs else None
                     
                     # if self[k].R.size<=ME:
                     #     self.save(k)
-                    if not(self[k].source.status=='raw' and str(self[k].sens.__class__).split('.')[-1][:-2]=='MD')\
-                        or include_rawMD:
-                        self.save(k)
-                    else:
-                        # print('Skipping source data of object {0} (project index {1}). Size of source data exceeds default max elements ({2})'.format(i,k,ME))
-                        print('Skipping source data of object "{0}".\n Set include_rawMD to True to include raw MD data'.format(self[i].title))
-                    src_fname=self.save_name[k]
+                    if k is not None:
+                        if not(self[k].source.status=='raw' and str(self[k].sens.__class__).split('.')[-1][:-2]=='MD')\
+                            or include_rawMD:
+                            self.save(k)
+                        else:
+                            # print('Skipping source data of object {0} (project index {1}). Size of source data exceeds default max elements ({2})'.format(i,k,ME))
+                            print('Skipping source data of object "{0}".\n Set include_rawMD to True to include raw MD data'.format(self[i].title))
+                        src_fname=None if k is None else self.save_name[k]
                 self[i].save(self.save_name[i],overwrite=True,save_src=False,src_fname=src_fname)
                 self[i].source.saved_filename=self.save_name[i]
                 self._hashes[i]=self[i]._hash #Update the hash so we know this state of the data is saved
