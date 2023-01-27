@@ -45,7 +45,7 @@ from pyDR import Defaults,clsDict
 def md2data(select):
     return FrameObj(select).md2data()
 
-def md2iRED(select):
+def md2iRED(select,rank=2):
     return FrameObj(select).md2iRED()
 
 
