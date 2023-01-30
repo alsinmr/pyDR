@@ -864,7 +864,7 @@ class MolSelect():
                 CMXRemote.send_command(ID,cmd)
         
         if self.sel1 is not None:
-            ids=np.concatenate([s.indices for s in self.repr_sel[index]],dtype=int)
+            ids=np.concatenate([s.indices for s in self.repr_sel[index]]).astype(int)
         
         if x is None:
             CMXRemote.show_sel(ID,ids=ids,color=color)

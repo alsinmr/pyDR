@@ -169,6 +169,8 @@ class Sens():
     def __hash__(self):
         # if hasattr(self,'opt_pars') and 'n' not in self.opt_pars:   #Unoptimized set of detectors (hash not defined)
         #     return hash(self.sens)
+        if self.rhoz.size>100000:
+            return hash(self.rhoz[:,::20].tobytes())
         return hash(self.rhoz.tobytes())
         
 

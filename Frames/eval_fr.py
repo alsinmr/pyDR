@@ -42,10 +42,10 @@ from pyDR import Defaults,clsDict
 
 
 #%%Functions for returning just the correlation function (to ct or to ired)
-def md2data(select):
+def md2data(select,rank=2):
     return FrameObj(select).md2data()
 
-def md2iRED(select):
+def md2iRED(select,rank=2):
     return FrameObj(select).md2iRED()
 
 

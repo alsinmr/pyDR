@@ -189,7 +189,10 @@ class Data():
             if hasattr(self, f) and getattr(self, f) is not None:
                 x = getattr(self, f)
                 if hasattr(x,"tobytes"):
-                    out += hash(x.tobytes())
+                    if x.size>100000:
+                        out+=hash(x[:,::100].tobytes())
+                    else:
+                        out += hash(x.tobytes())
                 else:
                     out += hash(x)
         if self.source.select is not None:
@@ -263,7 +266,7 @@ class Data():
         # todo might be useful to check for src_fname? -K
         if not(save_src):
             src=self.src_data
-            self.src_data=src_fname  #For this to work, we need to update bin_io to save and load by filename
+            self.src_data=src_fname
         write_file(filename=filename,ob=self,overwrite=overwrite)
         if not(save_src):self.src_data=src
     
