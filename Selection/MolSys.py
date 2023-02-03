@@ -478,6 +478,7 @@ class MolSelect():
                 (ivl: ILE,VAL,LEU, ivla: ILE,LEU,VAL,ALA, ch3: all methyl groups)
                 (e.g. ivl1: only take one bond per methyl group)
                 (e.g. ivlr,ivll: Only take the left or right methyl group)
+            'sidechain' : Selects a vector representative of sidechain motion
         
         Note that it is possible to provide a list of keywords for Nuc in order
         to simultaneously evaluate multiple bond types. In this case, sorting
