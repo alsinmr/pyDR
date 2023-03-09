@@ -322,7 +322,7 @@ class Detector(Sens.Sens):
         self.T=np.eye(n)
         for k,t in enumerate(target):
             self.T[k]=lsqlin(self.SVD.Vt.T,t,lsq_solver='exact')['x']    
-        self.opt_pars={'n':n,'Type':'target','Normalization':None,'NegAllow':False,'options':[]}
+        self.opt_pars={'n':n,'Type':'target','Normalization':Normalization,'NegAllow':False,'options':[]}
         self.update_det()    #Re-calculate detectors based on the new T matrix
         if Normalization:self.ApplyNorm(Normalization)
         
@@ -481,7 +481,8 @@ class Detector(Sens.Sens):
 #        pks=np.array(index)[i]
         # rhoz=np.array(rhoz)[i]
         self.T=np.array(X)[i]    
-        self.opt_pars={'n':n,'Type':'auto','Normalization':None,'NegAllow':False,'options':[]}
+        # TODO previously, Normalization and NegAllow were not set to the input values. Why??
+        self.opt_pars={'n':n,'Type':'auto','Normalization':Normalization,'NegAllow':NegAllow,'options':[]}
         self.update_det()
 
 

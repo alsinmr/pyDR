@@ -45,7 +45,10 @@ def readNMR(filename):
         elif keys is None:
             return info
         else:
-            sens=clsDict['NMR'](info=info)
+            if 'tM' in info.keys:
+                sens=clsDict['SolnNMR'](info=info)
+            else:
+                sens=clsDict['NMR'](info=info)
             data=clsDict['Data'](sens=sens,**keys)
             data.source.filename=os.path.abspath(filename)
             data.source.status='raw'
@@ -93,7 +96,10 @@ def read_INFO(f):
             else:
                 out.append(assign_type(v))
         pars[key]=out
-    info=clsDict['NMR'](**pars).info
+    if 'tM' in pars:
+        info=clsDict['SolnNMR'](**pars).info
+    else:
+        info=clsDict['NMR'](**pars).info
     return info
 
 #%% Data read and write
