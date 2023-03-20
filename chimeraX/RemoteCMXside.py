@@ -40,6 +40,7 @@ class EventManager(Thread):
     def __init__(self, cmx):
         super().__init__()
         self.cmx = cmx
+        self.running=False
 
     @property
     def is_session_alive(self):
@@ -48,6 +49,7 @@ class EventManager(Thread):
     def run(self):
         print('Event manager started')
         while self.is_session_alive:
+            self.running=True
             sleep(.03)
             if self.cmx.session.ui.main_window.isActiveWindow(): #This checks if chimera is terminated (chimera hangs on close without this)
                 for name,f in self.cmx._events.copy().items():
@@ -57,6 +59,7 @@ class EventManager(Thread):
                         print('Warning: Event "{}" failed, removing from event loop'.format(name))
                         self.cmx._events.pop(name)
         else:
+            self.running=False
             print('Event manager stopped')
 
 
@@ -91,7 +94,10 @@ class CMXReceiver():
     def Stop(self):
         "Stop the event manager"
         self.__isRunning=False      #Set the run flag to False
-        sleep(.2) #Give the event manager a good chance to register the stop (??)
+        while self.EM.running:
+            sleep(.03)
+            pass
+        # sleep(.5) #Give the event manager a good chance to register the stop (??)
     def Start(self):
         "Start the event manager"
         self.EM=EventManager(self)  #Create the new event manager

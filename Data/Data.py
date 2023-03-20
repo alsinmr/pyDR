@@ -448,10 +448,10 @@ class Data():
 
 
         # CMXRemote.send_command(ID,'close')
+        om=CMXRemote.how_many_models(ID)
         CMXRemote.send_command(ID,'open "{0}" maxModels 1'.format(self.select.molsys.topo))
-        # TODO fix this below 
-        from time import sleep
-        sleep(.1)   #This needs to be fixed
+        while om==CMXRemote.how_many_models(ID):
+            pass
         mn=CMXRemote.valid_models(ID)[-1]
         CMXRemote.command_line(ID,'sel #{0}'.format(mn))
 

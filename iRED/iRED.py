@@ -805,9 +805,12 @@ class Data_iRED(Data):
             CMXRemote.send_command(ID,'color '+'|'.join(['#{0}/{1}:{2}@{3},'.format(mn,s.segid,s.resid,s.name) for s in sel0])+' black')
             return sel0
         else:
-            mn=CMXRemote.how_many_models(ID)+1
+            # mn=CMXRemote.how_many_models(ID)+1
+            om=CMXRemote.how_many_models(ID)
             CMXRemote.send_command(ID,'open "{0}"  maxModels 1'.format(self.select.molsys.topo))
-            # mn=CMXRemote.valid_models(ID)[-1]
+            while om==CMXRemote.how_many_models(ID):
+                pass
+            mn=CMXRemote.valid_models(ID)[-1]
             
             CMXRemote.command_line(ID,'sel #{0}'.format(mn))
 

@@ -12,7 +12,7 @@ import os
 from multiprocessing.connection import Listener
 from pyDR.chimeraX.chimeraX_funs import get_path,py_line,WrCC,chimera_path,run_command
 from threading import Thread
-from time import time,sleep
+from time import time
 from platform import platform
 from subprocess import Popen,check_output,DEVNULL
 from pyDR import clsDict
@@ -401,7 +401,7 @@ class CMXRemote():
         while time()-t0<1:
             if tr.response:
                 return tr.response
-        return 0
+        return []
                     
     
 #%% Thread handling        
