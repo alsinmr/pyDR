@@ -396,7 +396,8 @@ class Path2Energy():
         DelG=self.get_DelG(d=d,T=T)
         
         if ax is None:ax=plt.figure().add_subplot(111)
-        ax.plot(np.arange(len(DelG)),DelG/1000,**kwargs)
+        d=np.cumsum(np.sqrt(((self.get_path()[:,1:]-self.get_path()[:,:-1])**2).sum(0)))
+        ax.plot(d,DelG/1000,**kwargs)
         ax.set_ylabel(r'$\Delta G$ / (kJ/mol)')
         ax.set_xticks([])
         

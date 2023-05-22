@@ -198,7 +198,7 @@ class PCA():
         self.traj.ProgressBar=True
         pos=np.array([atoms.positions for _ in self.traj])
 
-        self.source=clsDict['Source'](Type='PCAmode',select=copy(self.select),filename=self.traj.files,
+        self._source=clsDict['Source'](Type='PCAmode',select=copy(self.select),filename=self.traj.files,
                       status='raw')
         self.source.details.append('PCA analysis')
         self.source.details.append(self.select.details)
@@ -340,7 +340,7 @@ class PCA():
         i=np.arange(len(self.atoms)) if sel is None else (self.sel1index if sel==1 else self.sel2index)
         pos0=self.mean[i]
         
-        pos0+=A*self.PC[:,n].reshape([self.pos.shape[1],3])
+        pos0+=A*self.PC[:,n].reshape([self.PC.shape[0]//3,3])
         return pos0
     
     def write_pdb(self,n:int=0,A:float=None,PCamp:list=None,filename:str=None):

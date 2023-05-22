@@ -623,12 +623,12 @@ class Chimera():
         CMXid=self._CMXid[ID] if ID is not None else self.CMXid
         assert CMXid is not None,"No active sessions, save not completed"
 
-        if self.project is not None:        
-            if not(os.path.exists(os.path.join(self.project.directory,'figures'))):
-                os.mkdir(os.path.join(self.project.directory,'figures'))
-            
-    
-            filename=os.path.join(os.path.join(self.project.directory,'figures'),filename)
+        if self.project is not None:   
+            if self.project.directory is not None:
+                if not(os.path.exists(os.path.join(self.project.directory,'figures'))):
+                    os.mkdir(os.path.join(self.project.directory,'figures'))
+                
+                filename=os.path.join(os.path.join(self.project.directory,'figures'),filename)
         if len(filename.split('.'))<2:filename+='.png'
         
         
