@@ -250,8 +250,8 @@ def draw_tensors(cmx,A,Aiso=None,pos=None,colors=((1,.39,.39,1),(.39,.39,1,1)),c
 
     Parameters
     ----------
-    session : TYPE
-        DESCRIPTION.
+    cmx : TYPE
+        cmx object
     A : array
         Nx5 (or 5 elements) array containing the tensors to be plotted.
     colors : tuple,optional
@@ -269,7 +269,7 @@ def draw_tensors(cmx,A,Aiso=None,pos=None,colors=((1,.39,.39,1),(.39,.39,1,1)),c
     None.
 
     """
-    from Surfaces import load_surface
+    from Surfaces import load_sphere_surface
     A=np.atleast_2d(A).astype(complex)
     assert A.shape[1]==5,"A must be an Nx5 array"
     N=A.shape[0]
@@ -282,7 +282,40 @@ def draw_tensors(cmx,A,Aiso=None,pos=None,colors=((1,.39,.39,1),(.39,.39,1,1)),c
     #     pos[:,0]=np.arange(N)*1.5
     
 
-    load_surface(session, A, Aiso,pos,colors,comp)
+    load_sphere_surface(session, A, Aiso,pos,colors,comp)
         
     
-        
+  
+def draw_surface(cmx,x,y,z,colors:list=(.3,.3,.3,1)):
+    """
+    Draws a surface in ChimeraX, given axes x,y, and amplitude, z. One may
+    also specify the color at each point, with a list with the same length
+    as the number of elements in z (or a Nx*Ny*3/4 element vector)
+
+    Parameters
+    ----------
+    cmx : TYPE
+        cmx object.
+    x : np.array
+        x-axis of surface (Nx points).
+    y : np.array
+        y-axis of surface (Ny points).
+    z : np.array
+        Amplitude (Nx*Ny points)
+    colors : list, optional
+        Nx*Ny list of colors or one color (3-4 elements) The default is (.3,.3,.3,1).
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    from Surfaces import load_cart_surface
+    
+    colors=np.array(colors)
+    if colors.ndim>1:
+        colors=np.reshape(colors,[z.size,colors.shape[-1]])
+    load_cart_surface(cmx.session,x,y,z,colors=colors)
+
+      

@@ -161,9 +161,63 @@ def read_Data(f):
                 
             
     
+#%% pdb writer
+def writePDB(sel,filename:str,x=None):
+    """
+    Creates a pdb based on the current position of the selection object. One may
+    define x (list-like, numpy array) which has the same length as the selection
+    in order to set the beta-factor in the pdb.
+
+    Parameters
+    ----------
+    sel : MolSelect
+        Selection from which to write the pdb.
+    filename : str
+        DESCRIPTION.
+    x : list, numpy array, optional
+        Data to write into the pdb beta-factor. Should have the same length as
+        the selection. Note that x will get written onto atoms in the 
+        representative selection, including averaging in case an atom appears
+        in more than one selection. x should be between 0 and 1
+
+    Returns
+    -------
+    None.
+
+    """
     
-                    
-                        
+    atoms=sel.molsys.uni.atoms
+    beta=np.zeros(len(atoms))
+    if x is not None:
+        assert len(x)==len(sel),'x must have the same length as sel'
+        count=np.zeros(len(atoms),dtype=int)
+        ids=atoms.indices
+        for x0,repr_sel in zip(x,sel.repr_sel):
+            i=np.isin(ids,repr_sel.indices)
+            beta[i]+=x0
+            count[i]+=1
+        count[count==0]=1
+        beta/=count
+    
+    if filename[-4:]!='.pdb':filename=filename+'.pdb'
+    
+    temp='_'+filename
+    
+    atoms.write(temp)
+    
+    k=0
+    with open(temp,'r') as f0:
+        with open(filename,'w') as f1:
+            for line in f0:
+                if line[:4]=='ATOM':
+                    l1,l2=line.rsplit(' 0.00',maxsplit=1)
+                    f1.write(l1+f'{beta[k]:5.2f}'+l2)
+                    k+=1
+                else:
+                    f1.write(line)
+    os.remove(temp)
+
+    
 
 #%% Misc functions
 

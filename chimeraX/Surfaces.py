@@ -43,6 +43,8 @@ def sphere_triangles(theta_steps=100,phi_steps=50):
     
     return theta,phi,triangles
 
+
+
 def spherical_surface(delta,eta=None,euler=None,pos=None,Aiso=0,sc=2.09,
                       theta_steps = 100,
                       phi_steps = 50,
@@ -141,7 +143,7 @@ def spherical_surface(delta,eta=None,euler=None,pos=None,Aiso=0,sc=2.09,
 
     return xyz,tri,colors
 
-def load_surface(session,A,Aiso=None,Pos=None,colors=((1,.39,.39,1),(.39,.39,1,1)),comp='Azz'):
+def load_sphere_surface(session,A,Aiso=None,Pos=None,colors=((1,.39,.39,1),(.39,.39,1,1)),comp='Azz'):
     
     theta_steps,phi_steps=100,50
     pc,nc=[[int(c*255) for c in color0] for color0 in colors]
@@ -180,3 +182,66 @@ def load_surface(session,A,Aiso=None,Pos=None,colors=((1,.39,.39,1),(.39,.39,1,1
     session.models.add([s])
 
     return s
+
+def load_cart_surface(session,x,y,z,colors:list=(.3,.3,.3,1)):
+    """
+    Creates and loads a cartesian surface, defined by an x and y axis, with 
+    amplitude z. z may be 2D, but can also be flattened. In any case, it should
+    Nx*Ny elements. Colors can be set to a single color, or be defined for
+    every point, z.
+
+    Parameters
+    ----------
+    session : ChimeraX session
+        DESCRIPTION.
+    x : np.array
+        x-axis of surface (Nx points).
+    y : np.array
+        y-axis of surface (Ny points).
+    z : np.array
+        Amplitude (Nx*Ny points)
+    colors : list, optional
+        Nx*Ny list of colors or one color (3-4 elements) The default is (.3,.3,.3,1).
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    from scipy.spatial import Delaunay
+    from chimerax.core.models import Surface
+    from chimerax.surface import calculate_vertex_normals
+    
+    x,y=[a.flatten() for a in np.meshgrid(x,y)]
+    tri=Delaunay(np.array([x,y]).T).vertices
+    
+    
+    
+    xyz=np.ascontiguousarray(np.array([x.flatten(),y.flatten(),z.flatten()]).T,np.float32)
+    
+    if hasattr(colors[0],'__len__'):
+        assert len(colors)==xyz.shape[0],'Colors must have the same number of elements as z'
+        
+        for k,c in enumerate(colors):
+            if len(c)==3:
+                colors[k]=[*c,1]
+    else:
+        colors=[colors for _ in range(xyz.shape[0])]
+        
+    # color=np.array([[(255*np.mean([colors[i0][k] for i0 in i])).astype(np.uint8) for k in range(4)] for i in tri])
+
+    # color=list()
+    # for i in tri:
+    #     color.append((np.array(colors[i[0]])*255).astype(np.uint8))
+    # color=np.array(color,dtype=np.uint8)
+
+    norm_vecs=calculate_vertex_normals(xyz,tri)
+    
+    s=Surface('surface',session)
+    s.set_geometry(xyz,norm_vecs,tri)
+    s.vertex_colors=(np.array(colors)*255).astype(np.uint8)
+    session.models.add([s])
+    
+    return s
+    
