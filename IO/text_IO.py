@@ -187,6 +187,7 @@ def writePDB(sel,filename:str,x=None):
     """
     
     atoms=sel.molsys.uni.atoms
+    atoms.tempfactors=np.zeros(len(atoms))
     beta=np.zeros(len(atoms))
     if x is not None:
         assert len(x)==len(sel),'x must have the same length as sel'
