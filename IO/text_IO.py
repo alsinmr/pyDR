@@ -178,7 +178,8 @@ def writePDB(sel,filename:str,x=None):
         Data to write into the pdb beta-factor. Should have the same length as
         the selection. Note that x will get written onto atoms in the 
         representative selection, including averaging in case an atom appears
-        in more than one selection. x should be between 0 and 1
+        in more than one selection. beta set to zero if the atom does not 
+        appear in any of sel.repr_sel.
 
     Returns
     -------
