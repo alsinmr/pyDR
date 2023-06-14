@@ -50,6 +50,6 @@ All files are copyrighted under the GNU General Public License. A copy of the li
 
 Funding for this project provided by:
 
-Deutsche Forschungsgemeinschaft (DFG) grant SM 576/1-1
+Deutsche Forschungsgemeinschaft (DFG) grant 450148812
 
 European Social Funds (ESF) and the Free State of Saxony (Junior Research Group UniDyn, Project No. SAB 100382164)
