@@ -70,14 +70,15 @@ class NMR(Sens):
         "First find out how many experiments are defined"
         for k,v in kwargs.items():
             if k in self.info.keys:
-                if k=='dXY' or k=='Nuc1':
+                if k=='dXY' or k=='Nuc1':           #These variables may have a length for just one experiment (coupling to multiple nuclei)
                     if hasattr(v,'__len__') and v.__len__() and \
-                        hasattr(v[0],'__len__') and not(isinstance(v[0],str)):
+                        hasattr(v[0],'__len__') and not(isinstance(v[0],str)):  
                         ne=max(ne,len(v[0]))
                 elif hasattr(v,'__len__') and not(isinstance(v,str)):
                     ne=max(ne,len(v))
                 elif v is not None:
                     ne=max(ne,1)
+
         "Edit kwargs so all entries have same length"  
         for k,v in kwargs.items():
             if k=='dXY' or k=='Nuc1':
@@ -198,18 +199,18 @@ def defaults(info,**kwargs):
                 if v[m] is None:
                     info_new[k,m]=0
                     
-    
-    
     "We override the defaults with our input values"
     for key,values in kwargs.items():
         for k,value in enumerate(np.atleast_1d(values)):
             info_new[key,k]=value
      
     "Finally, we delete extra entries in Nuc1 and dXY and delete CSA if Type is NOE"
+    "Actually, I think this doesn't make sense. Let's keep extra Nuc1 and dXY for the NOE"
+
     for k,i in enumerate(info_new):
         if i['Type']=='NOE':
-            if hasattr(i['dXY'],'size') and i['dXY'].size>1:info_new['dXY',k]=info_new['dXY',k][0]
-            if hasattr(i['Nuc1'],'size') and i['Nuc1'].size>1:info_new['Nuc1',k]=info_new['Nuc1',k][0]
+            # if hasattr(i['dXY'],'size') and i['dXY'].size>1:info_new['dXY',k]=info_new['dXY',k][0]
+            # if hasattr(i['Nuc1'],'size') and i['Nuc1'].size>1:info_new['Nuc1',k]=info_new['Nuc1',k][0]
             info_new['CSA',k]=0
             
     info.append(info_new)

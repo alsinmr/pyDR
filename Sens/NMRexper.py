@@ -91,11 +91,20 @@ def NOE(tc,Nuc,v0,Nuc1,dXY):
     vX=NucInfo(Nuc)/NucInfo('1H')*v0
     R=np.zeros(np.shape(tc))
     
-    if Nuc1!=None:
-        vY=NucInfo(Nuc1)/NucInfo('1H')*v0
-        S=NucInfo(Nuc1,'spin')
-        sc=S*(S+1)*4/3 # Scaling factor depending on the spin, =1 for spin 1/2
-        R+=sc*(np.pi*dXY/2)**2*(-J(tc,vX-vY)+6*J(tc,vY+vX))
+    dXY=np.atleast_1d(dXY)
+    Nuc1=np.atleast_1d(Nuc1)
+    assert Nuc1.size==dXY.size,"Nuc1 and dXY must have the same size"
+    if len(dXY)>1:print('Warning: The behavior of NOE has been changed to accept multiple dipole couplings.',
+                        '\nPlease check that you intended to use this behavior',
+                        '\nThis warning will be removed at a later point')
+    
+    
+    for N1,dXY1 in zip(Nuc1,dXY):
+        if N1!=None:
+            vY=NucInfo(N1)/NucInfo('1H')*v0
+            S=NucInfo(N1,'spin')
+            sc=S*(S+1)*4/3 # Scaling factor depending on the spin, =1 for spin 1/2
+            R+=sc*(np.pi*dXY1/2)**2*(-J(tc,vX-vY)+6*J(tc,vY+vX))
         
     return R
 

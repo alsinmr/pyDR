@@ -13,6 +13,10 @@ Our main goal is to make calculation of the linear correlation functions with
 Fourier transforms as fast as possible, but we will also implement some sparse
 sampling approaches.
 
+Note we set values a and b, which if using Fourier Transform mode, are 
+transformed to yield A and B, respectively, and are eventually used to 
+calculate the correlation function.
+
 1) We can take the inverse Fourier transform of the product OUTSIDE of the sum,
 in some cases reducing the number of inverse transforms by ~81 fold, reducing 
 computational time by about 1/3.
@@ -76,12 +80,14 @@ and we get a different set of these for all terms in the correlation function.
 A returns just one element, but B and c may contain different values for each
 correlation function being calculated.
 
-Note, ctf.A, ctf.B, ctf.c may always be assigned. ctf.B, ctf.c are just getting
+Note, ctf.a, ctf.b, ctf.c may always be assigned. ctf.B, ctf.c are just getting
 assigned to different elements of a list. Which element is edited and returned
 depends on the state of ctf._index. When we call ctf[k], it's just editing the
 state of ctf._index, and then returning itself.
 
-Also note, we do not store a, b, but rather its FT-unless we're not in FT mode
+Also note, we do not store a, b, but rather its FT-unless we're not in FT mode,
+so if you assign a, and then check its value, it will remain as None, but A 
+will be assigned.
                                                     
 
 Finally, we'll use class variables for storage of A and B so that they may
@@ -150,8 +156,8 @@ A few notes on Fourier transforms and correlation functions
     real/hermite transforms, thus accelerating the calculation (hopefully?)
     
     
-    We haven't used the fact the correlation functions should be symmetric in time.
-    
+    We also use symmetry of the correlation functions to accelerate calculations
+    By default, we assume correlation functions are symmetric in time.
 """
 
 #%% Class for calculating correlation functions
@@ -369,7 +375,7 @@ class Ctcalc():
                     if self.sym=='sym': #Don't  calculate imaginary components
                         self.CtFT[self._i]+=(self.A.real*self.B[self._i].real-\
                             self.A.imag*self.B[self._i].imag)*self.c[self._i]
-                    elif self.ym=='0p':
+                    elif self.sym=='0p':
                         self.CtFT[self._i]+=self.A*self.B[self._i]*self.c[self._i]
                     else:
                         self.CtFT[self._i]+=(self.A*self.B[self._i]).conj()*self.c[self._i]

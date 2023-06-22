@@ -704,6 +704,11 @@ class Project():
     @property
     def directory(self):
         return self._directory
+    
+    @property
+    def parent(self):
+        if self._subproject:return self._parent
+        return self
     #%% setattr        
     def __setattr__(self,name,value):
         if name=='_index':
@@ -953,7 +958,7 @@ class Project():
         
         proj=copy(self)
         proj._subproject=True
-        proj._parent=self._parent if self._subproject else self
+        proj._parent=self.parent
         proj._current_plot=self._current_plot #This line and the next should let us control plots from subproject
         proj.plots=self.plots
         proj.chimera=copy(self.chimera)
@@ -1137,7 +1142,8 @@ class Project():
         "Can't make up my mind about this...the or operation is sort of like adding two sets"
         return self.__or__(obj)
     
-    def __or__(self,obj):    
+    def __or__(self,obj):
+        assert self.parent is obj.parent,"Project operations (+,|,-,&) are only defined within the same parent project"
         proj=copy(self)
         proj._subproject=True
         proj._parent=self._parent if self._subproject else self
@@ -1163,6 +1169,7 @@ class Project():
         return proj
         
     def __sub__(self,obj):
+        assert self.parent is obj.parent,"Project operations (+,|,-,&) are only defined within the same parent project"
         proj=copy(self)
         proj._subproject=True
         proj._parent=self._parent if self._subproject else self
@@ -1188,6 +1195,7 @@ class Project():
         return proj
     
     def __and__(self,obj):
+        assert self.parent is obj.parent,"Project operations (+,|,-,&) are only defined within the same parent project"
         proj=copy(self)
         proj._subproject=True
         proj._parent=self._parent if self._subproject else self
