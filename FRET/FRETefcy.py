@@ -71,12 +71,15 @@ class FRETefcy():
         self.__up2date=False    #Set to False if one of the functions is changed after loading
         self.__vecs_up2date=False
         
-        self.__g={'gAA':None,'gDD':None,'gDA':None}
+        self.__g={'gAA':None,'gDD':None,'gDA':None,'gAD':None}
+        
+        self._ctnorm=True
+        self._label=None
         
         self.molsys=molsys if molsys else clsDict['MolSys']() #molsys object
     
     def __setattr__(self,name,value):
-        if name in ['R0iso','tauD','n','ThetaD']:
+        if name in ['R0iso','tauD','n','ThetaD','isotropic_avg']:
             self.__up2date=False
         if name=='label':name,value='_label',np.array(value)
         super().__setattr__(name,value)
@@ -149,7 +152,7 @@ then we use the isotropic average, kappa=2/3""")
     @property
     def _up2date(self):
         if not(self.__up2date):
-            self.__g={'gAA':None,'gDD':None,'gDA':None}
+            self.__g={'gAA':None,'gDD':None,'gDA':None,'gAD':None}
             self.Dt=None
             self.Dt_tauDA=None
             self.__Et=None
@@ -466,14 +469,15 @@ then we use the isotropic average, kappa=2/3""")
             Auto or cross-correlation function.
 
         """
-        ctcalc=Ct_calc(sym='sym' if y is None else 'p0')
+        ctcalc=Ct_calc(sym='p0' if y is None else 'p0')
         ctcalc.a=x
         if y is not None:ctcalc.b=y
         ctcalc.add()
         ct=ctcalc.Return()[0].T
-        norm=x.mean(axis=-1)**2 if y is None else x.mean(axis=-1)*y.mean(axis=-1)
-        ct-=norm
-        ct/=norm
+        if self._ctnorm:
+            norm=x.mean(axis=-1)**2 if y is None else x.mean(axis=-1)*y.mean(axis=-1)
+            ct-=norm
+            ct/=norm
         return ct.T
     @property
     def gDD(self):
@@ -492,9 +496,9 @@ then we use the isotropic average, kappa=2/3""")
         return self.__g['gDA']
     @property
     def gAD(self):
-        if self.__g['gDA'] is None or not(self._up2date):
-            self.__g['gDA']=self._g(self.Et,self.ThetaD*(1-self.Et))
-        return self.__g['gDA']
+        if self.__g['gAD'] is None or not(self._up2date):
+            self.__g['gAD']=self._g(self.Et,self.ThetaD*(1-self.Et))
+        return self.__g['gAD']
         
     
     #%% Plotting functions
