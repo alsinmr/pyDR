@@ -28,12 +28,13 @@ class NMR(Sens):
         super().__init__(tc=tc,z=z)
         
         "Load the various parameters into info"
+        pars=['Type','v0','v1','vr','offset','stdev','med_val','Nuc','Nuc1','dXY','CSA','eta','CSoff','QC','etaQ','theta']
         for name in dir(NMRexper):
             f=getattr(NMRexper,name)
-            pars=['Type','v0','v1','vr','offset','stdev','med_val','Nuc','Nuc1','dXY','CSA','eta','CSoff','QC','etaQ','theta']
             if hasattr(f,'__code__') and f.__code__.co_varnames[0]=='tc':
                 for p0 in f.__code__.co_varnames[1:f.__code__.co_argcount]:
-                    if p0 not in pars:pars.append(p0)
+                    if p0 not in pars:
+                        pars.append(p0)
         
         for p0 in pars:self.info.new_parameter(p0)
         
