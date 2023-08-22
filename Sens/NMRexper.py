@@ -131,7 +131,7 @@ def R1Q(tc,Nuc,v0,QC=0,etaQ=0):
         
     return R
 
-def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,off=0,QC=0,etaQ=0):
+def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):
     #Calc R1 contributions before scaling input values
     R10=R1(tc,Nuc,v0,Nuc1=Nuc1,CSA=CSA,dXY=dXY,eta=eta,vr=vr,CSoff=0,QC=QC,etaQ=etaQ)    #We do this first, because it includes all R1 contributions
     
@@ -144,11 +144,11 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,off=0,QC=0,etaQ=0):
     R=np.zeros(np.shape(tc))
     
     "Treat off-resonance spin-lock"
-    ve=np.sqrt(v1**2+off**2)
+    ve=np.sqrt(v1**2+offset**2)
     if ve==0:
         theta=np.pi/2
     else:
-        theta=np.arccos(off/ve)
+        theta=np.arccos(offset/ve)
     
 
     "Start here with the dipole contributions"
@@ -177,8 +177,8 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,off=0,QC=0,etaQ=0):
     R+=R10+np.sin(theta)**2*(R1del-R10/2) #Add together the transverse and longitudinal contributions   
     return R
 
-def R2(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,off=0,QC=0,etaQ=0):    
-    return R1p(tc,Nuc,v0,Nuc1=Nuc1,CSA=CSA,dXY=dXY,eta=eta,vr=0,v1=0,off=off,QC=QC,etaQ=etaQ)  
+def R2(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):    
+    return R1p(tc,Nuc,v0,Nuc1=Nuc1,CSA=CSA,dXY=dXY,eta=eta,vr=0,v1=0,offset=offset,QC=QC,etaQ=etaQ)  
 
 def S2(tc):
     """

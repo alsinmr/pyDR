@@ -54,3 +54,6 @@ if hasattr(_SubplotSpec,'is_first_col'):
     def _fun(self):
         return self.get_subplotspec().is_last_row()
     _Subplot.is_last_row=_fun
+
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
