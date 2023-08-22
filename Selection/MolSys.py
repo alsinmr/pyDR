@@ -10,6 +10,7 @@ from MDAnalysis import Universe, AtomGroup
 from pyDR.misc.ProgressBar import ProgressBar
 from pyDR.Selection import select_tools as selt
 from pyDR.MDtools.vft import pbc_corr
+from pyDR.IO import getPDB
 from pyDR import Defaults,clsDict
 from copy import copy
 import os
@@ -52,6 +53,10 @@ class MolSys():
         MolSys.
 
         """
+        
+        if topo is not None and len(topo)==4 and not(os.path.exists(topo)):
+            topo=getPDB(topo)
+        
         if topo is None:
             self._uni=None
             self._traj=None
