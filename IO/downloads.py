@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 
-import os
 from urllib.request import urlretrieve
+import os
 
 def download(url:str,filename:str='temp'):
     """
@@ -32,13 +32,36 @@ def download(url:str,filename:str='temp'):
         print('File not found')
         return None
 
-def getPDB(PDBid):
-    pass
+def getPDB(PDBid:str,filename:str=None):
+    """
+    Downloads and stores a pdb by its pdb code (4 characters). Filename is by 
+    default the code with .pdb as endign
 
+    Parameters
+    ----------
+    PDBid : str
+        4 character pdb code.
+    filename : str, optional
+        File to store pdb. The default is 'None'.
 
+    Returns
+    -------
+    None.
 
-import pandas as pd
-import numpy as np
+    """
+    
+    assert len(PDBid)==4,'The four character PDB id must be used'
+    
+    if filename is None:filename=PDBid.upper()+'.pdb'
+    
+    url='https://files.rcsb.org/download/{}.pdb'.format(PDBid.upper())
+    try:
+        out=urlretrieve(url,filename)
+        return out[0]
+    except:
+        print('PDB not found')
+        return None
+
 
 def download_google_drive(url:str,filename:str='temp'):
     """
@@ -60,16 +83,36 @@ def download_google_drive(url:str,filename:str='temp'):
     url=cleanup_google_link(url)
     
     try:
-        out=pd.read_csv(url)
-        lines=np.concatenate(([out.columns[0]],out.to_numpy().flatten()))
+        out=urlretrieve(url,filename)
+        return out[0]
     except:
         print('File not found')
         return None
-    
-    with open(filename,'w') as f:
-        for line in lines:
-            f.write(line+'\n')
-    return filename        
+ 
 
-def cleanup_google_link(link):
+def cleanup_google_link(link:str):
+    """
+    Creates the correct link for downloading from Google Drive
+
+    Parameters
+    ----------
+    link : str
+        Original sharing link for Google Drive.
+
+    Returns
+    -------
+    link : TYPE
+        Link for downloading data.
+
+    """
+    
+    a,b=os.path.split(link)
+    if 'view?' in b:
+        link=a
+        ID=os.path.split(link)[1]
+    else:
+        ID=b
+
+    link=f'https://drive.google.com/uc?id={ID}'
+    
     return link
