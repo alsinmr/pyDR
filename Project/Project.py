@@ -1111,7 +1111,7 @@ class Project():
                             f.write(f'{filename}:{saved_pdb[i]}:{origin[i]}\n')
                     elif d is not None and filename is not None:  #Loaded data
                         sel=d.source.select
-                        if sel.uni is None:  #no selection loaded
+                        if sel is None or sel.uni is None:  #no selection loaded
                             pass
                         elif os.path.abspath(sel.uni.filename) in origin:  #pdb already saved
                             i=origin.index(sel.uni.filename)
