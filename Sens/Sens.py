@@ -144,7 +144,7 @@ class Sens():
         """
         if 'stdev' in self.info.keys and np.all(self.info['stdev']): 
             if 'med_val' in self.info.keys and np.all(self.info['med_val']):
-                self.__norm=(self.info['med_val'].astype(float)/self.info['stdev'].astype(float)/self.rhoz.max(axis=1))
+                self.__norm=(self.info['med_val'].astype(float)/self.info['stdev'].astype(float)/np.abs(self.rhoz).max(axis=1))
             else:
                 self.__norm=1/(self.info['stdev']).astype(float)
         else:

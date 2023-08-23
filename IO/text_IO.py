@@ -10,6 +10,7 @@ import os
 from pyDR import clsDict,Defaults
 import numpy as np
 from scipy.stats import mode
+from .download import download,cleanup_google_link
 dtype=Defaults['dtype']
 
 def writeNMR(filename,ob,overwrite=False):
@@ -32,6 +33,22 @@ def readNMR(filename):
         except:
             pass
         return
+    
+    if not(os.path.exists(filename)): #Try to download online
+        try:
+            url=filename
+            filename=download(filename,f'temp{np.random.randint(10000)}')
+            data=readNMR(filename)
+            data.details[0]=f'NMR data loaded from {url}'
+            if 'drive.google' in url:
+                data.source.filename=cleanup_google_link(url).split('=')[1][:10]
+            else:
+                data.source.filename=os.path.split(url)[1]
+            os.remove(filename)
+            return data
+        except:
+            pass
+            
     with open(filename,'r') as f:
         info,keys=None,None
         for line in f:

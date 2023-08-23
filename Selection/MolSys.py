@@ -473,7 +473,7 @@ class MolSelect():
         return out
         
         
-    def select_bond(self,Nuc,resids=None,segids=None,filter_str:str=None,label=None) -> None:
+    def select_bond(self,Nuc,resids=None,segids=None,filter_str:str=None,label=None):
         """
         Select a bond according to 'Nuc' keywords
             '15N','N','N15': select the H-N in the protein backbone
