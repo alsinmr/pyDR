@@ -94,8 +94,8 @@ def fit(data,bounds='auto',parallel=False):
         out.R[k]+=detect[k].R0
         # out.Rc[k]=Rc0*(Rstd if simple_fit else X[k][3]) 
         
-    if 'inclS2' in detect.opt_pars['options']:
-        out.S2c,out.Rc=1-out.Rc[:,-1],out.Rc[:,:-1]
+    # if 'inclS2' in detect.opt_pars['options']:
+    #     out.S2c,out.Rc=1-out.Rc[:,-1],out.Rc[:,:-1]
     if 'R2ex' in detect.opt_pars['options']:
         out.R2,out.R=out.R[:,-1],out.R[:,:-1]
         out.R2std,out.Rstd=out.Rstd[:,-1],out.Rstd[:,:-1]
