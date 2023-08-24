@@ -24,7 +24,7 @@ def color_calc(x,x0=None,colors=[[0,0,1],[0.82352941, 0.70588235, 0.54901961],[1
     color_calc(x,x0=None,colors=[[0,0,255,255],[210,180,140,255],[255,0,0,255]])
     """
     
-    colors=np.array(colors,dtype='uint8')
+    colors=np.array(colors)
     N=len(colors)
     if x0 is None:x0=np.linspace(0,1,N)
     x=np.atleast_1d(x)
