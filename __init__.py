@@ -8,7 +8,7 @@ import os
 
 if 'google.colab' in sys.modules:
     try:
-        import MDAnalysis
+        import MDAnalysis as _
     except:
         os.popen('pip3 install MDAnalysis')
     
