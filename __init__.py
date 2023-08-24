@@ -12,10 +12,10 @@ if 'google.colab' in sys.modules:
     except:
         os.popen('pip3 install MDAnalysis')
     
-    ## NGLviewer setup
-    # os.popen('pip install -q nglview')
-    # from google.colab import output as _
-    # _.enable_custom_widget_manager()
+    # NGLviewer setup
+    os.popen('pip install -q nglview')
+    from google.colab import output as _
+    _.enable_custom_widget_manager()
 
 
 #%% Init file for all of pyDR
