@@ -29,10 +29,8 @@ def color_calc(x,x0=None,colors=[[0,0,1],[0.82352941, 0.70588235, 0.54901961],[1
     if x0 is None:x0=np.linspace(0,1,N)
     x=np.atleast_1d(x)
     if x.min()<x0.min():
-        print('Warning: x values less than min(x0) are set to min(x0)')
         x[x<x0.min()]=x0.min()
     if x.max()>x0.max():
-        print('Warning: x values greater than max(x0) are set to max(x0)')
         x[x>x0.max()]=x0.max()
 
     i=np.digitize(x,x0)
@@ -227,7 +225,9 @@ class NglPlot():
         None.
 
         """
-        return [self.base_repr].extend(self.atom_reprs)
+        out=[self.base_repr]
+        out.extend(self.atom_reprs)
+        return out
     
     def __call__(self):
         """
@@ -238,7 +238,7 @@ class NglPlot():
         None.
 
         """
-        return nv.show_mdanalysis(self.all_atoms.uni,representations=self.representations)
+        return nv.show_mdanalysis(self.all_atoms.universe,representations=self.representations)
         
         
         

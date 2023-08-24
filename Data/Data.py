@@ -475,16 +475,16 @@ class Data():
         
     def nglview(self,rho_index:int,index=None,scaling:float=None,no_plot:bool=False):
         """
-        
+        Plots a selected detector response in the NGL viewer (for ipython).
 
         Parameters
         ----------
         rho_index : int
             Which detector to plot
         index : TYPE, optional
-            DESCRIPTION. The default is None.
+            Index specifying which residues to plot. The default is None (all residues)
         scaling : float, optional
-            DESCRIPTION. The default is None.
+            Scaling factor for plotting. The default is None (scaled to max response)
         no_plot : bool, optional
             If set to True, will return the setup object (NglPlot) rather than
             the NGL viewer object (allows some additional editing)
@@ -497,15 +497,16 @@ class Data():
         from ..NGLViewer import NglPlot
         from matplotlib.pyplot import get_cmap
         
-        x=self.R[:,rho_index]
+        
+        if index is None:index=np.ones(self.R.shape[0],dtype=bool)
+        x=self.R[index,rho_index]
         if scaling is None:scaling=1/np.abs(x).max()
         
-        ngl=NglPlot(self.select.repr_sel,x=x*scaling,color=get_cmap('tab10')(rho_index))
+        ngl=NglPlot(self.select.repr_sel[index],x=x*scaling,color=get_cmap('tab10')(rho_index)[:3])
+        
         if no_plot:return ngl
         
         return ngl()
-            
-        
         
                 
     @property
