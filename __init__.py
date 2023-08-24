@@ -2,6 +2,22 @@
 # -*- coding: utf-8 -*-
 
 
+#%% Setup for google colab
+import sys
+import os
+
+if 'google.colab' in sys.modules:
+    try:
+        import MDAnalysis
+    except:
+        os.popen('pip3 install MDAnalysis')
+    
+    # NGLviewer setup
+    # os.popen('pip install -q nglview')
+    # from google.colab import output
+    # output.enable_custom_widget_manager()
+
+
 #%% Init file for all of pyDR
 
 clsDict=dict()

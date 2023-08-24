@@ -87,11 +87,12 @@ def fit(data,bounds='auto',parallel=False):
     "Extract data into output"
     out.R=np.zeros([len(Y),detect.r.shape[1]],dtype=dtype)
     out.Rstd=np.zeros(out.R.shape,dtype=dtype)
-    out.Rc=np.zeros([out.R.shape[0],detect.r.shape[0]],dtype=dtype)
+    # out.Rc=np.zeros([out.R.shape[0],detect.r.shape[0]],dtype=dtype)
+    out.Rc=None
     for k,y in enumerate(Y):
         out.R[k],out.Rstd[k],Rc0=y
         out.R[k]+=detect[k].R0
-        out.Rc[k]=Rc0*(Rstd if simple_fit else X[k][3]) 
+        # out.Rc[k]=Rc0*(Rstd if simple_fit else X[k][3]) 
         
     if 'inclS2' in detect.opt_pars['options']:
         out.S2c,out.Rc=1-out.Rc[:,-1],out.Rc[:,:-1]
