@@ -40,6 +40,7 @@ if 'MDAnalysis' in _sys.modules:
     from pyDR import Frames
 else:
     print('MDAnalysis not available, MD processing will not be possible')
+    
 from pyDR import IO
 from pyDR.iRED.iRED import iRED, Data_iRED
 
@@ -76,3 +77,4 @@ if hasattr(_SubplotSpec,'is_first_col'):
 
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings('ignore', module='MDAnalysis')
