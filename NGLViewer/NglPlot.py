@@ -211,7 +211,7 @@ class NglPlot():
         for atom,xavg in zip(self.all_atoms,self.xavg):
             color=color_calc(x=np.abs(xavg),colors=[self.zero_color,self.color])
             rep.append({"type":"ball+stick",
-                        "params":{"sele":f"@{atom.id}/0",
+                        "params":{"sele":f"@{atom.index}/0",
                                   "color":color,"aspectRatio":10*np.abs(xavg)}})
         return rep
         
