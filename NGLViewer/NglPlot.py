@@ -282,6 +282,7 @@ class NglPlot():
             from nglview.color import ColormakerRegistry as cm
             
             self.colorID=f'color{np.random.randint(10000)}'
+            self.colorID='color1'
             cm.add_scheme_func(self.colorID,JScode)
             self._JScode=JScode
         
