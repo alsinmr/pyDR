@@ -8,7 +8,7 @@ def color2hex(color):
     color=np.array(color)[:3]
     assert np.all(color<=1) and np.all(color>=0),\
         "Color should be between 0 and 1"
-    return ('0x'+''.join('%02x'%i for i in np.uint8(color*255))).upper()
+    return '0x'+(''.join('%02x'%i for i in np.uint8(color*255))).upper()
     
 
 def color_calc(x,x0=None,colors=[[0,0,1],[0.82352941, 0.70588235, 0.54901961],[1,0,0]]):
