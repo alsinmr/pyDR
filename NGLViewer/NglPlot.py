@@ -8,7 +8,7 @@ def color2hex(color):
     color=np.array(color)[:3]
     assert np.all(color<=1) and np.all(color>=0),\
         "Color should be between 0 and 1"
-    return '#'+''.join('%02x'%i for i in np.uint8(color*255))
+    return ('0x'+''.join('%02x'%i for i in np.uint8(color*255))).upper()
     
 
 def color_calc(x,x0=None,colors=[[0,0,1],[0.82352941, 0.70588235, 0.54901961],[1,0,0]]):
@@ -168,17 +168,22 @@ class NglPlot():
         
         if self.sel_str is not None:
             sele=self.sel_str
-        else:       
-            atoms=np.unique(np.concatenate((['C','CA','N'],self.atom_names)))
+        else:
+            if self.backbone_only:
+                atoms=np.unique(np.concatenate((['C','CA','N'],self.atom_names)))
+            else:
+                atoms=np.unique(self.all_atoms.universe.atoms.names)
             
             sele=' or '.join(self.segments+f'.{a}/0' for a in atoms)
+
+                    
+        # return {"type":"ball+stick","params":{"sele":sele,"color":color2hex(self.zero_color),
+        #                                    "aspectRatio":1}}
         
-        if self.colorID is not None:
-            return {"type":"ball+stick","params":{"sele":sele,"color":self.colorID,
-                                               "aspectRatio":1}}
-            
-        return {"type":"ball+stick","params":{"sele":sele,"color":color2hex(self.zero_color),
-                                           "aspectRatio":1}}
+        if self.colorID is None:self.color_JS()
+        
+        return {"type":"ball+stick","params":{"sele":sele,"color":self.colorID,
+                                   "radius":"bfactor"}}
     
     @property
     def xavg(self):
@@ -223,6 +228,13 @@ class NglPlot():
                         "params":{"sele":f"@{atom.index}/0",
                                   "color":color,"aspectRatio":10*np.abs(xavg)}})
         return rep
+    
+    # @property
+    # def atom_reprs(self):
+    #     if self.colorID is None:self.color_JS()
+    #     return [{"type":"ball+stick","params":{"sele":' or '\
+    #                 .join(f"@{atom.index}/0" for atom in self.all_atoms),
+    #                 "color":self.colorID,"radius":"bfactor"}}]
         
     @property
     def representations(self):
@@ -248,27 +260,32 @@ class NglPlot():
         None.
 
         """
-        
-        JScode='if '
-        for atom,x, in zip(self.all_atoms,self.xavg):
-            color=color_calc(x,colors=[self.zero_color,self.color])
-            index=atom.index
-            JScode+=f" (atom.serial = {index})"+"""{
+        if self.colorID is None:
+            
+            JScode="""this.atomColor = function (atom) {
+  if """
+            for atom,x, in zip(self.all_atoms,self.xavg):
+                color=color_calc(x,colors=[self.zero_color,self.color])
+                index=atom.id-1
+                JScode+=f" (atom.serial == {index})"+"""{
   return """+f"{color}"+"""
   } else if """
-        
-        color=color_calc(0,colors=[self.zero_color,self.color])
-        JScode=JScode[:-3]
-        JScode+="""else {
+            
+            color=color_calc(0,colors=[self.zero_color,self.zero_color])
+            JScode=JScode[:-3]
+            JScode+=""" {
   return """ + f"{color}" + """
   }
-        """
+ }
+ """
+            
+            from nglview.color import ColormakerRegistry as cm
+            
+            self.colorID=f'color{np.random.randint(10000)}'
+            cm.add_scheme_func(self.colorID,JScode)
+            self._JScode=JScode
         
-        from nglview.color import ColormakerRegistry as cm
-        
-        self.colorID=f'color{np.random.randint(10000)}'
-        cm.add_scheme_func(self.colorID,JScode)
-        
+        return self._JScode
         
         
     
@@ -283,18 +300,22 @@ class NglPlot():
         """
         import nglview as nv
         
+        self.color_JS()
+        self.all_atoms.universe.atoms.tempfactors=.1
+        self.all_atoms.tempfactors=self.xavg*.4+.1
+        
         # return nv.show_mdanalysis(self.all_atoms.universe,representations=self.representations)
         
-        # return nv.show_mdanalysis(self.all_atoms.universe,representations=[self.base_repr])
+        return nv.show_mdanalysis(self.all_atoms.universe,representations=[self.base_repr])
         
-        v=nv.show_mdanalysis(self.all_atoms.universe,representations=[self.base_repr])
+        # v=nv.show_mdanalysis(self.all_atoms.universe,representations=[self.base_repr])
         
-        for atom,x in zip(self.all_atoms,self.xavg):
-            color=hex2list(color_calc(np.abs(x),colors=[self.zero_color,self.color]))
-            pos=atom.position.tolist()
-            v.shape.add_sphere(pos,color,x)
+        # for atom,x in zip(self.all_atoms,self.xavg):
+        #     color=hex2list(color_calc(np.abs(x),colors=[self.zero_color,self.color]))
+        #     pos=atom.position.tolist()
+        #     v.shape.add_sphere(pos,color,x)
             
-        return v
+        # return v
             
         
         
