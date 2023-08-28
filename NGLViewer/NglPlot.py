@@ -266,7 +266,7 @@ class NglPlot():
   if """
             for atom,x, in zip(self.all_atoms,self.xavg):
                 color=color_calc(x,colors=[self.zero_color,self.color])
-                index=atom.id-1
+                index=atom.index+1
                 JScode+=f" (atom.serial == {index})"+"""{
   return """+f"{color}"+"""
   } else if """
