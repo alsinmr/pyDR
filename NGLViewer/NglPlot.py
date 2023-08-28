@@ -2,7 +2,7 @@
 
 import numpy as np
 
-import nglview as nv
+
 
 def color2hex(color):
     color=np.array(color)[:3]
@@ -37,6 +37,10 @@ def color_calc(x,x0=None,colors=[[0,0,1],[0.82352941, 0.70588235, 0.54901961],[1
     i[i==len(x0)]=len(x0)-1
     clr=(((x-x0[i-1])*colors[i].T+(x0[i]-x)*colors[i-1].T)/(x0[i]-x0[i-1])).T
     return color2hex(clr[0])
+
+def hex2list(hex_str):
+    if len(hex_str)==7:hex_str=hex_str[1:]
+    return [int(hex_str[k:k+2],base=16)/256 for k in range(0,6,2)]
 
 class NglPlot():
     def __init__(self,repr_sel,x=None,color:tuple=(1.,0.,0.),norm:bool=False,sel_str:str=None):
@@ -74,6 +78,7 @@ class NglPlot():
         self.color=color
         self.norm=norm
         self.sel_str=sel_str
+        self.colorID=None
         
         # self._all_atoms=None
         # self._xavg=None
@@ -167,6 +172,10 @@ class NglPlot():
             atoms=np.unique(np.concatenate((['C','CA','N'],self.atom_names)))
             
             sele=' or '.join(self.segments+f'.{a}/0' for a in atoms)
+        
+        if self.colorID is not None:
+            return {"type":"ball+stick","params":{"sele":sele,"color":self.colorID,
+                                               "aspectRatio":1}}
             
         return {"type":"ball+stick","params":{"sele":sele,"color":color2hex(self.zero_color),
                                            "aspectRatio":1}}
@@ -229,6 +238,40 @@ class NglPlot():
         out.extend(self.atom_reprs)
         return out
     
+    def color_JS(self):
+        """
+        Creates the javascript code for a color and adds it to the Colormaker
+        Registry
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        JScode='if '
+        for atom,x, in zip(self.all_atoms,self.xavg):
+            color=color_calc(x,colors=[self.zero_color,self.color])
+            index=atom.index
+            JScode+=f" (atom.serial = {index})"+"""{
+  return """+f"{color}"+"""
+  } else if """
+        
+        color=color_calc(0,colors=[self.zero_color,self.color])
+        JScode=JScode[:-3]
+        JScode+="""else {
+  return """ + f"{color}" + """
+  }
+        """
+        
+        from nglview.color import ColormakerRegistry as cm
+        
+        self.colorID=f'color{np.random.randint(10000)}'
+        cm.add_scheme_func(self.colorID,JScode)
+        
+        
+        
+    
     def __call__(self):
         """
         Returns the NGLview view object
@@ -238,7 +281,21 @@ class NglPlot():
         None.
 
         """
-        return nv.show_mdanalysis(self.all_atoms.universe,representations=self.representations)
+        import nglview as nv
+        
+        # return nv.show_mdanalysis(self.all_atoms.universe,representations=self.representations)
+        
+        # return nv.show_mdanalysis(self.all_atoms.universe,representations=[self.base_repr])
+        
+        v=nv.show_mdanalysis(self.all_atoms.universe,representations=[self.base_repr])
+        
+        for atom,x in zip(self.all_atoms,self.xavg):
+            color=hex2list(color_calc(np.abs(x),colors=[self.zero_color,self.color]))
+            pos=atom.position.tolist()
+            v.shape.add_sphere(pos,color,x)
+            
+        return v
+            
         
         
         
