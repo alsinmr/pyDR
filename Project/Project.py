@@ -76,6 +76,8 @@ class DataMngr():
 
         if data in self.data_objs:
             print("Data already in project (index={})".format(self.data_objs.index(data)))
+            data.project=self.project
+            #TODO is the above line really a good idea?
             return
             
 
