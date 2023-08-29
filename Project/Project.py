@@ -280,6 +280,34 @@ class DetectMngr():
             for r0 in r:
                 yield r0
         return gen()
+    
+    def plot_rhoz(self,index=None,ax=None,norm=False,**kwargs):
+        """
+        If only one unique detector in the corresponding project, then this
+        runs plot_rhoz from that detector
+
+        Parameters
+        ----------
+        index : TYPE, optional
+            DESCRIPTION. The default is None.
+        ax : TYPE, optional
+            DESCRIPTION. The default is None.
+        norm : TYPE, optional
+            DESCRIPTION. The default is False.
+        **kwargs : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        self.unify_detect()
+        if len(self.detectors)==1:
+            return self.detectors[0].plot_rhoz(index=index,ax=ax,norm=norm,**kwargs)
+        else:
+            print('Project contains multiple detectors; plotting detector sensitivies not possible')
 
     @property
     def detectors(self):
@@ -405,6 +433,8 @@ class DetectMngr():
 
         """
         for r in self:r.inclS2()
+        
+        return self
     
     def r_no_opt(self,n:int) -> None:
         """

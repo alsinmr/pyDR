@@ -91,7 +91,7 @@ def download_google_drive(url:str,filename:str='temp'):
     
     try:
         out=urlretrieve(url,filename)
-        print(out[1])
+        # print(out[1])
         return out[0]
     except:
         print('File not found')
