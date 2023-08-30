@@ -76,7 +76,7 @@ class Source():
 
         """
         if self.select is None:return None
-        return self.select.molsys.file
+        return self.select.molsys.topo
     @property
     def traj(self) -> list:
         """
