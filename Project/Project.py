@@ -66,13 +66,20 @@ class DataMngr():
         "Adds data to the project (either from file, set 'filename' or loaded data, set 'data')"
         if filename is not None:
             if not(os.path.exists(filename)):
-                if os.path.exists(os.path.join(os.path.dirname(self.directory),filename)):  #Check in the project directory
+                if self.directory is not None and \
+                    os.path.exists(os.path.join(os.path.dirname(self.directory),filename)):  #Check in the project directory
                     filename=os.path.join(os.path.dirname(self.directory),filename) 
                     """Note that adding data from within the project/data directory is discouraged,
                     so we do not check that directory here.
                     """
-            assert os.path.exists(filename),"{} does not exist".format(filename)
-            data=read_file(filename,directory=self.project.directory) if isbinary(filename) else readNMR(filename)
+            if not(os.path.exists(filename)):          
+                try:
+                    data=readNMR(filename)
+                except:
+                    pass
+            else:                    
+                assert os.path.exists(filename),"{} does not exist".format(filename)
+                data=read_file(filename,directory=self.project.directory) if isbinary(filename) else readNMR(filename)
 
         if data in self.data_objs:
             print("Data already in project (index={})".format(self.data_objs.index(data)))
