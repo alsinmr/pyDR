@@ -94,7 +94,7 @@ class DataMngr():
             flds=['Type','status','short_file','title','additional_info']
             dct={f:getattr(self.data_objs[-1].source,f) for f in flds}
             dct['filename']=None
-            self.project.info.new_exper(**dct)
+            self.project.pinfo.new_exper(**dct)
             self.project._index=np.append(self.project._index,len(self.data_objs)-1)
 
         if data.src_data is not None:
@@ -116,7 +116,7 @@ class DataMngr():
             if delete and self.saved_files[index] is not None:
                 os.remove(os.path.join(self.directory,self.saved_files[index]))
             self._saved_files.pop(index)
-            self.project.info.del_exp(index)
+            self.project.pinfo.del_exp(index)
         else:
             print(index)
             for i in np.sort(index)[::-1]:self.remove_data(i,delete=delete)
@@ -235,7 +235,7 @@ class DataMngr():
                 self[i].source.saved_filename=self.save_name[i]
                 self._hashes[i]=self[i]._hash #Update the hash so we know this state of the data is saved
                 self._saved_files[i]=self.save_name[i]
-                self.project.info['filename',np.argwhere(self.project._index==i)[0,0]]=os.path.split(self.save_name[i])[1]
+                self.project.pinfo['filename',np.argwhere(self.project._index==i)[0,0]]=os.path.split(self.save_name[i])[1]
           
 
 class DataSub(DataMngr):
@@ -811,7 +811,7 @@ class Project():
         del_ind=list()
         del_file=list()
         for k,i in enumerate(self._index):
-            if self.info[k]['status']=='raw' \
+            if self.pinfo[k]['status']=='raw' \
                 and str(self.data[i].sens.__class__).split('.')[-1][:-2]=='MD' \
                 and self.data.filenames[i] is None: #Raw and loaded and MD data and not saved
                 del_ind.append(k)  #These get deleted during clear_memory
@@ -869,11 +869,11 @@ class Project():
             i=_index.index(None)
             _index.pop(i)
 
-        self.info=clsDict['Info']()
-        for f in flds:self.info.new_parameter(f)
+        self.pinfo=clsDict['Info']()
+        for f in flds:self.pinfo.new_parameter(f)
         
         for k in range(len(_index)):
-            self.info.new_exper(**info[_index.index(k)])
+            self.pinfo.new_exper(**info[_index.index(k)])
         self._index=np.array(_index,dtype=int)
                 
     def write_proj(self):
@@ -882,7 +882,7 @@ class Project():
             for i in self._index:
                 if self.data.saved[i]:
                     f.write('DATA\n')
-                    for k,v in self.info[i].items():f.write('{0}:\t{1}\n'.format(k,v))
+                    for k,v in self.pinfo[i].items():f.write('{0}:\t{1}\n'.format(k,v))
                     f.write('END:DATA\n')
                 
     def update_info(self)->None:
@@ -899,14 +899,14 @@ class Project():
         """
         for i in self._index:
             if self.data.data_objs[i] is not None:
-                for k in self.info.keys:
+                for k in self.pinfo.keys:
                     if k=='filename':
                         if self.data.directory is not None:
-                            self.info[k,i]=os.path.split(self.data.save_name[i])[1]
+                            self.pinfo[k,i]=os.path.split(self.data.save_name[i])[1]
                         else:
-                            self.info[k,i]=None
+                            self.pinfo[k,i]=None
                     else:
-                        self.info[k,i]=getattr(self.data.data_objs[i].source,k)
+                        self.pinfo[k,i]=getattr(self.data.data_objs[i].source,k)
             
 
     #%%Indexing/subprojects
@@ -1033,27 +1033,27 @@ class Project():
         
     @property
     def Types(self):
-        return mk_nparray_nice(self.info['Type'][self._index])
+        return mk_nparray_nice(self.pinfo['Type'][self._index])
     
     @property
     def statuses(self):
-        return mk_nparray_nice(self.info['status'][self._index])
+        return mk_nparray_nice(self.pinfo['status'][self._index])
     
     @property
     def titles(self): 
-        return mk_nparray_nice(self.info['title'][self._index])
+        return mk_nparray_nice(self.pinfo['title'][self._index])
     
     @property
     def short_files(self):
-        return mk_nparray_nice(self.info['short_file'][self._index])
+        return mk_nparray_nice(self.pinfo['short_file'][self._index])
     
     @property
     def additional_info(self):
-        return mk_nparray_nice(self.info['additional_info'][self._index])
+        return mk_nparray_nice(self.pinfo['additional_info'][self._index])
     
     @property
     def filenames(self):
-        return mk_nparray_nice(self.info['filename'][self._index])
+        return mk_nparray_nice(self.pinfo['filename'][self._index])
     
     @property
     def parent_index(self):

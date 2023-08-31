@@ -39,7 +39,10 @@ class DataPlots():
         self._mode=mode  
         if data is not None:
             self.append_data(data,style=style,errorbars=errorbars,index=index,rho_index=rho_index,split=split,**kwargs)
-            
+    
+    def _ipython_display_(self):
+        return self.fig        
+    
     @property
     def mode(self):
         if self._mode=='auto':
@@ -174,6 +177,7 @@ class DataPlots():
                    horizontalalignment='left',verticalalignment='top',
                    color=self.colors[m%len(self.colors)],fontsize='x-small',   
                    s=string.format(val,k).replace('XXX',sym)))
+        return self
             
     def remove_tc(self):
         """
@@ -187,6 +191,7 @@ class DataPlots():
         if self.tclabels is not None:
             for v in self.tclabels:v.remove()
             self.tclabels=None
+        return self
     
     def calc_rho_index(self,i=-1):
         if len(self.data)==1:return np.arange(self.data[0].R.shape[1])
@@ -542,7 +547,13 @@ def plot_fit(lbl,Rin,Rc,Rin_std=None,info=None,index=None,exp_index=None,fig=Non
             if lbl0 is not None:
                 a.set_xticks(ii)
         if yax[k]:
-            a.set_ylabel(r'R / s$^{-1}$')
+            if 'Type' in info.keys:
+                a.set_ylabel(r'$R$ / s^${-1}$')
+            elif 't' in info.keys:
+                a.set_ylabel(r'$C(t)$')
+            else:
+                a.set_ylabel(r'$\rho_n^{(\theta,S)}$')
+            a.set_ylabel(r'R / s$^{-1}$' if 'Type' in info.keys else r'')
         
         #Apply labels to each plot if we find experiment type in the info array
         if info is not None and 'Type' in info.keys:

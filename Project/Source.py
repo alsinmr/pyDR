@@ -126,8 +126,8 @@ class Source():
         """
         if isinstance(self._src_data,str):
             if self.project is not None:
-                if os.path.split(self._src_data)[1] in self.project.info['filename']:    #Is the source data part of the project?
-                    i=np.argwhere(self.project.info['filename']==os.path.split(self._src_data)[1])[0,0]
+                if os.path.split(self._src_data)[1] in self.project.pinfo['filename']:    #Is the source data part of the project?
+                    i=np.argwhere(self.project.pinfo['filename']==os.path.split(self._src_data)[1])[0,0]
                     self._src_data=self.project.data[i]      #Copy into self._src_data
                 else:   #Data not in project
                     if os.path.exists(self._src_data):
