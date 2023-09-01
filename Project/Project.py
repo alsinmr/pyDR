@@ -1539,7 +1539,7 @@ class Project():
         print('Fitted {0} data objects'.format(count))
         return out
         
-    def modes2bonds(self,includeOverall:bool=False,calcCC='auto'):
+    def modes2bonds(self,inclOverall:bool=False,calcCC='auto'):
         """
         
         Converts iRED mode detector responses into bond-specific detector 
@@ -1572,7 +1572,7 @@ class Project():
         for d in self:
             if hasattr(d,'iRED') and 'Lambda' in d.iRED:
                 count+=1
-                d.modes2bonds()
+                d.modes2bonds(inclOverall=inclOverall)
                 
         out=self[:0]
         out._index=np.setdiff1d(self.parent._index,index0)

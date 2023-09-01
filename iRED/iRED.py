@@ -606,9 +606,9 @@ class Data_iRED(Data):
             m=m[:,:-(2*rank+1)]
             Lambda=Lambda[:-(2*rank+1)]
         
-        # ne=self.iRED['M'].shape[0]-self.R.shape[0] #Eliminate modes due to iRED matrix rank deficiency
-        # m=m[:,ne:] 
-        # Lambda=Lambda[ne:]
+        ne=self.iRED['M'].shape[0]-self.R.shape[0] #Eliminate modes due to iRED matrix rank deficiency
+        m=m[:,ne:] 
+        Lambda=Lambda[ne:]
         
         shape=(self.iRED['M'].shape[0],self.R.shape[1])
         out.R=np.zeros(shape,dtype=dtype)
