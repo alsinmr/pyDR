@@ -58,7 +58,7 @@ def getPDB(PDBid:str,filename:str=None):
     
     if os.path.exists(filename):
         warn('File already exists')
-        return
+        return filename
         
     
     url='https://files.rcsb.org/download/{}.pdb'.format(PDBid.upper())

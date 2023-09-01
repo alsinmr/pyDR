@@ -311,10 +311,10 @@ class DetectMngr():
         """
         
         self.unify_detect()
-        if len(self.detectors)==1:
-            return self.detectors[0].plot_rhoz(index=index,ax=ax,norm=norm,**kwargs)
-        else:
-            print('Project contains multiple detectors; plotting detector sensitivies not possible')
+        ax=plt.subplots()[1]
+        for d in self.detectors:
+            d.plot_rhoz(index=index,ax=ax,norm=norm,**kwargs)
+        return ax
 
     @property
     def detectors(self):
@@ -363,15 +363,23 @@ class DetectMngr():
                 proj[k].detect=r[i]
                 
     def unique_detect(self, index: int = None) -> None:
-        project=self.project
-        if index is None:
-            for i in range(len(project.data)):
-                self.unique_detect(i)
-        else:
-            d = project.data[index]
-            sens = d.detect.sens
-            d.detect = d.detect.copy()
-            d.detect.sens = sens
+        for k,i in enumerate(self.project._index):
+            if self.project.data.data_objs[i] is not None:
+                d=self.project[k]
+                sens=d.sens
+                d.detect=d.detect.copy()
+                d.detect.sens=sens
+        
+        
+        # project=self.project
+        # if index is None:
+        #     for i in range(len(project.data)):
+        #         self.unique_detect(i)
+        # else:
+        #     d = project.data[index]
+        #     sens = d.detect.sens
+        #     d.detect = d.detect.copy()
+        #     d.detect.sens = sens
     
     def r_auto(self,n:int,Normalization:str='MP',NegAllow:bool=False) -> None:
         """
@@ -634,7 +642,7 @@ class Chimera():
         """
         self.command_line(cmds='close',ID=ID)
                 
-    def savefig(self,filename:str,options:str='',ID:int=None)-> None:
+    def savefig(self,filename:str,options:str='',ID:int=None,overwrite:bool=False)-> None:
         """
         Saves the current chimera window to a figure. If a relative path is
         provided, this will save within the project figure folder. One may
@@ -652,6 +660,8 @@ class Chimera():
         ID : int, optional
             Specify which chimeraX session to save. The default is None, which 
             saves the active session.
+        overwrite : bool, optional
+            Overwrite existing figures. The default is False.
 
         Returns
         -------
@@ -670,6 +680,9 @@ class Chimera():
                 filename=os.path.join(os.path.join(self.project.directory,'figures'),filename)
         if len(filename.split('.'))<2:filename+='.png'
         
+        if not(overwrite):
+            assert not(os.path.exists(filename)),'File already exists. Set overwrite=True'
+            
         
         self.command_line('save "{0}" {1}'.format(filename,options))
         
@@ -1322,6 +1335,10 @@ class Project():
         if filename[-4]!='.':filename+='.'+filetype
         
         filename=os.path.join(os.path.join(self.directory,'figures'),filename)
+        
+        if not(overwrite):
+            assert not(os.path.exists(filename)),'File already exists, set overwrite=True'
+        
         self.plots[fignum-1].fig.savefig(filename)
         
     @property
@@ -1461,6 +1478,9 @@ class Project():
         """
         Optimize fits to match a distribution for all detectors in the project.
         """
+        
+        index0=copy(self.parent._index)
+        
         sens = list()
         detect = list()
         count = 0
@@ -1477,7 +1497,11 @@ class Project():
                         sens.append(fit.sens)
                         detect.append(clsDict['Detector'](fit.sens))
         print('Optimized {0} data objects'.format(count))
-        return self
+        
+        out=self[:0]
+        out._index=np.setdiff1d(self.parent._index,index0)
+        
+        return out
     
     def fit(self, bounds: bool = 'auto', parallel: bool = False) -> None:
         """
@@ -1487,6 +1511,9 @@ class Project():
         detect = list()
         count = 0
         to_delete=list()
+        
+        index0=copy(self.parent._index)
+        
         for d in self:
             if 'n' in d.detect.opt_pars:
                 count += 1
@@ -1504,9 +1531,13 @@ class Project():
                         self.data.data_objs[i0]=None
                         to_delete.append(self._index.tolist().index(i0))
         self.remove_data(to_delete)
-                    
+        
+        out=self[:0]
+        out._index=np.setdiff1d(self.parent._index,index0)
+
+            
         print('Fitted {0} data objects'.format(count))
-        return self
+        return out
         
     def modes2bonds(self,includeOverall:bool=False,calcCC='auto'):
         """
@@ -1534,13 +1565,20 @@ class Project():
         -------
         None (appends data to project)
         """
+        
+        index0=copy(self.parent._index)
+        
         count = 0
         for d in self:
             if hasattr(d,'iRED') and 'Lambda' in d.iRED:
                 count+=1
                 d.modes2bonds()
+                
+        out=self[:0]
+        out._index=np.setdiff1d(self.parent._index,index0)
+        
         print('Converted {0} iRED data objects from modes to bonds'.format(count))
-        return self
+        return out
                 
 
     #%% iPython stuff   

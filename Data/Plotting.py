@@ -595,7 +595,7 @@ def subplot_setup(nexp,fig=None):
     "How many subplots"
     SZ=np.sqrt(nexp)
     SZ=[np.ceil(SZ).astype(int),np.floor(SZ).astype(int)]
-    if np.prod(SZ)<nexp: SZ[1]+=1
+    if np.prod(SZ)+.01<nexp: SZ[1]+=1
     ntop=np.mod(nexp,SZ[1]) #Number of plots to put in the top row    
     if ntop==0:ntop=SZ[1]     
     
