@@ -1,5 +1,5 @@
 # pyDR
-<img src="https://raw.githubusercontent.com/alsinmr/pyDR_tutorial/8da8d5daf4d9933fc192188ad7d6d9aa14f58e33/JupyterBook/logo.png" width="200"/>
+<img src="https://raw.githubusercontent.com/alsinmr/pyDR_tutorial/8da8d5daf4d9933fc192188ad7d6d9aa14f58e33/JupyterBook/logo.png" width="500"/>
 
 pyDR is the latest implementation of the DIFRATE method of analyzing MD and NMR data. The project should still be considered to be in "testing" phase, but at this point we hope to retain most functionality, and most functions are stable (the PCA module and solution-state sensitivities are still subject to significant changes).<br />
 
