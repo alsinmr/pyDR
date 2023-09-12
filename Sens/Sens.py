@@ -82,6 +82,7 @@ class Sens():
 
         """
         self.info.del_exp(index)
+        return self
         
     
     def copy(self):

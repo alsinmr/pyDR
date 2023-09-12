@@ -103,6 +103,8 @@ class NMR(Sens):
                     kwargs[k]=[v for _ in range(ne)]
         
         defaults(self.info,**kwargs)
+        
+        return self
     
         
     def plot_Rz(self,index=None,ax=None,norm=False,**kwargs):
