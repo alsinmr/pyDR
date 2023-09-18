@@ -763,8 +763,18 @@ class Project():
         return self
     #%% setattr        
     def __setattr__(self,name,value):
-        if name=='_index':
+        if name=='_index':  #Why does this need special treatement?
             super().__setattr__(name,value)
+            
+        "Could we do something for setting the project directory?"
+        if name=='directory':
+            assert self.directory is None,'Project directory cannot be changed'
+            assert isinstance(value,str),'Project directory must be a string'
+            assert not(os.path.exists(value)),'Project directory already exists'
+            os.mkdir(value)
+            os.mkdir(os.path.join(value,'data'))
+            super().__setattr__('_directory',value)
+            return
 
         if len(self)==1 and not(hasattr(self.__class__,name)) and hasattr(self[0],name):
             #Only one data object in project, and the data object has attribute name, but the project does not
@@ -1166,7 +1176,7 @@ class Project():
                         if sel is None or sel.uni is None:  #no selection loaded
                             pass
                         elif os.path.abspath(sel.uni.filename) in origin:  #pdb already saved
-                            i=origin.index(sel.uni.filename)
+                            i=origin.index(os.path.abspath(sel.uni.filename))
                             f.write(f'{filename}:{saved_pdb[i]}:{origin[i]}\n')
                         elif os.path.split(os.path.abspath(sel.uni.filename))[0]==os.path.join(self.directory,'pdbs')\
                             and os.path.split(sel.uni.filename)[1] in saved_pdb: #pdb created on previous save

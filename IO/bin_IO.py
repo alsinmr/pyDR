@@ -489,6 +489,7 @@ def read_np_object(f):
     shape=np.load(f,allow_pickle=False)
     out=list()
     pos=f.tell()
+    
     for k,l in enumerate(f):
         if str(l)[2:-3]=='END:OBJECT':break
         elif str(l)[2:-3]=='OBJECT:NUMPY':
@@ -502,6 +503,8 @@ def read_np_object(f):
             "String"
             out.append(decode(l)[:-1])
         pos=f.tell()
+    out.append(None)
+    out=np.array(out,dtype=object)[:-1].reshape(shape)
     return np.array(out,dtype=object).reshape(shape)
 
 def find_file(filename,directory:str='',f=None):
