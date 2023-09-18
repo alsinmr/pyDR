@@ -1,0 +1,152 @@
+DATA
+Type:	NMR
+status:	proc
+short_file:	HETs_15N.txt
+title:	p5:NMR:HETs_15N
+additional_info:	None
+filename:	p5_NMR_HETs_15N.data
+END:DATA
+DATA
+Type:	NMR
+status:	raw
+short_file:	HETs_15N.txt
+title:	r:NMR:HETs_15N
+additional_info:	None
+filename:	r_NMR_HETs_15N.data
+END:DATA
+DATA
+Type:	MD
+status:	proc
+short_file:	backboneB.xtc
+title:	p7:MD:backboneB
+additional_info:	None
+filename:	p7_MD_backboneB.data
+END:DATA
+DATA
+Type:	MD
+status:	opt_fit
+short_file:	backboneB.xtc
+title:	o7:MD:backboneB
+additional_info:	None
+filename:	o7_MD_backboneB.data
+END:DATA
+DATA
+Type:	MD
+status:	proc
+short_file:	backboneB.xtc
+title:	p11:MD:backboneB
+additional_info:	None
+filename:	p11_MD_backboneB.data
+END:DATA
+DATA
+Type:	MD
+status:	opt_fit
+short_file:	backboneB.xtc
+title:	o11:MD:backboneB
+additional_info:	None
+filename:	o11_MD_backboneB.data
+END:DATA
+DATA
+Type:	iREDmode
+status:	proc
+short_file:	backboneB.xtc
+title:	p7:IREDMODE:rk2:backboneB
+additional_info:	rk2
+filename:	p7_IREDMODE_rk2_backboneB.data
+END:DATA
+DATA
+Type:	iREDmode
+status:	opt_fit
+short_file:	backboneB.xtc
+title:	o7:IREDMODE:rk2:backboneB
+additional_info:	rk2
+filename:	o7_IREDMODE_rk2_backboneB.data
+END:DATA
+DATA
+Type:	iREDbond
+status:	opt_fit
+short_file:	backboneB.xtc
+title:	o7:IREDBOND:rk2:backboneB
+additional_info:	rk2
+filename:	o7_IREDBOND_rk2_backboneB.data
+END:DATA
+DATA
+Type:	Frames
+status:	proc
+short_file:	backboneB.xtc
+title:	p6:FRAMES:Direct:backboneB
+additional_info:	Direct
+filename:	p6_FRAMES_Direct_backboneB.data
+END:DATA
+DATA
+Type:	Frames
+status:	proc
+short_file:	backboneB.xtc
+title:	p6:FRAMES:Product:backboneB
+additional_info:	Product
+filename:	p6_FRAMES_Product_backboneB.data
+END:DATA
+DATA
+Type:	Frames
+status:	proc
+short_file:	backboneB.xtc
+title:	p6:FRAMES:PAS>peptide_plane:backboneB
+additional_info:	PAS>peptide_plane
+filename:	p6_FRAMES_PAS_peptide_plane_backboneB.data
+END:DATA
+DATA
+Type:	Frames
+status:	proc
+short_file:	backboneB.xtc
+title:	p6:FRAMES:peptide_plane>superimpose:backboneB
+additional_info:	peptide_plane>superimpose
+filename:	p6_FRAMES_peptide_plane_superimpose_backboneB.data
+END:DATA
+DATA
+Type:	Frames
+status:	proc
+short_file:	backboneB.xtc
+title:	p6:FRAMES:superimpose>LF:backboneB
+additional_info:	superimpose>LF
+filename:	p6_FRAMES_superimpose_LF_backboneB.data
+END:DATA
+DATA
+Type:	Frames
+status:	opt_fit
+short_file:	backboneB.xtc
+title:	o6:FRAMES:Direct:backboneB
+additional_info:	Direct
+filename:	o6_FRAMES_Direct_backboneB.data
+END:DATA
+DATA
+Type:	Frames
+status:	opt_fit
+short_file:	backboneB.xtc
+title:	o6:FRAMES:Product:backboneB
+additional_info:	Product
+filename:	o6_FRAMES_Product_backboneB.data
+END:DATA
+DATA
+Type:	Frames
+status:	opt_fit
+short_file:	backboneB.xtc
+title:	o6:FRAMES:PAS>peptide_plane:backboneB
+additional_info:	PAS>peptide_plane
+filename:	o6_FRAMES_PAS_peptide_plane_backboneB.data
+END:DATA
+DATA
+Type:	Frames
+status:	opt_fit
+short_file:	backboneB.xtc
+title:	o6:FRAMES:peptide_plane>superimpose:backboneB
+additional_info:	peptide_plane>superimpose
+filename:	o6_FRAMES_peptide_plane_superimpose_backboneB.data
+END:DATA
+DATA
+Type:	Frames
+status:	opt_fit
+short_file:	backboneB.xtc
+title:	o6:FRAMES:superimpose>LF:backboneB
+additional_info:	superimpose>LF
+filename:	o6_FRAMES_superimpose_LF_backboneB.data
+END:DATA

@@ -258,6 +258,19 @@ def superimpose(molecule,sel=None,resids=None,segids=None,filter_str=None,sigma=
             R.append(vft.RMSalign(vr,v))    #Get alignment to reference vector
             
         return vft.R2vec(R)     #This converts R back into two vectors
+    
+    #Construct the frame index (can be overridden by the user)
+    if molecule.sel1 is not None:
+        frame_index=[]
+        for resid in molecule.sel1.resids:
+            for k,sel0 in enumerate(sel):
+                if resid in sel0.resids:
+                    frame_index.append(k)
+                    break
+            else:
+                frame_index.append(np.nan)
+        return sub,np.array(frame_index),{'PPfun':'AvgGauss','sigma':sigma}
+    
     return sub,None,{'PPfun':'AvgGauss','sigma':sigma}
             
 
