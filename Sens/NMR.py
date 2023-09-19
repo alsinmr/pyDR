@@ -28,7 +28,7 @@ class NMR(Sens):
         super().__init__(tc=tc,z=z)
         
         "Load the various parameters into info"
-        pars=['Type','v0','v1','vr','offset','stdev','med_val','Nuc','Nuc1','dXY','CSA','eta','CSoff','QC','etaQ','theta']
+        pars=['Type','v0','v1','vr','offset','v1Y','stdev','med_val','Nuc','Nuc1','dXY','CSA','eta','CSoff','QC','etaQ','theta']
         for name in dir(NMRexper):
             f=getattr(NMRexper,name)
             if hasattr(f,'__code__') and f.__code__.co_varnames[0]=='tc':
