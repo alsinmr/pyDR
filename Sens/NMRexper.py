@@ -154,19 +154,32 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,v1Y=0,QC=0,etaQ
 
     "Start here with the dipole contributions"
     if Nuc1 is not None:
-        if np.size(dXY)==1:
-            vY=NucInfo(Nuc1)/NucInfo('1H')*v0
-            S=NucInfo(Nuc1,'spin')
+        dXY=np.atleast_1d(dXY)
+        Nuc1=np.atleast_1d(Nuc1)
+        
+        # if np.size(dXY)==1:
+        #     vY=NucInfo(Nuc1)/NucInfo('1H')*v0
+        #     S=NucInfo(Nuc1,'spin')
+        #     sc=S*(S+1)*4/3 #Scaling depending on spin of second nucleus
+        #     R1del=sc*(np.pi*dXY/2)**2*(3*J(tc,vY)+
+        #               1/6*J(tc,2*vr-ve+v1Y)+2/6*J(tc,vr-ve+v1Y)+2/6*J(tc,vr+ve+v1Y)+1/6*J(tc,2*vr+ve+v1Y)+
+        #               1/6*J(tc,2*vr-ve-v1Y)+2/6*J(tc,vr-ve-v1Y)+2/6*J(tc,vr+ve-v1Y)+1/6*J(tc,2*vr+ve-v1Y))
+        # else:            
+        R1del=np.zeros(np.shape(tc))
+        for k in range(0,np.size(dXY)):
+            vY=NucInfo(Nuc1[k])/NucInfo('1H')*v0
+            S=NucInfo(Nuc1[k],'spin')
             sc=S*(S+1)*4/3 #Scaling depending on spin of second nucleus
-            R1del=sc*(np.pi*dXY/2)**2*(3*J(tc,vY)+
-                      1/6*J(tc,2*vr-ve+v1Y)+2/6*J(tc,vr-ve+v1Y)+2/6*J(tc,vr+ve+v1Y)+1/6*J(tc,2*vr+ve+v1Y)+
-                      1/6*J(tc,2*vr-ve-v1Y)+2/6*J(tc,vr-ve-v1Y)+2/6*J(tc,vr+ve-v1Y)+1/6*J(tc,2*vr+ve-v1Y))
-        else:            
-            R1del=np.zeros(np.shape(tc))
-            for k in range(0,np.size(dXY)):
-                vY=NucInfo(Nuc1[k])/NucInfo('1H')*v0
-                S=NucInfo(Nuc1[k],'spin')
-                sc=S*(S+1)*4/3 #Scaling depending on spin of second nucleus
+            if vX==vY:
+                print('homonuclear')
+                R1del+=sc*(np.pi*dXY[k]/2)**2*(1/24*(1+3*np.cos(2*theta)**2)*J(tc,vr)+
+                                              1/48*(1+3*np.cos(2*theta)**2)*J(tc,2*vr)+
+                                              3/4*np.sin(theta)**4*(J(tc,2*ve+vr)+0.5*J(tc,2*ve+2*vr)+
+                                                        1/2*J(tc,2*ve-2*vr)+J(tc,2*ve-vr))+
+                                              3/8*np.sin(2*theta)**2*(J(tc,ve+vr)+1/2*J(tc,ve+2*vr)+
+                                                        1/2*J(tc,ve-2*vr)+J(tc,ve-vr)))
+                # TODO We should double check that the T1 contribution is correct  
+            else:
                 R1del+=sc*(np.pi*dXY[k]/2)**2*(3*J(tc,vY)+
                           1/6*J(tc,2*vr-ve+v1Y)+2/6*J(tc,vr-ve+v1Y)+2/6*J(tc,vr+ve+v1Y)+1/6*J(tc,2*vr+ve+v1Y)+
                           1/6*J(tc,2*vr-ve-v1Y)+2/6*J(tc,vr-ve-v1Y)+2/6*J(tc,vr+ve-v1Y)+1/6*J(tc,2*vr+ve-v1Y))

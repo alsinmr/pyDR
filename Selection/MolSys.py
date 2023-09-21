@@ -873,7 +873,8 @@ class MolSelect():
             ids=np.concatenate([s.indices for s in self.repr_sel[index]]).astype(int)
         
         if x is None:
-            CMXRemote.show_sel(ID,ids=ids,color=color)
+            if self.sel1 is not None:
+                CMXRemote.show_sel(ID,ids=ids,color=color)
         else:
             assert len(x)==len(self.sel1[index]),'Length of x must match the length of the selection'
             x=np.array(x)
