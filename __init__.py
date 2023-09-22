@@ -29,25 +29,14 @@ if 'google.colab' in sys.modules:
             
     
     # NGLviewer setup
-    cont=True
-    install=True
-    count=0
-    while cont:
-        try:
-            import nglview as _
-            cont=False
-        except:
-            if install:
-                os.popen('pip install -q nglview')
-                from google.colab import output as _
-                _.enable_custom_widget_manager()
-            else:
-                _sleep(2)
-                count+=1
-                if count==60:
-                    cont=False
-                    print('Timeout on MDAnalysis installation (2 minutes)')
 
+    try:
+        import nglview as _
+    except:
+
+        os.popen('pip install -q nglview')
+        from google.colab import output as _
+        _.enable_custom_widget_manager()
 
 #%% Init file for all of pyDR
 
