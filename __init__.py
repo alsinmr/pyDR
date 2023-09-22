@@ -5,20 +5,48 @@
 #%% Setup for google colab
 import sys
 import os
+from time import sleep as _sleep
 
 if 'google.colab' in sys.modules:
-    try:
-        import MDAnalysis as _
-    except:
-        os.popen('pip3 install MDAnalysis')
+    #MDAnalysis setup
+    cont=True
+    install=True
+    count=0
+    while cont:
+        try:
+            import MDAnalysis as _
+            cont=False
+        except:
+            if install:
+                os.popen('pip3 install MDAnalysis')
+                install=False
+            else:
+                _sleep(2)
+                count+=1
+                if count==60:
+                    cont=False
+                    print('Timeout on MDAnalysis installation (2 minutes)')
+            
     
     # NGLviewer setup
-    try:
-        import nglview as _
-    except:
-        os.popen('pip install -q nglview')
-        from google.colab import output as _
-        _.enable_custom_widget_manager()
+    cont=True
+    install=True
+    count=0
+    while cont:
+        try:
+            import nglview as _
+            cont=False
+        except:
+            if install:
+                os.popen('pip install -q nglview')
+                from google.colab import output as _
+                _.enable_custom_widget_manager()
+            else:
+                _sleep(2)
+                count+=1
+                if count==60:
+                    cont=False
+                    print('Timeout on MDAnalysis installation (2 minutes)')
 
 
 #%% Init file for all of pyDR

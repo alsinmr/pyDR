@@ -153,6 +153,7 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,v1Y=0,QC=0,etaQ
     
 
     "Start here with the dipole contributions"
+    R1del=np.zeros(np.shape(tc))
     if Nuc1 is not None:
         dXY=np.atleast_1d(dXY)
         Nuc1=np.atleast_1d(Nuc1)
@@ -165,7 +166,6 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,v1Y=0,QC=0,etaQ
         #               1/6*J(tc,2*vr-ve+v1Y)+2/6*J(tc,vr-ve+v1Y)+2/6*J(tc,vr+ve+v1Y)+1/6*J(tc,2*vr+ve+v1Y)+
         #               1/6*J(tc,2*vr-ve-v1Y)+2/6*J(tc,vr-ve-v1Y)+2/6*J(tc,vr+ve-v1Y)+1/6*J(tc,2*vr+ve-v1Y))
         # else:            
-        R1del=np.zeros(np.shape(tc))
         for k in range(0,np.size(dXY)):
             vY=NucInfo(Nuc1[k])/NucInfo('1H')*v0
             S=NucInfo(Nuc1[k],'spin')
@@ -183,8 +183,7 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,v1Y=0,QC=0,etaQ
                 R1del+=sc*(np.pi*dXY[k]/2)**2*(3*J(tc,vY)+
                           1/6*J(tc,2*vr-ve+v1Y)+2/6*J(tc,vr-ve+v1Y)+2/6*J(tc,vr+ve+v1Y)+1/6*J(tc,2*vr+ve+v1Y)+
                           1/6*J(tc,2*vr-ve-v1Y)+2/6*J(tc,vr-ve-v1Y)+2/6*J(tc,vr+ve-v1Y)+1/6*J(tc,2*vr+ve-v1Y))
-    else:
-        R1del=np.zeros(np.shape(tc))
+                
     "CSA contributions"
     R1del+=1/6*(2*np.pi*CSA)**2*(1/2*J(tc,2*vr-ve)+J(tc,vr-ve)+J(tc,vr+ve)+1/2*J(tc,2*vr+ve))
     "Here should follow the quadrupole treatment!!!"    
