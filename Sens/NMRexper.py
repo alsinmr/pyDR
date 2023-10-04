@@ -131,13 +131,14 @@ def R1Q(tc,Nuc,v0,QC=0,etaQ=0):
         
     return R
 
-def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,v1Y=0,QC=0,etaQ=0):
+def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):
     #Calc R1 contributions before scaling input values
     R10=R1(tc,Nuc,v0,Nuc1=Nuc1,CSA=CSA,dXY=dXY,eta=eta,vr=vr,CSoff=0,QC=QC,etaQ=etaQ)    #We do this first, because it includes all R1 contributions
     
     v0*=1e6 #Input in MHz
     v1*=1e3 #Input in kHz
     vr*=1e3 #Input in kHz
+    v1Y=0
     v1Y*=1e3
     vX=NucInfo(Nuc)/NucInfo('1H')*v0
     
