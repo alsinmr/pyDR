@@ -284,6 +284,8 @@ class Info():
         Delete one or more experiments from info
         """
         
+        index=np.mod(index,self.N)
+        
         if hasattr(index,'__len__'):
             i=np.ones(self.N,dtype=bool)
             i[index]=False

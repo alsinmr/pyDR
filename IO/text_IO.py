@@ -66,6 +66,7 @@ def readNMR(filename):
                 sens=clsDict['SolnNMR'](info=info)
             else:
                 sens=clsDict['NMR'](info=info)
+            
             data=clsDict['Data'](sens=sens,**keys)
             data.source.filename=os.path.abspath(filename)
             data.source.status='raw'
@@ -158,6 +159,7 @@ def read_Data(f):
             values=list()
             isstr=False
         elif len(line.strip())!=0:
+            line='\t'.join(line.strip().split())
             if '\t' in line.strip():
                 values.append(list())
                 line=line.strip()

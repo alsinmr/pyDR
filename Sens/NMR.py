@@ -193,6 +193,10 @@ def defaults(info,**kwargs):
     else:
         for _,value in zip([0],kwargs.values()):
             for _ in range(len(value)):info_new.new_exper()
+    for k,i in enumerate(info):
+        if i['Type']=='NOE':
+            info['dXY',k]=i['dXY'][0]
+            info['Nuc1',k]=i['Nuc1'][0]
     
     "We replace None with zeros except for nuclei"
     for k in info_new.keys:

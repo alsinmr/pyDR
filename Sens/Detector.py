@@ -328,10 +328,30 @@ class Detector(Sens.Sens):
         
         return self
     
-    def r_auto(self,n,Normalization='MP',NegAllow=False, mode=None):
+    def r_auto(self,n:int,Normalization:str='MP',NegAllow:bool=False):
         """
         Generate n detectors that are automatically selected based on the results
         of SVD
+
+        Parameters
+        ----------
+        n : int
+            Number of detectors.
+        Normalization : str, optional
+            Normalization mode. 'I' yields integral-normalized detectors, 'M'
+            yields maximum-normalized detectors that sum to one if S2 is include,
+            'MP' yields max-positive normalized detectors, where all detectors,
+            including the S2 detector, have maxima of 1 (but do not sum to 1).
+            The default is 'MP'.
+        NegAllow : bool, optional
+            Allows the first/last detectors to oscillate below zero. 
+            The default is False.
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
         """
         if self._islocked:return
         
@@ -517,12 +537,25 @@ class Detector(Sens.Sens):
         if update:self.update_det()
         self.opt_pars['NegAllow']=True
         
+        return self
+        
                     
     def inclS2(self,Normalization=None):
         """
         Creates an additional detector from S2 measurements, where that detector
         returns the difference between (1-S2) and an optimized sum of the other
         detectors.
+
+        Parameters
+        ----------
+        Normalization : TYPE, optional
+            DESCRIPTION. The default is None.
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
         """
         if self._islocked:return
 
@@ -569,9 +602,9 @@ class Detector(Sens.Sens):
     def removeS2(self):
         if self._islocked:return
         
-        if self.opt_pars['n']==self.rhoz.shape[0]:
+        if 'inclS2' not in self.opt_pars['options']:
             print('S2 not included')
-            return
+            return self
         self._Sens__rho=self.rhoz[1:]
         self._Sens__rhoCSA=self._Sens__rhoCSA[1:]
         self.__r=self.r[:-1,1:]
@@ -579,8 +612,70 @@ class Detector(Sens.Sens):
         
         return self
     
-    def R2ex(self):
-        pass
+    def R2ex(self,vref=None):
+        """
+        Includes a detector that will remove influence of fast exchange on the R2
+        measurements. Detector responses then correspond to the R2 exchange 
+        contribution at the field given by v_ref.
+
+    
+
+        Returns
+        -------
+        self
+
+        """
+        if self._islocked:return
+        
+        
+        v0=self.sens.info['v0'].astype(float)*(self.sens.info['Type']=='R2')
+        if vref is None:
+            vref=v0[self.sens.info['Type']=='R2'].min()
+        
+        r_ex_vec=v0**2/vref**2
+        
+        rhoz=np.zeros(self.tc.size)
+        rhoz[-1]=1e6
+        
+        self.__r=np.concatenate([self.r,np.transpose([r_ex_vec])],axis=1)
+        self._Sens__rho=np.concatenate([self._Sens__rho,[rhoz]],axis=0)
+        self._Sens__rhoCSA=np.concatenate([self._Sens__rhoCSA,[rhoz]],axis=0)
+        
+        
+        
+        pars={'z0':np.nan,'zmax':np.nan,'Del_z':np.nan,
+                    'stdev':((np.linalg.pinv(self.__r)[-1]**2)@self.sens.info['stdev']**2)**0.5}
+        self.info.new_exper(**pars)
+        
+        self.opt_pars['options'].append('R2ex')
+        self.opt_pars['R2ex_vref']=vref
+        
+        return self
+    
+    def removeR2ex(self):
+        """
+        Removes the detector for R2 exchange
+
+        Returns
+        -------
+        None.
+
+        """
+        if self._islocked:return
+        
+        if 'R2ex' not in self.opt_pars['options']:
+            print('S2 not included')
+            return self
+        
+        self._Sens__rho=self.rhoz[:-1]
+        self._Sens_rhoCSA=self._Sens__rhoCSA[:-1]
+        self.__r=self.r[:,:-1]
+        self.opt_pars['options'].remove('R2ex')
+        self.opt_pars.pop('R2ex_vref')
+        self.info.del_exp(-1)
+        
+        return self
+        
     
     def ApplyNorm(self,Normalization='MP'):
         """
@@ -601,7 +696,37 @@ class Detector(Sens.Sens):
                 self.T[k]/=rhoz.sum()*self.dz
         self.opt_pars['Normalization']=Normalization
         self.update_det()  
+    
+    
+    def plot_rhoz(self,index=None,ax=None,norm=False,**kwargs):
+        """
+        Plots the detector sensitivities
+
+        Parameters
+        ----------
+        index : TYPE, optional
+            DESCRIPTION. The default is None.
+        ax : TYPE, optional
+            DESCRIPTION. The default is None.
+        norm : TYPE, optional
+            DESCRIPTION. The default is False.
+        **kwargs : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+    
+        hdl=super().plot_rhoz(index=index,ax=ax,norm=norm,**kwargs)
         
+        if 'R2ex' in self.opt_pars['options']:
+            ax=hdl[0].axes
+            ax.set_ylim([self.rhoz[:-1].min(),self.rhoz[:-1].max()])
+        return hdl
+            
+    
         
     def plot_fit(self,index=None,ax=None,norm=False,**kwargs):
         """
