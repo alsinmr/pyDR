@@ -719,11 +719,17 @@ class Detector(Sens.Sens):
 
         """
     
+        if index is None:
+            index=np.arange(self.info.N)
+        else:
+            index=np.array(index)
+
         hdl=super().plot_rhoz(index=index,ax=ax,norm=norm,**kwargs)
         
-        if 'R2ex' in self.opt_pars['options']:
-            ax=hdl[0].axes
-            ax.set_ylim([self.rhoz[:-1].min(),self.rhoz[:-1].max()])
+        if 'R2ex' in self.opt_pars['options'] and self.info.N-1 in index:
+            hdl[-1].set_alpha(0)
+            hdl[-1].axes.set_ylim([self.rhoz[index][:-1].min(),self.rhoz[index][:-1].max()])
+            
         return hdl
             
     

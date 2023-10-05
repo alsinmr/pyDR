@@ -70,7 +70,11 @@ class Data():
             # print("Don't forget to check that this returns the right results")
             #TODO check that this calculation is correct
             self.sens.reload()
-            Rc=(self.sens.r@self.R.T).T
+            R=self.R.T
+            # if 'R2ex' in self.sens.opt_pars['options']:
+            #     R=np.concatenate([R,[self.R2]],axis=0)
+                
+            Rc=(self.sens.r@R).T
             inclS2='inclS2' in self.sens.opt_pars['options']
             for k,Rc0 in enumerate(Rc):
                 Rc0+=np.concatenate((self.sens.sens[k].R0,[0])) if inclS2 else self.sens.sens[k].R0

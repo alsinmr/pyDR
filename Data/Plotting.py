@@ -38,7 +38,7 @@ class DataPlots():
         assert mode in ['auto','union','b_in_a'],"mode must be 'auto','union', or 'b_in_a'"
         self._mode=mode  
         if data is not None:
-            self.append_data(data,style=style,errorbars=errorbars,index=index,rho_index=rho_index,split=split,**kwargs)
+            self.append_data(data,style=style,errorbars=errorbars,index=index,rho_index=rho_index,split=split,plot_sens=plot_sens,**kwargs)
     
     def _ipython_display_(self):
         return self.fig        
@@ -131,7 +131,11 @@ class DataPlots():
             color=self.colors[m%len(self.colors)]
             if not((a if hasattr(a,'is_last_row') else a.get_subplotspec()).is_last_row()):
                    plt.setp(a.get_xticklabels(), visible=False)
-            a.set_ylabel(r'$\rho_{'+'{}'.format(k+not_rho0)+r'}^{(\theta,S)}$')
+            if hasattr(self.data[0].sens,'opt_pars') and 'R2ex' in self.data[0].sens.opt_pars['options'] \
+                and k==self.data[0].sens.rhoz.shape[0]-1:
+                    a.set_ylabel(r'$R_2^{ex}$ / s$^{-1}$')
+            else:
+                a.set_ylabel(r'$\rho_{'+'{}'.format(k+not_rho0)+r'}^{(\theta,S)}$')
             a.yaxis.label.set_color(color)
         
             
@@ -205,6 +209,7 @@ class DataPlots():
         (function will only return if self.ax_sens is None, i.e. there is no 
         sensitivity plot)
         """
+        if not(self._plot_sens):return
         color,linestyle=(None,'-') if self.data.__len__()==1 or i==0 else ((.2,.2,.2),':')
         maxes=self.data[i].sens.rhoz.max(1)
         norm=maxes.max()/maxes.min()>20
