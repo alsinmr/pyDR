@@ -639,7 +639,7 @@ class Detector(Sens.Sens):
         
         self.__r=np.concatenate([self.r,np.transpose([r_ex_vec])],axis=1)
         self._Sens__rho=np.concatenate([self._Sens__rho,[rhoz]],axis=0)
-        self._Sens__rhoCSA=np.concatenate([self._Sens__rhoCSA,[rhoz]],axis=0)
+        self._Sens__rhoCSA=np.concatenate([self._Sens__rhoCSA,[np.zeros(self.tc.size)]],axis=0)
         
         
         
