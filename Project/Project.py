@@ -1484,9 +1484,41 @@ class Project():
 
 
     #%% Fitting functions
-    def opt2dist(self, rhoz_cleanup=False, parallel=False) -> None:
+    def opt2dist(self, rhoz=None,rhoz_cleanup:bool=False, parallel:bool=False):
         """
-        Optimize fits to match a distribution for all detectors in the project.
+        Forces a set of detector responses to be consistent with some given distribution
+        of motion. Achieved by performing a linear-least squares fit of the set
+        of detector responses to a distribution of motion, and then back-calculating
+        the detectors from that fit. Set rhoz_cleanup to True to obtain monotonic
+        detector sensitivities: this option eliminates unusual detector due to 
+        oscilation and negative values in the detector sensitivities. However, the
+        detectors are no longer considered "DIstortion Free".
+                                
+    
+        Parameters
+        ----------
+        rhoz : np.array, optional
+            Provide a set of functions to replace the detector sensitivities.
+            These should ideally be similar to the original set of detectors,
+            but may differ somewhat. For example, if r_target is used for
+            detector optimization, rhoz may be set to removed residual differences.
+            Default is None (keep original detectors)
+        
+        rhoz_cleanup : bool, optional
+            Modifies the detector sensitivities to eliminate oscillations in the
+            data. Oscillations larger than the a threshold value (default 0.1)
+            are not cleaned up. The threshold can be set by assigning the 
+            desired value to rhoz_cleanup. Note that rhoz_cleanup is not run
+            if rhoz is defined.
+            Default is False (keep original detectors)
+    
+        parallel : bool, optional
+            Use parallel processing to perform optimization. Default is False.
+    
+        Returns
+        -------
+        Subproject (Project)
+    
         """
         
         index0=copy(self.parent._index)
@@ -1496,7 +1528,7 @@ class Project():
         count = 0
         for d in self:
             if hasattr(d.sens,'opt_pars') and 'n' in d.sens.opt_pars:
-                fit = d.opt2dist(rhoz_cleanup, parallel=parallel)
+                fit = d.opt2dist(rhoz=rhoz,rhoz_cleanup=rhoz_cleanup, parallel=parallel)
                 if fit is not None:
                     count += 1
                     if fit.sens in sens:

@@ -241,7 +241,7 @@ class Data():
                 
         
     
-    def opt2dist(self,rhoz_cleanup:bool = False,parallel:bool = False):
+    def opt2dist(self,rhoz=None,rhoz_cleanup:bool = False,parallel:bool = False):
         """
         Forces a set of detector responses to be consistent with some given distribution
         of motion. Achieved by performing a linear-least squares fit of the set
@@ -254,12 +254,23 @@ class Data():
     
         Parameters
         ----------
-        data : TYPE
-            DESCRIPTION.
-        rhoz_cleanup : TYPE, optional
-            DESCRIPTION. The default is False. If true, we use a threshold for cleanup
-            of 0.1, although rhoz_cleanup can be set to a value between 0 and 1 to
-            assign the threshold manually
+        rhoz : np.array, optional
+            Provide a set of functions to replace the detector sensitivities.
+            These should ideally be similar to the original set of detectors,
+            but may differ somewhat. For example, if r_target is used for
+            detector optimization, rhoz may be set to removed residual differences.
+            Default is None (keep original detectors)
+        
+        rhoz_cleanup : bool, optional
+            Modifies the detector sensitivities to eliminate oscillations in the
+            data. Oscillations larger than the a threshold value (default 0.1)
+            are not cleaned up. The threshold can be set by assigning the 
+            desired value to rhoz_cleanup. Note that rhoz_cleanup is not run
+            if rhoz is defined.
+            Default is False (keep original detectors)
+    
+        parallel : bool, optional
+            Use parallel processing to perform optimization. Default is False.
     
         Returns
         -------
@@ -267,7 +278,7 @@ class Data():
     
         """
 
-        return opt2dist(self,rhoz_cleanup=rhoz_cleanup,parallel=parallel)
+        return opt2dist(self,rhoz=rhoz,rhoz_cleanup=rhoz_cleanup,parallel=parallel)
     
     def save(self, filename, overwrite: bool = False, save_src: bool = True, src_fname=None):
         # todo might be useful to check for src_fname? -K

@@ -113,7 +113,7 @@ def fit(data,bounds='auto',parallel=False):
     
     return out
 
-def opt2dist(data,rhoz_cleanup=False,parallel=False):
+def opt2dist(data,rhoz=None,rhoz_cleanup=False,parallel=False):
     """
     Forces a set of detector responses to be consistent with some given distribution
     of motion. Achieved by performing a linear-least squares fit of the set
@@ -126,12 +126,25 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
 
     Parameters
     ----------
-    data : TYPE
-        DESCRIPTION.
-    rhoz_cleanup : TYPE, optional
-        DESCRIPTION. The default is False. If true, we use a threshold for cleanup
-        of 0.1, although rhoz_cleanup can be set to a value between 0 and 1 to
-        assign the threshold manually
+    data : data object
+        Data object to be optimized.
+    rhoz : np.array, optional
+        Provide a set of functions to replace the detector sensitivities.
+        These should ideally be similar to the original set of detectors,
+        but may differ somewhat. For example, if r_target is used for
+        detector optimization, rhoz may be set to removed residual differences.
+        Default is None (keep original detectors)
+    
+    rhoz_cleanup : bool, optional
+        Modifies the detector sensitivities to eliminate oscillations in the
+        data. Oscillations larger than the a threshold value (default 0.1)
+        are not cleaned up. The threshold can be set by assigning the 
+        desired value to rhoz_cleanup. Note that rhoz_cleanup is not run
+        if rhoz is defined.
+        Default is False (keep original detectors)
+
+    parallel : bool, optional
+        Use parallel processing to perform optimization. Default is False.
 
     Returns
     -------
@@ -176,42 +189,50 @@ def opt2dist(data,rhoz_cleanup=False,parallel=False):
         out.R[k]=y[0]
         dist.append(y[1])
     
-    if rhoz_cleanup:
-        threshold=rhoz_cleanup if not(isinstance(rhoz_cleanup,bool)) else 0.1
-        if not(str(data.sens.__class__)==str(clsDict['Detector'])):
-            print('rhoz_cleanup only permitted on detector responses (no raw data)')
-            return
-        if data.sens.opt_pars['Type']=='no_opt':
-            print('rhoz_cleanup not permitted on un-optimized detectors')
-            return
-        
-        rhoz_clean=list()
-        for rhoz in data.sens.rhoz.copy():  
-            below_thresh=rhoz<threshold*rhoz.max()
-            ind0=np.argwhere(np.diff(below_thresh))[:,0]        
-            if len(ind0)==1 and below_thresh[-1]: #One maximum at beginning
-                ind=np.diff(np.diff(rhoz[ind0[-1]:])<0)>0
-                if np.any(ind):
-                    ind=np.argwhere(ind)[0,0]+ind0[0]+1
-                    rhoz[ind:]=0
-            elif len(ind0)==1 and below_thresh[0]:  #One maximum at the end
-                ind=np.diff(np.diff(rhoz[:ind0[0]])<0)>0
-                if np.any(ind):
-                    ind=np.argwhere(ind)[-1,0]+1
-                    rhoz[:ind]=0
-            elif len(ind0)==2 and below_thresh[0] and below_thresh[-1]: #One maximum in the middle
-                ind1=np.diff(np.diff(rhoz[ind0[-1]:])<0)>0
-                ind2=np.diff(np.diff(rhoz[:ind0[0]])<0)>0
-                if np.any(ind1):
-                    ind=np.argwhere(ind1)[0,0]+ind0[-1]+1
-                    rhoz[ind:]=0
-                if np.any(ind2):
-                    ind=np.argwhere(ind2)[-1,0]+1
-                    rhoz[:ind]=0         
-            rhoz[rhoz<0]=0 #Eliminate negative values
-            if 'Normalization' in data.sens.opt_pars and data.sens.opt_pars['Normalization']=='I':
-                rhoz/=rhoz.sum()*data.sens.dz
-            rhoz_clean.append(rhoz)
+    if rhoz_cleanup or rhoz is not None:
+        if rhoz is not None:
+            assert rhoz.shape[1]==data.sens.rhoz.shape[1],f"The new detectors do not have the correct number correlation times (rhoz.shape[1]!={data.sens.rhoz.shape[1]})"
+            rhoz_clean=np.concatenate((rhoz,data.sens.rhoz[rhoz.shape[0]:]))
+            for k,(rhoz0,rhoz) in enumerate(zip(data.sens.rhoz,rhoz)):
+                overlap=(rhoz0*rhoz).sum()/np.sqrt((rhoz0**2).sum()*(rhoz**2).sum())
+                if overlap<0.9:
+                    print(f"Warning: Overlap of the old and new detector {k} sensitivity  is less than 0.9 ({overlap:.2f})")
+        else:
+            threshold=rhoz_cleanup if not(isinstance(rhoz_cleanup,bool)) else 0.1
+            if not(str(data.sens.__class__)==str(clsDict['Detector'])):
+                print('rhoz_cleanup only permitted on detector responses (no raw data)')
+                return
+            if data.sens.opt_pars['Type']=='no_opt':
+                print('rhoz_cleanup not permitted on un-optimized detectors')
+                return
+            
+            rhoz_clean=list()
+            for rhoz in data.sens.rhoz.copy():  
+                below_thresh=rhoz<threshold*rhoz.max()
+                ind0=np.argwhere(np.diff(below_thresh))[:,0]        
+                if len(ind0)==1 and below_thresh[-1]: #One maximum at beginning
+                    ind=np.diff(np.diff(rhoz[ind0[-1]:])<0)>0
+                    if np.any(ind):
+                        ind=np.argwhere(ind)[0,0]+ind0[0]+1
+                        rhoz[ind:]=0
+                elif len(ind0)==1 and below_thresh[0]:  #One maximum at the end
+                    ind=np.diff(np.diff(rhoz[:ind0[0]])<0)>0
+                    if np.any(ind):
+                        ind=np.argwhere(ind)[-1,0]+1
+                        rhoz[:ind]=0
+                elif len(ind0)==2 and below_thresh[0] and below_thresh[-1]: #One maximum in the middle
+                    ind1=np.diff(np.diff(rhoz[ind0[-1]:])<0)>0
+                    ind2=np.diff(np.diff(rhoz[:ind0[0]])<0)>0
+                    if np.any(ind1):
+                        ind=np.argwhere(ind1)[0,0]+ind0[-1]+1
+                        rhoz[ind:]=0
+                    if np.any(ind2):
+                        ind=np.argwhere(ind2)[-1,0]+1
+                        rhoz[:ind]=0         
+                rhoz[rhoz<0]=0 #Eliminate negative values
+                if 'Normalization' in data.sens.opt_pars and data.sens.opt_pars['Normalization']=='I':
+                    rhoz/=rhoz.sum()*data.sens.dz
+                rhoz_clean.append(rhoz)
             
         out.sens=copy(out.sens)
         rhoz_clean=np.array(rhoz_clean)
