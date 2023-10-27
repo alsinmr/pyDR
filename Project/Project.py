@@ -59,7 +59,7 @@ class DataMngr():
             self.data_objs[index].source.select.project=self.project
         
         
-    def append_data(self,data):
+    def append_data(self,data,incl_source=True):
         filename=None
         if isinstance(data,str):
             filename,data=data,None
@@ -86,11 +86,12 @@ class DataMngr():
             data.project=self.project
             #TODO is the above line really a good idea?
             return
-            
-
+                
         self.data_objs.append(data)
+        
         self._hashes.append(None)   #We only add the hash value if data is saved
         self._saved_files.append(None)
+        
         self.data_objs[-1].source.project=self.project
         
         if self.data_objs[-1].source.select is not None:
@@ -107,7 +108,7 @@ class DataMngr():
         if data.src_data is not None:
             if data.src_data in self.data_objs:
                 data.src_data=self[self.data_objs.index(data.src_data)]
-            else:
+            elif incl_source:
                 self.append_data(data=data.src_data) #Recursively append source data
     
     def remove_data(self,index,delete=False):
@@ -738,7 +739,9 @@ class Project():
         None
 
         """
-        self._index=None
+        super().__setattr__('_index',np.zeros(0,dtype=int))
+        self._index=np.zeros(0,dtype=int)
+        self._index0=None
         self.name = directory   #todo maybe create the name otherwise?
         self._directory = os.path.abspath(directory) if directory is not None else None
         if self.directory and not(os.path.exists(self.directory)) and create:
@@ -763,8 +766,8 @@ class Project():
         return self
     #%% setattr        
     def __setattr__(self,name,value):
-        if name=='_index':  #Why does this need special treatement?
-            super().__setattr__(name,value)
+        # if name=='_index':  #Why does this need special treatement?
+        #     super().__setattr__(name,value)
             
         "Could we do something for setting the project directory?"
         if name=='directory':
@@ -809,7 +812,14 @@ class Project():
             DESCRIPTION.
 
         """
-        if len(self)==1 and hasattr(self[0],name):
+        
+        # Some consoles sometimes query objects for various attributes. This
+        # triggers __getattr__ if the attribute doesn't exist in project, and
+        # therefore can furthermore cause an unnecessary data load which slows
+        # things down considerably. We collect these attributes here and
+        # thereby prevent the unintended data load
+        blacklist=['shape','_repr_mimebundle_','_ipython_canary_method_should_not_exist_']
+        if len(self)==1 and name not in blacklist and hasattr(self[0],name):
             return getattr(self[0],name)
         raise AttributeError(f"'Proj' object has no attribute '{name}'")
         
@@ -946,9 +956,9 @@ class Project():
     def subproject(self):
         return self._subproject
     
-    def append_data(self,data):
+    def append_data(self,data,incl_source=True):
         assert not(self._subproject),"Data cannot be appended to subprojects"
-        self.data.append_data(data)
+        self.data.append_data(data,incl_source=incl_source)
         
     def remove_data(self,index,delete=False):
         #TODO Some problems may arise if data is removed but not deleted, and the project is subsquently saved
@@ -995,7 +1005,8 @@ class Project():
         return gen()
     
     def __len__(self) -> int:
-        return self._index.size if self._index is not None else 0
+        return self._index.size
+        # return self._index.size if hasattr(self,'_index') else 0
 
     @property
     def size(self) -> int:
@@ -1016,8 +1027,11 @@ class Project():
             assert index < self.__len__(), "index too large for project of length {}".format(self.__len__())
             return self.data[self._index[index]]
         
-        if len(self)==0:return copy(self) #If the project is already empty, then return the same empty project
-        
+        if len(self)==0:
+            proj=copy(self)
+            proj._parent=self.parent
+            proj._subproject=True
+            return proj
         proj=copy(self)
         proj._subproject=True
         proj._parent=self.parent
@@ -1037,7 +1051,7 @@ class Project():
                     if index in values:
                         proj._index=self._index[values==index]
                         return proj
-                
+               
             r = re.compile(index)
             i=list()
             for t in self.titles:
@@ -1383,8 +1397,7 @@ class Project():
             plt.close(self.plots[fig].fig)
             self.plots[fig] = None
         
-    def plot(self, data_index=None, data=None, fig=None, style='plot',
-                  errorbars=False, index=None, rho_index=None, split=True, plot_sens=True, title=None, **kwargs):
+    def plot(self, data=None,fig=None, style='plot',errorbars=False, index=None, rho_index=None, split=True, plot_sens=True, title=None, **kwargs):
         """
         
 
@@ -1418,27 +1431,34 @@ class Project():
         """
         if fig is None:fig=self.current_plot if self.current_plot else 1
         self.current_plot=fig
-        if title:self.fig.canvas.set_window_title(title)
-        
-        if data is None and data_index is None: #Plot everything in project
-            if self.size:
-                for i in range(self.size):
-                    out=self.plot(data_index=i,style=style,errorbars=errorbars,index=index,
-                             rho_index=rho_index,plot_sens=plot_sens,split=split,fig=fig,**kwargs)
-                return out
-            return
         
         
-        if data is None:
-            data = self[data_index]
+        
+        # if title:self.fig.canvas.set_window_title(title)
+        
+        # if data is None and data_index is None: #Plot everything in project
+        #     if self.size:
+        #         for i in range(self.size):
+        #             out=self.plot(data_index=i,style=style,errorbars=errorbars,index=index,
+        #                      rho_index=rho_index,plot_sens=plot_sens,split=split,fig=fig,**kwargs)
+        #         return out
+        #     return
+        
+        # if data is None:
+        #     data = self[data_index]
         # if self.plots[fig-1] is None:
         #     self.plots[fig-1] = clsDict['DataPlots'](data=data, style=style, errorbars=errorbars, index=index,
         #                  rho_index=rho_index, plot_sens=plot_sens, split=split, **kwargs)
         #     self.plots[fig].project=self
         # else:
-            
-        self.plots[fig-1].append_data(data=data,style=style,errorbars=errorbars,index=index,
-                     rho_index=rho_index,plot_sens=plot_sens,split=split,**kwargs)
+        
+        if data is None:            
+            for data in self:
+                self.plots[fig-1].append_data(data=data,style=style,errorbars=errorbars,index=index,
+                             rho_index=rho_index,plot_sens=plot_sens,split=split,**kwargs)
+        else:
+            self.plots[fig-1].append_data(data=data,style=style,errorbars=errorbars,index=index,
+                         rho_index=rho_index,plot_sens=plot_sens,split=split,**kwargs)
         return self.plots[fig-1]
     
     def add_fig(self,fig):
@@ -1521,7 +1541,8 @@ class Project():
     
         """
         
-        index0=copy(self.parent._index)
+        # index0=copy(self.parent._index)
+        self._projDelta(initialize=True)
         
         sens = list()
         detect = list()
@@ -1540,8 +1561,9 @@ class Project():
                         detect.append(clsDict['Detector'](fit.sens))
         print('Optimized {0} data objects'.format(count))
         
-        out=self[:0]
-        out._index=np.setdiff1d(self.parent._index,index0)
+        # out=self[:0]
+        # out._index=np.setdiff1d(self.parent._index,index0)
+        out=self._projDelta()
         
         return out
     
@@ -1554,7 +1576,9 @@ class Project():
         count = 0
         to_delete=list()
         
-        index0=copy(self.parent._index)
+        # index0=copy(self.parent._index)
+        
+        self._projDelta(initialize=True)
         
         for d in self:
             if 'n' in d.detect.opt_pars:
@@ -1574,13 +1598,40 @@ class Project():
                         to_delete.append(self._index.tolist().index(i0))
         self.remove_data(to_delete)
         
-        out=self[:0]
-        out._index=np.setdiff1d(self.parent._index,index0)
+        # out=self[:0]
+        # out._index=np.setdiff1d(self.parent._index,index0)
 
-            
+        out=self._projDelta()
         print('Fitted {0} data objects'.format(count))
         return out
-        
+    
+    def _projDelta(self,initialize=False):
+        """
+        Determines how a project changes after an operation, and returns the
+        project difference
+
+        Parameters
+        ----------
+        initialize : TYPE, optional
+            DESCRIPTION. The default is True.
+
+        Returns
+        -------
+        None.
+
+        """
+        if initialize:
+            self._index0=copy(self.parent._index)
+            return
+        else:
+            assert self._index0 is not None,"Finding the project Delta requires first initializing"
+            out=self[:0]
+            out._index=np.setdiff1d(self.parent._index,self._index0)
+            self._index0=None
+            return out
+            
+            
+    
     def modes2bonds(self,inclOverall:bool=False,calcCC='auto'):
         """
         
@@ -1608,7 +1659,8 @@ class Project():
         None (appends data to project)
         """
         
-        index0=copy(self.parent._index)
+        # index0=copy(self.parent._index)
+        self._projDelta(initialize=True)
         
         count = 0
         for d in self:
@@ -1616,8 +1668,9 @@ class Project():
                 count+=1
                 d.modes2bonds(inclOverall=inclOverall)
                 
-        out=self[:0]
-        out._index=np.setdiff1d(self.parent._index,index0)
+        # out=self[:0]
+        # out._index=np.setdiff1d(self.parent._index,index0)
+        out=self._projDelta()
         
         print('Converted {0} iRED data objects from modes to bonds'.format(count))
         return out

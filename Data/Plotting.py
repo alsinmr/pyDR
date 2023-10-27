@@ -84,8 +84,8 @@ class DataPlots():
                 data.select.sel1=data.select.sel1[index]
                 if data.select.sel2 is not None:
                     data.select.sel2=data.select.sel2[index]
-            index=None
-            
+            # index=None
+        
         self.data.append(data)        
         self.rho_index.append(self.calc_rho_index() if rho_index is None else np.array(rho_index,dtype=int))
         self.index.append(self.xindex() if index is None else np.array(index,dtype=int))

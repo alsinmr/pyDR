@@ -33,6 +33,7 @@ def R1(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,CSoff=0,QC=0,etaQ=0):
     All provided contributions will be included in the total rate constant.
     """
 
+
     v0=v0*1e6     #1H resonance frequency (convert MHz to Hz)
     vr=vr*1e3     #MAS frequency (convert kHz to Hz)
     dXY=np.atleast_1d(dXY)

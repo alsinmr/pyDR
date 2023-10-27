@@ -133,7 +133,7 @@ class NMR(Sens):
             try:
                 out.append(f(self.tc,**exp))
             except:
-                assert 0,"Loading experiment #{0} failed. Check parameters".format(m) 
+                assert 0,f"Loading experiment #{m} failed. Check parameters"
         return np.array(out)
         
         

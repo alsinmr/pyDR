@@ -112,9 +112,13 @@ def read_Info(f: typing.TextIO):
         else:
             f.seek(pos)
             values.append(np.load(f,allow_pickle=False))
+            if np.any(np.isnan(values[-1])):
+                i=np.isnan(values[-1])
+                values[-1]=values[-1].astype(object)
+                values[-1][i]=None
     
-    return clsDict['Info'](**{k:v for k,v in zip(keys,values)})
-
+    out=clsDict['Info'](**{k:v for k,v in zip(keys,values)})
+    return out
 
 #%% Sens and detector Input/Output    
 def write_Sens(f: typing.BinaryIO, sens:pyDR.Sens.Sens):
@@ -354,9 +358,9 @@ def read_Source(f,directory:str=''):
     flds=['Type','filename','saved_filename','_title','status','n_det','additional_info']
     
     for fld in flds:
-        line=decode(f.readline()).strip() 
+        line=decode(f.readline()).strip()
         assert line.split(':')[0]==fld,"Error: expected '{0}' but found '{1}'.".format(fld,line.split(':')[0])
-        v=line.split(':')[1]
+        v=line.split(':',maxsplit=1)[1]
         if v=='None':continue
         if fld=='filename' and v[0]=='[' and v[-1]==']':
             v=v[2:-2].split(',')

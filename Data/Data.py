@@ -396,7 +396,7 @@ class Data():
             "Don't append the canvas to the project"
             return DataPlots(data=self, style=style, errorbars=errorbars, index=index,
                              rho_index=rho_index, plot_sens=plot_sens, split=split,fig=fig,**kwargs)
-        else:
+        else:            
             self.source.project.plot(data=self, style=style, errorbars=errorbars, index=index,
                                        rho_index=rho_index, plot_sens=plot_sens, split=split,
                                        fig=fig, **kwargs)

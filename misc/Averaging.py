@@ -11,7 +11,7 @@ import numpy as np
 from copy import copy
 from difflib import SequenceMatcher
 
-def avg2sel(data,sel):
+def avg2sel(data,sel,chk_resid:bool=True,chk_segid:bool=True):
     """
     Averages data points in a data object together such that we may define a new
     data object whose selection matches a given input selection. 
@@ -42,9 +42,11 @@ def avg2sel(data,sel):
 
     """
     
+    
     if str(data.__class__)==str(clsDict['Project']):
-        for d in data:avg2sel(d,sel)
-        return
+        data._projDelta(initialize=True)
+        for d in data:avg2sel(d,sel,chk_resid=chk_resid,chk_segid=chk_segid)
+        return data._projDelta()
     
     _mdmode=data.select._mdmode
     data.select._mdmode=True
@@ -82,12 +84,24 @@ def avg2sel(data,sel):
             if sel0.molsys==sel.molsys:
                 i=np.logical_or(np.logical_and(s01.id==sel0.sel1.ids,s02.id==sel0.sel2.ids),
                     np.logical_and(s01.id==sel0.sel2.ids,s02.id==sel0.sel1.ids))
-            else:                        
-                i=np.logical_or(\
-                  np.all([s01.segid==sel0.sel1.segids,s01.resid==sel0.sel1.resids,s01.name==sel0.sel1.names,
-                          s02.segid==sel0.sel2.segids,s02.resid==sel0.sel2.resids,s02.name==sel0.sel2.names],axis=0),
-                  np.all([s01.segid==sel0.sel2.segids,s01.resid==sel0.sel2.resids,s01.name==sel0.sel2.names,
-                          s02.segid==sel0.sel1.segids,s02.resid==sel0.sel1.resids,s02.name==sel0.sel1.names],axis=0))
+            else:    
+                i0=np.logical_and(s01.name==sel0.sel1.names,s02.name==sel0.sel2.names)
+                i1=np.logical_and(s01.name==sel0.sel2.names,s02.name==sel0.sel1.names)
+                
+                if chk_segid:
+                    i0=np.all([i0,s01.segid==sel0.sel1.segids,s02.segid==sel0.sel2.segids],axis=0)
+                    i1=np.all([i1,s01.segid==sel0.sel2.segids,s02.segid==sel0.sel1.segids],axis=0)
+                    
+                if chk_resid:
+                    i0=np.all([i0,s01.resid==sel0.sel1.resids,s02.resid==sel0.sel2.resids],axis=0)
+                    i1=np.all([i1,s01.resid==sel0.sel2.resids,s02.resid==sel0.sel1.resids],axis=0)
+                
+                i=np.logical_or(i0,i1)
+                # i=np.logical_or(\
+                #   np.all([s01.segid==sel0.sel1.segids,s01.resid==sel0.sel1.resids,s01.name==sel0.sel1.names,
+                #           s02.segid==sel0.sel2.segids,s02.resid==sel0.sel2.resids,s02.name==sel0.sel2.names],axis=0),
+                #   np.all([s01.segid==sel0.sel2.segids,s01.resid==sel0.sel2.resids,s01.name==sel0.sel2.names,
+                #           s02.segid==sel0.sel1.segids,s02.resid==sel0.sel1.resids,s02.name==sel0.sel1.names],axis=0))
             if np.any(i):
                 count+=1
                 if sel1 is None:
