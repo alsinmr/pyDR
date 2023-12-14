@@ -661,6 +661,7 @@ class FrameObj():
             source.details.append('Analyzed with iRED')
             source.additional_info=fn
             out.append(iRED({'v':v0,'t':v['t'],'index':index,'source':source,'sampling_info':self.sampling_info},rank=rank))
+            out.md2data=self.md2data
         return out
             
     def md2iRED(self,rank:int=2):
@@ -679,6 +680,7 @@ class FrameObj():
         include=[False for _ in range(len(self.vf))]
         out=self.frames2iRED(rank=rank,include=include)[0]
         out.source.Type='iREDmode'
+        out.md2data=self.md2data
         return out
 
     #TODO add back in some version of draw tensors        

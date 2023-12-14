@@ -159,19 +159,28 @@ def read_Data(f):
             values=list()
             isstr=False
         elif len(line.strip())!=0:
-            line='\t'.join(line.strip().split())
-            if '\t' in line.strip():
-                values.append(list())
-                line=line.strip()
-                while '\t\t' in line:line=line.replace('\t\t','\t') #Necessary? 
-                #Above line inserted to correct for multiple tabs between data
-                #I don't understand why that would occur....
-                for v in line.split('\t'):
-                    # values[-1].append(assign_type(v))
-                    values[-1].append(v)
-            else:
-                values.append(assign_type(line.strip()))
+            line=line.strip()
+            if key=='label':
+                values.append(assign_type(line))
                 isstr=isinstance(values[-1],str)
+            elif key in ['S2','S2std']:
+                values.append(line)
+            else:
+                values.append(line.split())
+                
+            # line='\t'.join(line.strip().split())
+            # if '\t' in line.strip():
+            #     values.append(list())
+            #     line=line.strip()
+            #     while '\t\t' in line:line=line.replace('\t\t','\t') #Necessary? 
+            #     #Above line inserted to correct for multiple tabs between data
+            #     #I don't understand why that would occur....
+            #     for v in line.split('\t'):
+            #         # values[-1].append(assign_type(v))
+            #         values[-1].append(v)
+            # else:
+            #     values.append(assign_type(line.strip()))
+            #     isstr=isinstance(values[-1],str)
 
     if key is not None:
         keys[key]=np.array(values,dtype=None if isstr else dtype)
@@ -238,7 +247,96 @@ def writePDB(sel,filename:str,x=None):
                     f1.write(line)
     os.remove(temp)
 
+def write_PDB(sel,filename:str,x=None,overwrite:bool=False):
+    """
+    Writes out a pdb, without restriction on the number of atoms
+    (MDAnalysis limits number of atoms to 99999)
+
+    Parameters
+    ----------
+    sel : Atom group
+        MDAnalysis atom group.
+    filename : str
+        File location to write into.
+    x : list-like, optional
+        Data to write into the beta factor. The default is None.
+    overwrite : bool, optional
+        Overwrite an existing file. The default is False.
+
+    Returns
+    -------
+    None.
+
+    """
     
+    if not(overwrite):
+        assert not(os.path.exists(filename)),"File already exists (set overwrite=True)"
+    
+    line='ATOM{:7d} {:^4s} {:<4s}{:1s}{:4d}    {:8.3f}{:8.3f}{:8.3f}  1.00{:6.2f}      {:<4s}\n'
+    if x is None:x=np.zeros(len(sel))
+    
+    with open(filename,'w') as f:
+        f.write(f'TITLE     MDANALYSIS FRAME {sel.universe.trajectory.frame}: Written by pyDR\n')
+        dim=sel.universe.dimensions
+        f.write('CRYST1'+''.join([f'{d0:9.3f}' for d0 in dim[:3]])+''.join([f'{d0:7.2f}' for d0 in dim[3:]])+' P 1           1\n')
+        for k,(a,x0) in enumerate(zip(sel,x)):
+            f.write(line.format(k+1,a.name,a.resname,a.chainID,a.resid,*a.position,x0,a.segid))
+        f.write('END\n')
+        
+def readPDB(filename:str):
+    """
+    Reads in pdb to MDANalysis in case atoms exceed 99999
+
+    Parameters
+    ----------
+    filename : str
+        File location.
+
+    Returns
+    -------
+    uni : MDAnalysis Universe
+
+    """
+    from MDAnalysis import Universe
+    from MDAnalysis.topology.guessers import guess_atom_type
+    with open(filename,'r') as f:
+        ID,name,segname,chain,resid,x,y,z,beta,segid=[[] for _ in range(10)]
+        data={key:[] for key in ['ID','name','resname','chain','resid','x','y','z','beta','segid']}
+        locs=[1,2,3,4,5,6,7,8,10,11]
+        Types=[int,str,str,str,int,float,float,float,float,str]
+        for line in f:
+            if 'END'==line[:3]:break
+            if 'CRYST1'==line[:6]:
+                _,dimx,dimy,dimz,alpha,beta,gamma,*_=line.split()
+                continue
+            if 'ATOM'==line[:4]:
+                values=line.split()
+                for (key,lst),loc,Type in zip(data.items(),locs,Types):
+                    lst.append(Type(values[loc]))
+        # return data
+        data={key:np.array(value,dtype=Type) for (key,value),Type in zip(data.items(),Types)}
+        temp,resindex=np.unique([data['resid'],data['segid'],data['resname']],return_inverse=True,axis=1)
+        segids,segindex=np.unique(temp[1],return_inverse=True)
+        
+        uni=Universe.empty(len(data['ID']),n_residues=temp.shape[1],
+                           n_segments=len(segids),
+                           atom_resindex=resindex,
+                           residue_segindex=segindex,
+                           trajectory=True)
+        uni.atoms.positions=np.array([data['x'],data['y'],data['z']]).T
+        uni.add_TopologyAttr('name',data['name'])
+        uni.add_TopologyAttr('resid',temp[0])
+        uni.add_TopologyAttr('segid',segids)
+        uni.add_TopologyAttr('resname',temp[2])
+        uni.add_TopologyAttr('chainID',data['chain'])
+        uni.add_TopologyAttr('bfactor',data['beta'])
+        
+        atom_type=[guess_atom_type(name) for name in data['name']]
+        uni.add_TopologyAttr('type',atom_type)
+        uni.dimensions=[dimx,dimy,dimz,alpha,beta,gamma]
+        uni.filename=filename
+        
+    return uni
 
 #%% Misc functions
 

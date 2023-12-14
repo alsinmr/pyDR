@@ -319,12 +319,25 @@ class DataPlots():
             return #Just use the automatic labels if all labels are numeric
         xpos0,xposi=self.xpos(0),self.xpos(i)
         xpos=np.union1d(xpos0,xposi)
-        for a in self.ax:a.set_xticks(xpos)
+        # for a in self.ax:a.set_xticks(xpos)
         
         lbl0,lbli=self.data[0].label,self.data[i].label
         xlabel=[lbl0[np.argwhere(xp==xpos0)[0,0]] if xp in xpos0 else lbli[np.argwhere(xp==xposi)[0,0]] \
                 for xp in xpos]
-        self.ax[-1].set_xticklabels(xlabel,rotation=90)
+            
+        self.ax[-1].set_xticklabels([],rotation=90)
+        def fun(i,pos):
+            i=int(i)
+            if i>=len(xlabel):return ''
+            if i<0:return ''
+            return xlabel[i]
+        self.ax[-1].xaxis.set_major_locator(plt.MaxNLocator(30,integer=True))
+        self.ax[-1].xaxis.set_major_formatter(plt.FuncFormatter(fun))
+            
+        # step=1 if len(xlabel)<=30 else len(xlabel)//30
+        # self.ax[-1].set_xticklabels([xl if k%step==0 else '' for k,xl in enumerate(xlabel)],rotation=90)
+        
+        
         
             
     def __len__(self):

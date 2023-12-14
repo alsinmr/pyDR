@@ -190,7 +190,7 @@ class Data():
     
 
     def __hash__(self):
-        flds = ['R', 'Rstd', 'S2', 'S2std', 'sens']
+        flds = ['R', 'Rstd', 'S2', 'S2std', 'label']
         out = 0
         for f in flds:
             if hasattr(self, f) and getattr(self, f) is not None:
@@ -202,8 +202,9 @@ class Data():
                         out += hash(x.tobytes())
                 else:
                     out += hash(x)
-        if self.source.select is not None:
-            out+=hash(self.source.select)
+        
+        out+=hash(self.source)
+        
         return out
     
     def __len__(self):
@@ -370,6 +371,11 @@ class Data():
         proj._index=np.array([],dtype=int)  #Make an empty subproject
         proj=proj+obj           #
         return proj+self
+    
+    def __radd__(self,obj):
+        if obj==0:
+            return self
+        return self.__add__(obj)
         
             
     

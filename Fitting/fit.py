@@ -168,7 +168,8 @@ def opt2dist(data,rhoz=None,rhoz_cleanup=False,parallel=False):
     if data.S2c is None:
         S2=np.zeros(nb)
     else:
-        S2=data.src_data.S2
+        S2=data.S2c if data.src_data is None else data.src_data.S2
+        
         
     sens=data.sens
 

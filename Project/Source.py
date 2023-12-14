@@ -61,6 +61,14 @@ class Source():
                   '_title','additional_info','_status','details']:
             setattr(out,f,copy(getattr(self,f)))
         return out
+    
+    def __hash__(self):
+        
+        out=np.sum([getattr(self,name).__hash__() for name in ['n_det','Type','short_file','additional_info','title','status']],dtype=int)
+        
+        if self.select is not None:
+            out+=hash(self.select)%123456789
+        return int(out)
             
     
     @property
@@ -128,7 +136,7 @@ class Source():
             if self.project is not None:
                 if os.path.split(self._src_data)[1] in self.project.pinfo['filename']:    #Is the source data part of the project?
                     i=np.argwhere(self.project.pinfo['filename']==os.path.split(self._src_data)[1])[0,0]
-                    self._src_data=self.project.data[i]      #Copy into self._src_data
+                    self._src_data=self.project.data[i]      #Copy into self._src_data 
                 else:   #Data not in project
                     if os.path.exists(self._src_data):
                         # self.project.append_data(self._src_data) #Append the data to the current project

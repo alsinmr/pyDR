@@ -430,6 +430,7 @@ def read_MolSelect(f,directory=''):
     if line=='TRAJ':   #Collect the trajectory files
         line=decode(f.readline())[:-1]
         t0,tf,step,dt=[float(line.split(':')[k+1] if k==3 else line.split(':')[k+1].split(',')[0]) for k in range(4)]
+        dt/=step
         line=decode(f.readline())[:-1]
         while line!='END:TRAJ':
             tr_files.append(find_file(line,directory=directory,f=f))
@@ -514,7 +515,7 @@ def read_np_object(f):
 def find_file(filename,directory:str='',f=None):
     if os.path.exists(filename):    #Full path correctly given (could be in current folder)
         return os.path.abspath(filename)
-    if f is not None and len(directory):  #See if topo is in pdbs
+    if f is not None and len(directory) and '.pdb' in filename:  #See if topo is in pdbs
         pdb_dir=os.path.join(directory,'pdbs')  #Directory for storing pdbs
         data_file=os.path.split(f.name)[1]
         if os.path.exists(os.path.join(pdb_dir,'pdb_list.txt')):

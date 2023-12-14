@@ -7,10 +7,11 @@ Created on Mon Dec  6 13:34:36 2021
 """
 import numpy as np
 from MDAnalysis import Universe, AtomGroup
+from MDAnalysis.topology.guessers import guess_atom_type
 from pyDR.misc.ProgressBar import ProgressBar
 from pyDR.Selection import select_tools as selt
 from pyDR.MDtools.vft import pbc_corr
-from pyDR.IO import getPDB
+from pyDR.IO import getPDB,readPDB,write_PDB
 from pyDR import Defaults,clsDict
 from copy import copy
 import os
@@ -68,13 +69,16 @@ class MolSys():
                 traj_files=os.path.abspath(traj_files)
             self._uni=Universe(os.path.abspath(topo),traj_files)
         else:
-            self._uni=Universe(topo)
+            try:
+                self._uni=Universe(topo)
+            except:
+                self._uni=readPDB(topo)
 
         
         self._orig_topo=topo
         
         i=self.uni.atoms.types==''
-        self.uni.atoms[i].types=[s.name[0] for s in self.uni.atoms[i]] #Fill in types where missing (ok??) 
+        self.uni.atoms[i].types=[guess_atom_type(s.name) for s in self.uni.atoms[i]] #Fill in types where missing (ok??) 
         self._traj=Trajectory(self.uni.trajectory,t0=t0,tf=tf,step=step,dt=dt) \
             if hasattr(self.uni,'trajectory') else None
          
@@ -226,7 +230,10 @@ class MolSys():
         
         filename='timestep{0}.pdb'.format(self.traj.mda_traj.ts.frame)
         filename=os.path.join(folder,filename) if os.access(folder, os.W_OK) else os.path.abspath(filename)
-        self.uni.atoms.write(filename)
+        if len(self.uni.atoms)<100000:
+            self.uni.atoms.write(filename)
+        else:
+            write_PDB(self.uni.atoms,filename)
         
         if replace:
             self._uni=Universe(filename)

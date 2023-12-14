@@ -8,7 +8,7 @@ Created on Wed Feb 16 14:50:19 2022
 
 import os
 import numpy as np
-from pyDR.IO import read_file, readNMR, isbinary
+from pyDR.IO import read_file, readNMR, isbinary, write_PDB
 from pyDR import Defaults
 from pyDR import clsDict
 import re
@@ -126,7 +126,6 @@ class DataMngr():
             self._saved_files.pop(index)
             self.project.pinfo.del_exp(index)
         else:
-            print(index)
             for i in np.sort(index)[::-1]:self.remove_data(i,delete=delete)
                 
             
@@ -224,21 +223,43 @@ class DataMngr():
         else:
             assert i<len(self),"Index {0} to large for project with {1} data objects".format(i,len(self))
             if not(self.saved[i]):
-                src_fname=None
-                if self[i].src_data is not None and not(isinstance(self[i].src_data,str)):
-                    # k=np.argwhere([self[i].src_data==d for d in self.data_objs])[0,0]
-                    k=self.data_objs.index(self[i].src_data) if self[i].src_data in self.data_objs else None
+                
+                src_data=self[i].source._src_data
+                if src_data is None:
+                    src_fname=None
+                elif src_data is not None and isinstance(src_data,str):
+                    # Is the data already stored in the project?
+                    if os.path.join(self.directory,src_data) in [os.path.join(self.directory,file) for file in self.saved_files]:
+                        src_fname=os.path.join(self.directory,src_data)
+                    else:
+                        src_fname=os.path.abspath(src_data)
+                else:
+                    if src_data in self.data_objs:
+                        src_fname=os.path.join(self.directory,self.saved_files[self.data_objs.index(src_data)])
+                    else:
+                        src_fname=None
+                        
+                        
                     
-                    # if self[k].R.size<=ME:
-                    #     self.save(k)
-                    if k is not None:
-                        if not(self[k].source.status=='raw' and str(self[k].sens.__class__).split('.')[-1][:-2]=='MD')\
-                            or include_rawMD:
-                            self.save(k)
-                        else:
-                            # print('Skipping source data of object {0} (project index {1}). Size of source data exceeds default max elements ({2})'.format(i,k,ME))
-                            print('Skipping source data of object "{0}".\n Set include_rawMD to True to include raw MD data'.format(self[i].title))
-                        src_fname=None if k is None else self.save_name[k]
+                    
+                # src_fname=None
+                # if self[i].source._src_data is not None and not(isinstance(self[i].source._src_data,str)):
+                #     # k=np.argwhere([self[i].src_data==d for d in self.data_objs])[0,0]
+                #     k=self.data_objs.index(self[i].src_data) if self[i].src_data in self.data_objs else None
+                    
+                #     # if self[k].R.size<=ME:
+                #     #     self.save(k)
+                #     if k is not None:
+                #         #Next 6 lines commented on 8 December 2023 (why did we do this?)
+                #         # if not(self[k].source.status=='raw' and str(self[k].sens.__class__).split('.')[-1][:-2]=='MD')\
+                #         #     or include_rawMD:
+                #         #     self.save(k)
+                #         # else:
+                #         #     # print('Skipping source data of object {0} (project index {1}). Size of source data exceeds default max elements ({2})'.format(i,k,ME))
+                #         #     print('Skipping source data of object "{0}".\n Set include_rawMD to True to include raw MD data'.format(self[i].title))
+                #         src_fname=self.save_name[k]
+                #     elif self[i].source._src_data is not None and self[i].source._src_data in self.saved_files:
+                #         src_fname=self[i].source._src_data
                 self[i].save(self.save_name[i],overwrite=True,save_src=False,src_fname=src_fname)
                 self[i].source.saved_filename=self.save_name[i]
                 self._hashes[i]=self[i]._hash #Update the hash so we know this state of the data is saved
@@ -690,6 +711,10 @@ class Chimera():
     def draw_tensors(self,A,pos=None,colors=((1,.39,.39,1),(.39,.39,1,1)),Aiso=None,comp='Azz'):
         if self.current is None:self.current=0
         self.CMX.run_function(self.CMXid,'draw_tensors',A,Aiso,pos,colors,comp)
+        
+    @property
+    def valid_models(self):
+        return self.CMX.valid_models(self.CMXid)
 
 
 #%% Numpy nice display
@@ -947,6 +972,9 @@ class Project():
                             self.pinfo[k,i]=None
                     else:
                         self.pinfo[k,i]=getattr(self.data.data_objs[i].source,k)
+            else:
+                if self.data.directory is not None:
+                    self.pinfo['filename',i]=os.path.split(self.data.save_name[i])[1]
             
 
     #%%Indexing/subprojects
@@ -1023,7 +1051,7 @@ class Project():
         Extract a data object or objects by index or title (returns one item) or
         by Type or status (returns a list).
         """
-        if isinstance(index, int): #Just return the data object
+        if isinstance(index, int) or (hasattr(index,'ndim') and index.ndim==0): #Just return the data object
             assert index < self.__len__(), "index too large for project of length {}".format(self.__len__())
             return self.data[self._index[index]]
         
@@ -1162,6 +1190,14 @@ class Project():
             os.mkdir(pdb_dir)
         
         
+        full_pdb=True #TODO Future option?
+        """Probably not a future option. The issue is that saving a partial
+        pdb changes the atom ids, which are used to define the selection
+        objects. We would require a mechanism for re-indexing the selections,
+        while still accounting for the possibility of reloading from the original
+        topology which then does not have atom renumbering...
+        """
+        
         #Load list of existing pdbs
         data_loc=[]
         saved_pdb=[]
@@ -1178,7 +1214,8 @@ class Project():
             for d in self.data:pass  #Loads all data
           
         with open(os.path.join(pdb_dir,'pdb_list.txt'),'w') as f:
-            for d,filename in zip(self.data.data_objs,self.data.saved_files):
+            for q,(d,filename) in enumerate(zip(self.data.data_objs,self.data.saved_files)):
+                
                 if filename is not None:
                     filename=os.path.split(filename)[1]  #Make sure just the file
                     if d is None:  #Unloaded data 
@@ -1199,16 +1236,33 @@ class Project():
                         else: #We need to save the pdb
                             fileout=os.path.split(sel.uni.filename)[1].rsplit('.',maxsplit=-1)[0]
                             count=0
+                            file0=fileout
                             while fileout in saved_pdb: #Ensure unique save location
                                 count+=1
-                                if count==1:fileout+='1'
-                                else:fileout=fileout[:-1]+str(count)
-                            
+                                fileout=file0+str(count)
+                             
                             sel.traj[0]  #Rewind the trajectory before writing
-                            sel.uni.atoms.write(os.path.join(pdb_dir,fileout+'.pdb')) #write the pdb
+                            
+                            #Maybe just store a subset of the pdb?
+                            
+                            if full_pdb:
+                                if len(sel.uni.atoms)<100000:  #Built in writer doesn'twork for 100000 or more atoms
+                                    sel.uni.atoms.write(os.path.join(pdb_dir,fileout+'.pdb')) #write the pdb
+                                else:
+                                    write_PDB(sel.uni.atoms,os.path.join(pdb_dir,fileout+'.pdb'),overwrite=True)
+                            else:
+                                fileout+=str(q+1)
+                                sel0=np.sum(sel.sel1+sel.sel2)
+                                sel0=np.sum([res.atoms for res in sel0.residues]) #Collect all residues
+                                
+                                if len(sel0)<100000:  #Built in writer doesn'twork for 100000 or more atoms
+                                    sel0.write(os.path.join(pdb_dir,fileout+'.pdb')) #write the pdb
+                                else:
+                                    write_PDB(sel0,os.path.join(pdb_dir,fileout+'.pdb'),overwrite=True)
+                                                      
                             data_loc.append(filename)
                             saved_pdb.append(fileout)
-                            origin.append(os.path.abspath(sel.uni.filename))
+                            origin.append(os.path.abspath(sel.uni.filename)+('' if full_pdb else f'({q+1})') )
                             f.write(f'{data_loc[-1]}:{saved_pdb[-1]}:{origin[-1]}\n')
                         
                     
@@ -1218,8 +1272,15 @@ class Project():
         "Can't make up my mind about this...the or operation is sort of like adding two sets"
         return self.__or__(obj)
     
+    def __radd__(self,obj): #This allows the built-in "sum" function to work
+        if obj==0:  
+            return self
+        return self.__or__(obj)
+    
     def __or__(self,obj):
-        assert self.parent is obj.parent,"Project operations (+,|,-,&) are only defined within the same parent project"
+        if hasattr(obj,'parent'):
+            assert self.parent is obj.parent,"Project operations (+,|,-,&) are only defined within the same parent project"
+        
         proj=copy(self)
         proj._subproject=True
         proj._parent=self._parent if self._subproject else self
@@ -1237,6 +1298,8 @@ class Project():
             else:
                 print('Warning: Union only defined withing subprojects of the same main project')
                 return
+            
+        
         assert str(self.__class__)==str(obj.__class__),"Operation not defined"
         
         for i in obj._index:

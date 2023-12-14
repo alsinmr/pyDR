@@ -470,7 +470,7 @@ class Data_iRED(Data):
         out.iRED=self.iRED
         return out
     
-    def opt2dist(self,rhoz_cleanup:bool=False,parallel:bool=False):
+    def opt2dist(self,rhoz=None,rhoz_cleanup:bool=False,parallel:bool=False):
         """
         Forces a set of detector responses to be consistent with some given distribution
         of motion. Achieved by performing a linear-least squares fit of the set
@@ -496,7 +496,7 @@ class Data_iRED(Data):
     
         """
         # print('checkpoint')
-        out=super().opt2dist(rhoz_cleanup=rhoz_cleanup,parallel=parallel)
+        out=super().opt2dist(rhoz=rhoz,rhoz_cleanup=rhoz_cleanup,parallel=parallel)
         out.iRED=self.iRED
         return out
         
