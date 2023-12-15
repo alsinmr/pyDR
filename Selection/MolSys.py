@@ -246,8 +246,8 @@ class MolSys():
 
 class Trajectory():
     def __init__(self,mda_traj,t0=0,tf=None,step=1,dt=None):
-        self.t0=t0
         self.__tf=len(mda_traj)
+        self.t0=t0
         self.tf=tf if tf is not None else self.__tf
         self.step=step
         self.__dt=dt if dt else mda_traj.dt
@@ -285,6 +285,9 @@ class Trajectory():
                 print(f'Warning: tf={value} is greater than the original trajectory length, setting to {self.__tf}')
                 value=self.__tf
             value=(value-1)%self.__tf+1 #Take care of negative indices
+            
+        if name=='t0':
+            value=(value)%self.__tf #Take care of negative indices
         super().__setattr__(name,value)
         
     def __getitem__(self,index):
