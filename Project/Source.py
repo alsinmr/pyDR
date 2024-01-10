@@ -18,6 +18,7 @@ class Source():
     """
     def __init__(self,Type='',src_data=None,select=None,filename=None,title=None,status=None,
                  additional_info=None,saved_filename=None,n_det=None):
+        self.project=None
         self.Type=Type
         self._src_data=src_data
         self.select=select
@@ -25,7 +26,6 @@ class Source():
         self.saved_filename=saved_filename
         self.n_det=n_det
         self._title=title
-        self.project=None
         self.additional_info=additional_info
         self._status=status
         self.details=list()  #TODO use details to track data analysis
@@ -224,6 +224,11 @@ class Source():
     
     def __setattr__(self,name,value):
         if name in ['title','status','src_data']:
-            super().__setattr__('_'+name,value)
-            return
+            name='_'+name
+        
         super().__setattr__(name,value)
+        
+        if self.project is not None and \
+            name in ['_title','_status','_src_data','additional_info','n_det','Type']:
+            self.project.update_info()
+                

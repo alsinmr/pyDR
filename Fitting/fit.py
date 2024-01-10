@@ -29,9 +29,11 @@ def fit(data,bounds='auto',parallel=False):
     detect=data.detect.copy()
     assert detect.opt_pars.__len__()>0,"Detector object must first be optimized (e.g. run data.detect.r_auto)"
     
-    
+    ct0=1
     if hasattr(bounds,'lower') and bounds.lower()=='auto':
         bounds=False if data.detect.opt_pars['Type']=='no_opt' else True
+    elif np.issubdtype(np.array(bounds).dtype, float):
+        ct0=bounds
     
     
     # out=clsDict['Data'](sens=detect,src_data=data) #Create output data with sensitivity as input detectors
@@ -65,8 +67,8 @@ def fit(data,bounds='auto',parallel=False):
         X=list()
         for k,(R,Rstd) in enumerate(zip(data.R.copy(),data.Rstd)):
             r0=detect[k] #Get the detector object for this bond (detectors support indexing but not iteration)
-            UB=r0.rhoz.max(1)#Upper and lower bounds for fitting
-            LB=r0.rhoz.min(1)
+            UB=r0.rhoz.max(1)*ct0 #Upper and lower bounds for fitting
+            LB=r0.rhoz.min(1)*ct0 
             R-=data.sens[k].R0 #Offsets if applying an effective sensitivity
             if 'inclS2' in r0.opt_pars['options']: #Append S2 if used for detectors
                 R=np.concatenate((R,[1-data.S2[k]]))
