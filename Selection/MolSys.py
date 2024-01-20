@@ -85,6 +85,8 @@ class MolSys():
         self.make_pdb()
         
         self.project=project
+        
+        self._movie=None
     
     @property
     def uni(self):
@@ -240,7 +242,263 @@ class MolSys():
             self._uni.trajectory=self.traj.mda_traj
             
         return filename
+    
+    def new_molsys_from_sel(self,sel):
+        """
+        Creates a new MolSys object using a subset of the current topology.
         
+        Note that we do not immediately associate this with a trajectory, 
+        although that may be done later, via replace_traj
+        
+        This will also create a temporary folder either in the current directory
+        or the project directory, if a project directory exists, to store
+        the new topology.
+
+        Parameters
+        ----------
+        sel : Atom Group
+            Atom group to create new molsys from.
+
+        Returns
+        -------
+        MolSys
+
+        """
+        # Check that the universe is the same
+        assert self.uni==sel.universe,'Atomgroup must have the same universe as MolSelect object'
+        
+        # Set up temp directory, filename
+        if self.project is None or self.project.directory is None:
+            directory=os.path.abspath('temp_pyDR')
+        else:
+            directory=os.path.join(self.project.directory,'temp_pyDR')
+        if not(os.path.exists(directory)):os.mkdir(directory)
+        
+        filename=os.path.split(self.topo)[1].split('.')[0]
+        filename0=filename
+        k=0
+        while os.path.exists(os.path.join(directory,filename0+'.pdb')):
+            k+=1
+            filename0=filename+str(k)
+        else:
+            if k!=0:filename=filename0
+        filename=os.path.join(directory,filename)+'.pdb'
+        sel.write(filename)
+        
+        return MolSys(topo=filename,project=self.project)
+    
+    def new_trajectory(self,traj_files,t0:int=0,tf:int=None,step:int=1,dt:float=None):
+        """
+        Replace the current trajectory with a new trajectory
+
+        Parameters
+        ----------
+        traj_files : str or list of strs, optional
+            Location(s) of trajectory. The default is None.
+        t0 : int, optional
+            First time point to use in the trajectory. The default is 0.
+        tf : int, optional
+            Last time point to use in the trajectory. Set to None to go to the 
+            end of the trajectory. The default is None.
+        step : int, optional
+            Step size to skip frames in trajectory. Set to 1 for all frames.
+            The default is 1.
+        dt : float, optional
+            Overrides the saved timestep in the MD trajectory (ps). Set to None
+            to use the saved timestep. The default is None.
+        
+        Returns
+        -------
+        self
+        
+        """
+        
+        if isinstance(traj_files,list):
+            traj_files=[os.path.abspath(tf) for tf in traj_files]
+        else:
+            traj_files=os.path.abspath(traj_files)
+        new=Universe(self.topo,traj_files)
+        
+        self.uni.trajectory=new.trajectory
+        self._traj=Trajectory(self.uni.trajectory,t0=t0,tf=tf,step=step,dt=dt)
+        
+        return self
+        
+    
+    def __del__(self):
+        """
+        Deletes topology if temporary 
+
+        Returns
+        -------
+        None.
+
+        """
+        if os.path.split(os.path.split(self.topo)[0])[1]=='temp_pyDR':
+            os.remove(self.topo)
+            if len(os.listdir(os.path.split(self.topo)[0]))==0:
+                os.rmdir(os.path.split(self.topo)[0])
+                
+    @property
+    def movie(self):
+        """
+        Returns a simple movie launcher/updater if a trajectory is present
+
+        Returns
+        -------
+        None.
+
+        """
+        if len(self.traj)==1:
+            return None
+        if len(self.traj.mda_traj)>5000:
+            print('Warning: Trajectory has more than 5000 frames. Loading into chimera may be slow')
+        
+        if self._movie is None:self._movie=MovieSys(self)
+        return self._movie
+
+class MovieSys():
+    def __init__(self,molsys):
+        self.molsys=molsys
+        self._mdlnums=None
+        self._ID=None
+        self.CMX=clsDict['CMXRemote']
+
+    @property
+    def project(self):
+        return self.molsys.project
+
+    @property
+    def traj(self):
+        return self.molsys.traj
+    
+    @property
+    def CMXid(self):
+        """
+        ID of the current ChimeraX session. If there is no session, or the 
+        previous session was closed or disconnected, then this will launch
+        a new ChimeraX session and update the ID. 
+        
+        In case of a new launch, previous mdlnums are deleted since we have lost
+        access to them.
+
+        Returns
+        -------
+        int
+            ChimeraX session ID
+
+        """
+        if self._ID is not None and not(self.CMX.isConnected(self._ID)):
+            self._ID=None
+            self._mdlnums=None
+            
+        if self._ID is None:
+            if self.project is not None:
+                if self.project.chimera.CMXid is None:
+                    self.project.chimera.current=0
+                self._ID=self.project.chimera.CMXid
+            else:
+                self._ID=self.CMX.launch()
+        
+        return self._ID
+            
+    
+    
+    @property
+    def mdlnums(self):
+        if self._mdlnums is not None and self._mdlnums[0] not in self.CMX.valid_models(self.CMXid):
+            self._mdlnums=None
+        return self._mdlnums
+    
+    @mdlnums.setter
+    def mdlnums(self,mdlnums):
+        self._mdlnums=mdlnums
+
+    def open_pdb(self):
+        """
+        Launches a movie of the stored trajectory in ChimeraX
+
+        Returns
+        -------
+        self
+
+        """
+        
+        CMX=self.CMX
+        ID=self.CMXid
+            
+        om=CMX.how_many_models(ID)
+        CMX.send_command(ID,f'open "{self.molsys.topo}" coordset true')
+        while om==CMX.how_many_models(ID):
+            pass
+        self.mdlnums=CMX.valid_models(ID)[-1],CMX.how_many_models(ID)-1
+        return self
+        
+    def update_traj(self):
+        """
+        Replaces the current coordset in Chimera with whatever trajectory is
+        currently stored in the molsys object
+
+        Returns
+        -------
+        None.
+
+        """
+        nm=self.mdlnums[0]
+        for file in self.traj.files:self.CMX.send_command(self.CMXid,f"open '{file}' structureModel #{nm}")
+        
+        return self
+    
+    def close(self):
+        """
+        Closes the model previously opened by this object
+
+        Returns
+        -------
+        None.
+
+        """
+        if self.mdlnums is not None:
+            self.CMX.send_command(self.CMXid,f"close #{self.mdlnums[0]}")
+            self.mdlnums=None
+        return self
+    
+    def __call__(self):
+        """
+        Starts a movie with the current trajectory. If a model is already 
+        open in Chimera, then the trajectory is only updated, but the original
+        model is retained
+
+        Returns
+        -------
+        self
+
+        """
+        if self.mdlnums is None:
+            self.open_pdb()
+        self.update_traj()
+        return self
+    
+    def record(self,filename:str):
+        """
+        Plays the current trajectory and records as an mp4 file. If the filename
+        is provided without an absolute path, then it will be stored in a 
+        subfolder of the project folder ({project_folder}/movies).
+        
+        Otherwise it will be stored in the current directory
+
+        Returns
+        -------
+        filepath
+
+        """
+        if filename[-4:]!='.mp4':filename+='.mp4'
+        if self.project is not None and self.project.directory is not None:
+            if not(os.path.exists(os.path.join(self.project.directory,'movies'))):
+                os.mkdir(os.path.join(self.project.directory,'movies'))
+            filepath=os.path.join(os.path.join(self.project.directory,'movies'),filename)
+        else:
+            
         
         
 
@@ -455,10 +713,32 @@ class MolSelect():
     
     @property
     def sel1(self):
+        """
+        Returns the selection corresponding to the first atoms of the bonds. 
+        
+        Can also be used to assign sel1. Assign to either an atom group,
+        a valid MDAnalysis selection string, or a list of atoms groups.
+
+        Returns
+        -------
+        Atom group / list
+
+        """
         return self._sel1
     
     @property
     def sel2(self):
+        """
+        Returns the selection corresponding to the second atoms of the bonds. 
+        
+        Can also be used to assign sel2. Assign to either an atom group,
+        a valid MDAnalysis selection string, or a list of atoms groups.
+
+        Returns
+        -------
+        Atom group / list
+
+        """
         return self._sel2
             
     @property
@@ -485,6 +765,8 @@ class MolSelect():
         
     def select_bond(self,Nuc,resids=None,segids=None,filter_str:str=None,label=None):
         """
+        Bond selection tool for proteins
+        
         Select a bond according to 'Nuc' keywords
             '15N','N','N15': select the H-N in the protein backbone
             'CO','13CO','CO13': select the CO in the protein backbone
@@ -859,7 +1141,8 @@ class MolSelect():
             ID=CMXRemote.launch()
 
 
-        CMXRemote.send_command(ID,'open "{0}" maxModels 1'.format(self.molsys.topo))
+        # CMXRemote.send_command(ID,'open "{0}" maxModels 1'.format(self.molsys.topo))
+        self.molsys.chimera()
         mn=CMXRemote.valid_models(ID)[-1]
         CMXRemote.command_line(ID,'sel #{0}'.format(mn))
 
@@ -895,6 +1178,56 @@ class MolSelect():
             ids=np.array([s.indices for s in self.repr_sel[index]],dtype=object)
             out=dict(R=np.abs(x),rho_index=np.arange(x.shape[1]),ids=ids,color=[int(c*255) for c in color])
             CMXRemote.add_event(ID,'Detectors',out)
+            
+    def new_molsys_from_sel(self,sel):
+        """
+        Creates a new MolSys and MolSelect object using a subset of the current
+        topology. 
+        
+        This will also create a temporary folder either in the current directory
+        or the project directory, if a project directory exists, to store
+        the new topology.
+
+        Parameters
+        ----------
+        sel : Atom Group
+            Atom group to create new molsys from.
+
+        Returns
+        -------
+        MolSelect
+
+        """
+        
+        _mdmode=self._mdmode
+        self._mdmode=False
+        
+        # Check for valid selection
+        ids=np.concatenate([s.indices for s in self.sel1])
+        assert np.all(np.in1d(ids,sel.indices)),\
+            'All atoms in self.sel1 must be in "sel"'
+        ids=np.concatenate([s.indices for s in self.sel2])
+        assert np.all(np.in1d(ids,sel.indices)),\
+            'All atoms in self.sel2 must be in "sel"'
+            
+        ms=self.molsys.new_molsys_from_sel(sel)
+        
+        select=MolSelect(ms,project=self.project)
+        
+        
+        for key in ['sel1','sel2','repr_sel']:
+            new=np.zeros(len(self),dtype=object)
+            for k,ag in enumerate(getattr(self,key)):
+                i0=np.in1d(ag.indices,sel.indices)
+                if i0.sum():
+                    index=np.digitize(ag[i0].indices,sel.indices)-1
+                    new[k]=ms.uni.atoms[index]
+                else:
+                    new[k]=select.sel1[k]+select.sel2[k]
+            setattr(select,key,new)
+        
+        self._mdmode=_mdmode    
+        return select
 
     @property
     def _hash(self):
