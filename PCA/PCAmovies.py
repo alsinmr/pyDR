@@ -476,6 +476,7 @@ class Options():
         if rho_index is None:
             rho_index=np.ones(data.R.shape[1],dtype=bool)
             if rhoz[-1][-1]>0.9:rho_index[-1]=False
+            print(rho_index)
         
         x=x[:,rho_index]
         rhoz=rhoz[rho_index]
@@ -485,7 +486,7 @@ class Options():
         
             
         
-        
+        x/=x.max()
         
         
         def fun(x=x,ids=ids,tau=tau,rhoz=rhoz):

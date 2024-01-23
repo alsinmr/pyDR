@@ -59,7 +59,7 @@ class PCA():
         None.
 
         """
-        keys=['_pos','_covar','_sel1index','_sel2index','_lambda','_PC',
+        keys=['_pos','_covar','_sel1index','_sel2index','_lambda','_PC','_atoms',
               '_pcamp','_Ct','_data','_noopt','_fit','_directfit','_prodfit','_mean','_S2m','_S20m','_Am','_Ctdirect','_tcavg','_Ctprod','_mf']
         for k in keys:setattr(self,k,None)
         return self
@@ -81,7 +81,6 @@ class PCA():
         self
         
         """
-        
         a0=self.atoms
         atoms=self.select.molsys.select_atoms(select_string)
         self.sel0=atoms
@@ -126,8 +125,7 @@ class PCA():
         self
 
         """
-        
-        self._atoms=None
+        self.clear()
         self._select_bond(Nuc=Nuc,resids=resids,segids=segids,filter_str=filter_str,label=label)
         return self
     
@@ -144,7 +142,7 @@ class PCA():
         if isinstance(sel0,str):
             sel0=self.uni.select_atoms(sel0)
         assert isinstance(sel0,sel0.atoms.__class__),"sel0 must be a selection string or an atom group (MDAnalysis)"
-        self._atoms=None
+        self.clear()
         self._sel0=sel0
     
     
@@ -154,7 +152,7 @@ class PCA():
         return self.select.sel1
     @sel1.setter
     def sel1(self,sel1):
-        self._atoms=None
+        self.clear()
         self.select.sel1=sel1
         
     @property
@@ -163,7 +161,7 @@ class PCA():
         return self.select.sel2
     @sel2.setter
     def sel2(self,sel2):
-        self._atoms=None
+        self.clear()
         self.select.sel2=sel2
         
     @property
@@ -192,6 +190,7 @@ class PCA():
         """
         
         if self._atoms is None:
+            self.clear()
             sel=self.sel0+self.sel1+self.sel2
             if len(sel)==0:
                 self._atoms=self.sel0
