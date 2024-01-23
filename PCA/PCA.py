@@ -17,6 +17,7 @@ from .. import Defaults
 from pyDR import clsDict
 from copy import copy,deepcopy
 from pyDR.misc.tools import linear_ex
+from .PCAmovies import PCAmovies
 
 
 dtype=Defaults['dtype']
@@ -37,8 +38,11 @@ class PCA():
         self.align_ref=align_ref
         self.clear()
         self._source=clsDict['Source']('PCAmode')
+        self._n=None
         
         self._select_bond=self.select.select_bond
+        
+        self._movie=None
         
         assert self.select._mdmode==True,'select._mdmode could not be set to True. Multi-atom selections are not allowed in PCA'
     
@@ -56,7 +60,7 @@ class PCA():
 
         """
         keys=['_pos','_covar','_sel1index','_sel2index','_lambda','_PC',
-              '_pcamp','_Ct','_data','_mean','_S2m','_S20m','_Ctdirect','_tcavg','_Ctprod','_fits','_mf']
+              '_pcamp','_Ct','_data','_noopt','_fit','_directfit','_prodfit','_mean','_S2m','_S20m','_Am','_Ctdirect','_tcavg','_Ctprod','_mf']
         for k in keys:setattr(self,k,None)
         return self
     
@@ -561,6 +565,18 @@ class PCA():
 
         """
         return np.argsort(self.tc_avg)
+    
+    @property
+    def tc_rev_index(self):
+        """
+        Returns the index to reverse tc sorting
+
+        Returns
+        -------
+        None.
+
+        """
+        return np.unique(self.tc_avg,return_inverse=True)[1]
         
     
     #%% Vector and Distance functions
@@ -780,6 +796,24 @@ class PCA():
             S20m=np.concatenate((np.ones([1,self.nbonds]),S20m),axis=0)
             self._S2m=S20m[1:]/S20m[:-1]
         return self._S2m
+    
+    @property
+    def Am(self):
+        """
+        Calculates the amplitude from each principal component to the bonds. 
+        
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        if self._Am is None:
+            S20m=np.concatenate([np.ones((1,self.S20m.shape[1])),self.S20m],axis=0)
+            self._Am=S20m[:-1]-S20m[1:]
+        return self._Am
+            
 
     #%% Correlation functions of the bonds
         
@@ -933,7 +967,64 @@ class PCA():
             
         return copy(self._data)
     
-    def prod_v_direct(self,n=8):
+    def PCA2noopt(self,n=12):
+        if self._noopt is None or self._noopt.R.shape[1]!=n:
+            d=self.PCA2data()
+            d.detect.r_no_opt(12)
+            self._noopt=d.fit()
+        return self._noopt
+    
+    
+    @property
+    def n(self):
+        """
+        Default number of detectors used to analyze a trajectory. Can also be
+        set by the user
+
+        Returns
+        -------
+        int
+
+        """
+        if self._n is None:
+            self._n=np.round(np.log10(self.traj.__len__())*2).astype(int)
+        return self._n
+    
+    @n.setter
+    def n(self,n):
+        self._n=n
+    
+    def PCA2fit(self,n=None):
+        if n is None:n=self.n
+        if self._fit is None or self._fit.R.shape[1]!=n:
+            noopt=self.PCA2noopt(max([12,n]))
+            noopt.detect.r_auto(n)
+            self._fit=noopt.fit()
+        return self._fit
+    
+    def direct2fit(self,n=None):
+        if n is None:n=self.n
+        if self._directfit is None or self._directfit.R.shape[1]!=n:
+            d=self.direct2data()
+            d.detect.r_no_opt(max([12,n]))
+            noopt=d.fit()
+            noopt.detect.r_auto(n)
+            self._directfit=noopt.fit()
+        return self._directfit
+    
+    def prod2fit(self,n=None):
+        if n is None:n=self.n
+        if self._prodfit is None or self._prodfit.R.shape[1]!=n:
+            d=self.prod2data()
+            d.detect.r_no_opt(max([12,n]))
+            noopt=d.fit()
+            noopt.detect.r_auto(n)
+            self._prodfit=noopt.fit()
+        return self._prodfit
+            
+            
+    
+    def prod_v_direct(self,n=None):
         """
         Plots a comparison of the directly calculated and PCA-derived detector
         analysis of the bonds
@@ -951,26 +1042,14 @@ class PCA():
         
         self.project.current_plot=self.project.current_plot+1
         
-        if self._fits is None:
         
-            data=self.direct2data()
-            data.detect.r_no_opt(12)
-            no=data.fit()
-            no.detect.r_auto(n)
-            fit=no.fit()
+        fit=self.direct2fit(n=n)
+        pfit=self.prod2fit(n=n)        
             
-            pdata=self.prod2data()
-            pdata.detect.r_no_opt(12)
-            pno=pdata.fit()
-            pno.detect.r_auto(n)
-            pfit=pno.fit()
-            self._fits=fit,pfit
+        fit.plot()
+        pfit.plot()
         
-            
-        self._fits[0].plot()
-        self._fits[1].plot()
-        
-        return self._fits
+        return fit,pfit
         
     
     #%% Estimating distributions
@@ -1095,7 +1174,7 @@ class PCA():
         return z,A
     
     #%% Chimera videos
-    def rho_from_PCA(self,sens=None,rho_index:int=None,index:int=None):
+    def rho_from_PCA(self,PCAfit=None):
         """
         Determines the contributions of each principal component to a given
         detector response.
@@ -1114,26 +1193,35 @@ class PCA():
         None.
 
         """
-    
-        if rho_index is not None and sens is not None:
-            rhoz=sens.rhoz[rho_index]
-            z0=sens.z
-        else:
-            z0=np.linspace(*Defaults['zrange'])
-            rhoz=np.ones(z0.shape)
         
-        zf,Af=self.fit_PC()[:2]
-        zf,Af=zf[:,self.tc_index],Af[:,self.tc_index]
-        
-        Am=1-self.S2m[:,index]
+        if PCAfit is None:PCAfit=self.PCA2fit()
         
         
-        Afsc=Af*np.array([linear_ex(z0,rhoz,zf0) for zf0 in zf])
-
-        A=(Afsc*Am).sum(0)
+        rhoPCA=np.array([self.Am.T*R[self.tc_index] for R in PCAfit.R.T])
+        return rhoPCA
             
     
-    def PCAweight(self,rho_index:int=None,index:int=None,frac:float=0.75,scaling:float=1):
+        # if rho_index is not None and sens is not None:
+        #     rhoz=sens.rhoz[rho_index]
+        #     z0=sens.z
+        # else:
+        #     z0=np.linspace(*Defaults['zrange'])
+        #     rhoz=np.ones(z0.shape)
+        
+        # zf,Af=self.fit_PC()[:2]
+        # zf,Af=zf[:,self.tc_index],Af[:,self.tc_index]
+        
+        # Am=self.Am[:,index]
+        
+        
+        # Afsc=Af*np.array([linear_ex(z0,rhoz,zf0) for zf0 in zf])
+
+        # A=(Afsc*Am).sum(0)
+        
+        # return A
+            
+    
+    def PCAweight(self,rho_index:int,index:int,PCAfit=None,frac:float=0.75):
         """
         Determines the weighting of the principal components that accounts for
         most of a detector response for a given bond. By default, we account
@@ -1147,9 +1235,20 @@ class PCA():
         can be modified by setting frac=0.75
         """
         
-        pass
+        A=self.rho_from_PCA(PCAfit)[rho_index][index]
+        
+        _,i,j=np.unique(A,return_index=True,return_inverse=True)
+        N=np.argmax(np.cumsum(A[i])/A.sum()>frac)
         
         
+        
+        
+    
+    @property
+    def movie(self):
+        if self._movie is None:
+            self._movie=PCAmovies(self)
+        return self._movie
     
     #%% PDB writing / Chimera
     def write_pdb(self,n:int=0,A:float=None,PCamp:list=None,filename:str=None):

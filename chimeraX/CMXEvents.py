@@ -29,10 +29,20 @@ class DetectorFader():
     def __init__(self, cmx, *args):
         self.cmx = cmx
         self.session = cmx.session
-        self.fader = DetFader(self.session.models[-1], *args)
+        if isinstance(args[0],int):
+            mn=args[0]
+            args=args[1:]
+        else:
+            mn=-1
+        self.fader = DetFader(self.session.models[mn], *args)
 
     def __call__(self):
-        self.fader.set_color_radius()
+        if self.fader is not None:
+            self.fader.set_color_radius()
+        
+    def cleanup(self):
+        self.fader=None
+        
 
 
 class TimescaleIndicator():
@@ -63,6 +73,10 @@ class TimescaleIndicator():
             self.label.text = text
             self.label.update_drawing()
             self.i = i
+            
+    def cleanup(self):
+        self.label.text=''
+        self.label.update_drawing()
 
 
 class Hover():

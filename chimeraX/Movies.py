@@ -282,7 +282,7 @@ class Movies():
         self.chimera.command_line(cmds,ID=ID)
         
     def det_fader(self,rho_index=None,i:int=0,ID:int=None,scaling=None):
-        ID=self.defaultID(ID)
+        ID=self.defaultID(ID) if ID is None else ID
         rho_index=np.arange(self.data.sens.rhoz.shape[0]) if rho_index is None else np.array(rho_index,dtype=int)
         self.play_traj(i=i,ID=ID)
         x,ids=self.det_x_id(i)
