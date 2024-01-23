@@ -250,6 +250,10 @@ class CMXRemote():
         None.
 
         """
+        # Let's try to phase out this functionality and replace with curl
+        cls.send_command(ID,string)
+        return
+        
         with File(ID) as f:
             py_line(f,run_command())
             if isinstance(string,list):
