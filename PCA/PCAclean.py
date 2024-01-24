@@ -18,19 +18,16 @@ from .. import clsDict
 from copy import copy,deepcopy
 from ..misc.tools import linear_ex
 from .PCAmovies import PCAmovies
-from .PCAsubs import PCA_Ct,PCA2Amps
+from .PCAsubs import PCA_Ct,PCA_S2,PCAvecs,PCA2Data,Weighting
 
 
 
 dtype=Defaults['dtype']
 
 class PCA():
-    def __init__(self,select,align_ref='name CA'):
+    def __init__(self,select,align_ref='name CA',project=None):
         self.select=select
-        self._project=None
-        if select.project is None: #Can we get rid of this again?
-            select.molsys.project=Project()
-            select.project=select.molsys.project
+        self.project=self.select.project if project is None else project
         self.select._mdmode=True
         self._sel0=None
         self._atoms=None
@@ -44,18 +41,16 @@ class PCA():
         
         self._select_bond=self.select.select_bond
         
-        self._movie=None
-        self._Ct=None
-        
+        self.clear()
         
         assert self.select._mdmode==True,'select._mdmode could not be set to True. Multi-atom selections are not allowed in PCA'
     
     #%% Sub-classes
     @property
-    def movie(self):
-        if self._movie is None:
-            self._movie=PCAmovies(self)
-        return self._movie
+    def Movie(self):
+        if self._Movie is None:
+            self._Movie=PCAmovies(self)
+        return self._Movie
     
     @property
     def Ct(self):
@@ -63,6 +58,29 @@ class PCA():
             self._Ct=PCA_Ct(self)
         return self._Ct
     
+    @property
+    def S2(self):
+        if self._S2 is None:
+            self._S2=PCA_S2(self)
+        return self._S2
+    
+    @property
+    def Vecs(self):
+        if self._Vecs is None:
+            self._Vecs=PCAvecs(self)
+        return self._Vecs
+    
+    @property
+    def Data(self):
+        if self._Data is None:
+            self._Data=PCA2Data(self)
+        return self._Data
+    
+    @property
+    def Weighting(self):
+        if self._Weighting is None:
+            self._Weighting=Weighting(self)
+        return self._Weighting
     
     #%% Misc.
     def clear(self):
@@ -74,7 +92,8 @@ class PCA():
         None.
 
         """
-        keys=['_pos','_covar','_sel1index','_sel2index','_lambda','_PC','_pcamp','_mean']
+        keys=['_pos','_covar','_sel1index','_sel2index','_lambda','_PC','_pcamp','_mean',
+              '_S2','_Ct','_Vecs','_Data','_Movie','_Weighting']
         for k in keys:setattr(self,k,None)
         return self
     
@@ -191,7 +210,7 @@ class PCA():
 
     @property
     def project(self):
-        return self.select.project if self._project is None else self._project
+        return self._project
     
     @project.setter
     def project(self,project):
@@ -210,7 +229,7 @@ class PCA():
 
         """
         
-        if self._atoms is None:
+        if np.any([getattr(self,name) is None for name in ['_atoms','_sel0index','_sel1index','_sel2index']]):
             sel=self.sel0+self.sel1+self.sel2
             if len(sel)==0:
                 self._atoms=self.sel0
@@ -483,38 +502,3 @@ class PCA():
             mat0=(self.pos-self.mean).reshape([self.pos.shape[0],self.pos.shape[1]*self.pos.shape[2]])
             self._pcamp=(mat0@self.PC).T
         return self._pcamp
-    
-    
-    def PC2pos(self,n:int=0,A:float=None,sel:int=None):
-        """
-        Calculates the motion on atoms resulting from the nth principal component
-        deviating from the mean position by sigma standard deviations. One
-        may which principal component to apply (n), how many standard deviations
-        (sigma, defaults to np.sqrt(pca.Lambda(n))), and which atoms (either sel=
-        None, which is all atoms in pca.atoms, or 1 (sel1) or 2 (sel2))
-
-        Parameters
-        ----------
-        n : int, optional
-            Which principal component to use. The default is 0.
-        A : float, optional
-            Amplitude of the principal component to calculate. If set to None,
-            then we use one standard deviation (np.sqrt(self.Lambda[n]))
-        sel : int, optional
-            Which group of atoms to use. 1 selects atoms in PCA.select.sel1,
-            2 selects atoms in PCA.select.sel2, None takes atoms in PCA.atoms.
-            The default is None.
-
-        Returns
-        -------
-        None.
-
-        """
-        if A is None:A=np.sqrt(self.Lambda[n])
-        
-        i=np.arange(len(self.atoms)) if sel is None else getattr(self,f'sel{sel}index')
-        
-        pos0=self.mean[i]
-        
-        pos0+=A*self.PC[:,n].reshape([self.PC.shape[0]//3,3])
-        return pos0

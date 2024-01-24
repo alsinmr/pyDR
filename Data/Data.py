@@ -379,7 +379,8 @@ class Data():
         
             
     
-    def plot(self, errorbars=False, style='canvas', fig=None, index=None, rho_index=None, plot_sens=True, split=True,**kwargs):
+    def plot(self, errorbars=False, style='canvas', fig=None, index=None, 
+             rho_index=None, plot_sens=True, split=True,**kwargs):
         # todo maybe worth to remove the args and put them all into kwargs? -K
         """
         Plots the detector responses for a given data object. Options are:

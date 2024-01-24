@@ -71,7 +71,7 @@ class PCAmovies():
 
         """
         if self._data is None:
-            d=self.pca.PCA2data()
+            d=self.pca.Data.PCARef
             d.detect.r_no_opt(self.n)
             noo=d.fit()
             noo.detect.r_auto(self.n)
@@ -258,53 +258,6 @@ class PCAmovies():
         
         return self.data.R@wt0
     
-    # def xtc_log_swp2(self,filename:str='temp.xtc',zrange=None,nframes:int=300,framerate:int=15):
-    #     """
-    #     Create an xtc file for a log sweep of the timescales. Setup is the output
-    #     of setup_swp, which can be omitted if default values are desired.
-        
-    #     filename is the output filename of the xtc. If filetype (eg. .xtc) is
-    #     omitted, then .xtc will be appended. It will be put into the molsys
-    #     temporary folder by default
-
-    #     Parameters
-    #     ----------
-    #     filename : str, optional
-    #         DESCRIPTION. The default is 'temp.xtc'.
-    #     setup : TYPE, optional
-    #         DESCRIPTION. The default is None.
-
-    #     Returns
-    #     -------
-    #     self
-
-    #     """
-        
-    #     setup=self.setup_swp(zrange=zrange,nframes=nframes,framerate=framerate)
-        
-    #     wt=self.weight(setup['tscale_swp'])
-    #     i=setup['index']
-        
-    #     ag=copy(self.pca.atoms)
-        
-    #     filename=os.path.join(self.directory,filename)
-        
-    #     pos0=pos=copy(self.pca.pos[0])
-    #     DelPC=np.concatenate([np.zeros([self.pca.PCamp.shape[0],1]),
-    #                           np.diff(self.pca.PCamp[:,i],axis=-1)],axis=-1)*wt
-        
-        
-        
-    #     with Writer(filename, n_atoms=len(ag)) as w:
-    #         for k,_ in enumerate(self.pca.traj[i]):
-    #             # ag.positions=self.pca.mean+((wt[:,k]*self.pca.PCamp[:,i[k]])*self.pca.PCxyz).sum(-1).T
-    #             pos+=(DelPC[:,k]*self.pca.PCxyz).sum(-1).T
-    #             ag.positions=pos
-    #             w.write(ag)
-                
-    #     self._xtc=filename
-        
-    #     return self
     
     def xtc_log_swp(self,filename:str='temp.xtc',zrange=None,nframes:int=300,framerate:int=15):
         """
@@ -332,7 +285,7 @@ class PCAmovies():
         setup=self.setup_swp(zrange=zrange,nframes=nframes,framerate=framerate)
         self.setup=setup
         
-        wt=self.weight(setup['tscale_swp'])
+        wt=self.pca.Weighting.timescale(setup['tscale_swp'])
         # wt=(wt.T/wt.mean(-1)).T
         i=setup['index']
         
@@ -342,7 +295,7 @@ class PCAmovies():
         
         pos0=pos=copy(self.pca.pos[0])
         DelPC=np.concatenate([np.zeros([self.pca.PCamp.shape[0],1]),
-                              np.diff(self.pca.PCamp[:,i],axis=-1)],axis=-1)
+                              np.diff(self.pca.PCamp[:,i],axis=-1)],axis=-1)*wt
         
         PCcorr=self.pca.PCamp[:,i[-1]]-self.pca.PCamp[:,0]-DelPC.sum(-1)
         
