@@ -651,7 +651,7 @@ class PCA2Data():
         self._n=None
         self._n_noopt=12
         self._locs={}
-        self._DirectRef=None
+        self._BondRef=None
         self._PCARef=None
         
     def clear(self):
@@ -669,7 +669,7 @@ class PCA2Data():
         self._locs={}
     
     @property
-    def DirectRef(self):
+    def BondRef(self):
         """
         Default data set when a directly-calculated data object is required.
         
@@ -681,14 +681,14 @@ class PCA2Data():
         data
 
         """
-        if self._DirectRef is not None:
-            return self._DirectRef
+        if self._BondRef is not None:
+            return self._BondRef
         return self.direct()
     
-    @DirectRef.setter
-    def DirectRef(self,data):
+    @BondRef.setter
+    def BondRef(self,data):
         assert data.source.status in ['proc','opt_fit'],'Data needs to have status proc or opt_fit'
-        self._DirectRef=data
+        self._BondRef=data
         
     @property
     def PCARef(self):

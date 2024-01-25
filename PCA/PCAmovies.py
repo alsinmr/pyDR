@@ -32,8 +32,8 @@ class PCAmovies():
         """
         self.pca=pca
         self._n=None
-        self._data=None
-        self._direct_data=None
+        self._PCARef=None
+        self._BondRef=None
         self._zrange=None
         self._timescale=None
         self._xtc=None
@@ -60,9 +60,9 @@ class PCAmovies():
         self._n=n
     
     @property
-    def data(self):
+    def PCARef(self):
         """
-        Processed PCA detector analysis. Can be slow at the first call
+        Processed PCA detector analysis. 
 
         Returns
         -------
@@ -70,42 +70,34 @@ class PCAmovies():
             data object containing a detector analysis of the PCA.
 
         """
-        if self._data is None:
-            d=self.pca.Data.PCARef
-            d.detect.r_no_opt(self.n)
-            noo=d.fit()
-            noo.detect.r_auto(self.n)
-            self._data=noo.fit()
+        if self._PCARef is None:
+            return self.pca.Data.PCARef
             
-        return self._data
+        return self._PCARef
 
     
-    @data.setter
+    @PCARef.setter
     def data(self,data):
-        self._data=data
+        self._PCARef=data
         self._zrange=None
     
     @property
-    def direct_data(self):
+    def BondRef(self):
         """
-        Data object containing direct analysis of the bond motion (no PCA). 
+        Data object containing analysis of the bond motion (no PCA). 
 
         Returns
         -------
         None.
 
         """
-        if self._direct_data is None:
-            d=self.pca.direct2data()
-            d.detect.r_no_opt(self.n)
-            noo=d.fit()
-            noo.detect.r_auto(self.n)
-            self._direct_data=noo.fit()
-        return self._direct_data
+        if self._BondRef is None:
+            return self.pca.Data.BondRef
+        return self._BondRef
     
-    @direct_data.setter
-    def direct_data(self,data):
-        self._direct_data=data
+    @BondRef.setter
+    def BondRef(self,data):
+        self._BondRef=data
     
     @property
     def sens(self):
@@ -117,7 +109,7 @@ class PCAmovies():
         sens
 
         """
-        return self.data.sens
+        return self.PCARef.sens
     
     @property
     def select(self):
@@ -259,6 +251,101 @@ class PCAmovies():
         return self.data.R@wt0
     
     
+    def xtc_bond(self,index:int,rho_index:int,frac:float=0.75,filename:str='temp.xtc',
+                 nframes:int=150,framerate:int=15,scaling:float=1):
+        """
+        
+
+        Parameters
+        ----------
+        index : int
+            DESCRIPTION.
+        rho_index : int, optional
+            DESCRIPTION. The default is None.
+        frac : float, optional
+            DESCRIPTION. The default is 0.75.
+        filename : str, optional
+            DESCRIPTION. The default is 'temp.xtc'.
+        nframes : int, optional
+            DESCRIPTION. The default is 300.
+        framerate : int, optional
+            DESCRIPTION. The default is 15.
+
+        Returns
+        -------
+        None.
+
+        """
+        timescale=self.PCARef.sens.info['z0'][rho_index]
+        step=np.round(10**timescale*1e12/self.PCARef.source.select.traj.dt/framerate).astype(int)
+        if step==0:step=1
+        if step*nframes>len(self.pca.traj):
+            step=np.round(len(self.pca.traj)/nframes).astype(int)
+        
+        wt=self.pca.Weighting.bond(index=index,rho_index=rho_index,PCAfit=self.PCARef,frac=frac)
+        
+        Delta=np.concatenate([np.zeros([wt.sum(),1]),
+                              np.diff(self.pca.PCamp[wt,:step*nframes:step],axis=1)],axis=1)
+        pos=self.pca.pos[0]+scaling*np.cumsum(self.pca.PCxyz[:,:,wt]@Delta,axis=-1).T
+        
+        
+        ag=copy(self.pca.atoms)
+        with Writer(filename, n_atoms=len(ag)) as w:
+            for pos0 in pos:
+                # ag.positions=self.pca.mean+((wt[:,k]*self.pca.PCamp[:,i[k]])*self.pca.PCxyz).sum(-1).T
+                ag.positions=pos0
+                w.write(ag)
+                
+        self._xtc=filename
+        
+        return self
+        
+    def xtc_mode(self,mode_index,filename:str='temp.xtc',nframes:int=150,
+                 framerate:int=15,scaling:float=1):
+        """
+        Displays a specific mode
+
+        Parameters
+        ----------
+        mode_index : TYPE
+            DESCRIPTION.
+        filename : str, optional
+            DESCRIPTION. The default is 'temp.xtc'.
+        nframes : int, optional
+            DESCRIPTION. The default is 150.
+        framerate : int, optional
+            DESCRIPTION. The default is 15.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        rho_index=np.argmax(self.PCARef.R[mode_index])
+        timescale=self.sens.info['z0'][rho_index]
+        step=np.round(10**timescale*1e12/self.PCARef.source.select.traj.dt/framerate).astype(int)
+        if step==0:step=1
+        if step*nframes>len(self.pca.traj):
+            step=np.round(len(self.pca.traj)/nframes).astype(int)
+            
+        Delta=np.concatenate([np.zeros(1),
+                  np.diff(self.pca.PCamp[mode_index,:step*nframes:step],axis=0)],axis=0)
+        pos=self.pca.pos[0]+scaling*np.cumsum(np.atleast_3d(self.pca.PCxyz[:,:,mode_index])@\
+                                      np.atleast_2d(Delta),axis=-1).T
+        ag=copy(self.pca.atoms)
+        with Writer(filename, n_atoms=len(ag)) as w:
+            for pos0 in pos:
+                # ag.positions=self.pca.mean+((wt[:,k]*self.pca.PCamp[:,i[k]])*self.pca.PCxyz).sum(-1).T
+                ag.positions=pos0
+                w.write(ag)
+                
+        self._xtc=filename
+        
+        return self
+
+        
+    
     def xtc_log_swp(self,filename:str='temp.xtc',zrange=None,nframes:int=300,framerate:int=15):
         """
         Create an xtc file for a log sweep of the timescales. Setup is the output
@@ -302,7 +389,10 @@ class PCAmovies():
         
         PCamp=np.cumsum(DelPC,axis=-1)+np.atleast_2d(PCcorr).T@np.atleast_2d(i)/i[-1]
         
-        pos=self.pca.pos[0].T+np.array([(self.pca.PCxyz*a).sum(-1) for a in PCamp.T])
+        pos=self.pca.pos[0]+(self.pca.PCxyz@PCamp).T
+        # pos=self.pca.pos[0].T+np.array([(self.pca.PCxyz*a).sum(-1) for a in PCamp.T])
+        
+        
         
         # pos=self.pca.pos[0]+(np.cumsum(DelPC,axis=-1)*self.pca.PCxyz).sum(-1).T+\
         #     +(np.atleast_2d(PCcorr).T@np.atleast_2d(i)/i[-1])
@@ -315,7 +405,7 @@ class PCAmovies():
         with Writer(filename, n_atoms=len(ag)) as w:
             for pos0 in pos:
                 # ag.positions=self.pca.mean+((wt[:,k]*self.pca.PCamp[:,i[k]])*self.pca.PCxyz).sum(-1).T
-                ag.positions=pos0.T
+                ag.positions=pos0
                 w.write(ag)
                 
         self._xtc=filename
@@ -339,6 +429,8 @@ class PCAmovies():
         self.options()
         
         return self
+    
+    
     
 class Options():
     def __init__(self,pca_movie):
@@ -392,6 +484,20 @@ class Options():
             self.dict['TimescaleIndicator']=lambda tau=tau:self.add_event('TimescaleIndicator', tau)
         return self
     
+    def Detectors(self,index=None,rho_index=None,remove:bool=False):
+        """
+        
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        out=dict(R=R,rho_index=rho_index,ids=ids)
+        # CMXRemote.remove_event(ID,'Detectors')
+        CMXRemote.add_event(ID,'Detectors',out)
+    
     def DetFader(self,tau=None,index=None,rho_index=None,remove:bool=False):
         """
         Add a Detector Fader to the trajectory
@@ -419,7 +525,7 @@ class Options():
             if __name__ in self.dict:self.dict.pop(__name__)
             return
         
-        data=self.pca_movie.direct_data
+        data=self.pca_movie.BondRef
         rhoz=data.sens.rhoz
         
         if index is None:index=np.ones(data.R.shape[0],dtype=bool)
@@ -429,7 +535,7 @@ class Options():
         if rho_index is None:
             rho_index=np.ones(data.R.shape[1],dtype=bool)
             if rhoz[-1][-1]>0.9:rho_index[-1]=False
-            print(rho_index)
+
         
         x=x[:,rho_index]
         rhoz=rhoz[rho_index]
