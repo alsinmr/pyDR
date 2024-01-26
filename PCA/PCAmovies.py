@@ -568,8 +568,9 @@ class PCAmovies():
              'rho_index':rho_index,
              'file':os.path.join(self.molsys.directory,'xtc_temp')}
         
-        chimera=self.pca.project.chimera
-        chimera.CMX.add_event(chimera.CMXid,'PCAtraj',out)
+        CMXid=self.molsys.movie.CMXid
+        CMX=self.molsys.movie.CMX
+        CMX.add_event(CMXid,'PCAtraj',out)
         
         
         if self.thread is not None:self.thread.stop()
