@@ -370,8 +370,6 @@ class MolSys():
         None.
 
         """
-        if len(self.traj)==1:
-            return None
         if len(self.traj.mda_traj)>5000:
             print('Warning: Trajectory has more than 5000 frames. Loading into chimera may be slow')
         

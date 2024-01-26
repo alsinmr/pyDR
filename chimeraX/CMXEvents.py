@@ -21,7 +21,7 @@ else:
 
 import numpy as np
 from matplotlib.pyplot import get_cmap
-from RemoteChimeraFuns import set_color_radius, set_color_radius_CC, DetFader
+from RemoteChimeraFuns import set_color_radius, set_color_radius_CC, DetFader, xtc_request
 from chimerax.label.label2d import label_create
 
 
@@ -227,6 +227,34 @@ class DetCC(Detectors):
                                      : set_color_radius_CC(atoms, R, color, ids))
         return
 
+
+class PCAtraj(Detectors):
+    def __init__(self,cmx,dct):        
+        super(Detectors,self).__init__(cmx)
+        mdl_num = dct.get('mdl_num')
+        self.model = self.session.models[mdl_num]
+        rho_index = dct.get('rho_index')
+        ids = dct.get('ids')
+        xtc_type = dct.get('xtc_type')
+        file=dct.get('file')
+        self.setup(xtc_type,ids,rho_index,file)
+        self.mouse_button = QApplication.mouseButtons
+        print('Check4')
+        
+    def setup(self,xtc_type,ids,rho_index,file):
+        cmap = lambda ind: (np.array(get_cmap("tab10")(ind % 10)) * 255).astype(int) 
+        self.commands=[]
+        self.labels=[]
+        for i,ri in enumerate(rho_index):
+            self.commands.append(lambda atoms=self.model.atoms,xtc_type=xtc_type,
+                                 rho_index=ri,ids=ids,cmx=self.cmx:
+                                     xtc_request(atoms,xtc_type,rho_index,ids,cmx,file))
+            label = label_create(self.session, "det{}".format(np.random.randint(1000000)),
+                                 text="ρ{}".format(ri)
+                                 , xpos=.95, ypos=.9 - i * .075,
+                                 color=cmap(ri), bg_color=np.array([255, 255, 255, 0], dtype=int))
+            self.labels.append(self.session.models[-1])
+    
 
 def color_calc(x, x0=None, colors=[[0, 0, 255, 255], [210, 180, 140, 255], [255, 0, 0, 255]]):
     """

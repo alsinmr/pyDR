@@ -7,6 +7,7 @@ Created on Wed Mar 23 12:25:34 2022
 """
 
 import numpy as np
+from time import sleep
 from matplotlib.pyplot import get_cmap
 
 
@@ -130,8 +131,7 @@ def color_calc(x,x0=None,colors=[[0,0,255,255],[210,180,140,255],[255,0,0,255]])
     i[i==len(x0)]=len(x0)-1
     clr=(((x-x0[i-1])*colors[i].T+(x0[i]-x)*colors[i-1].T)/(x0[i]-x0[i-1])).T
     return clr.astype('uint8')
-
-
+            
 
 class DetFader():
     def __init__(self,model,x:np.array,ids:list,tau:np.array,rhoz:np.array,tc:np.array,sc:float=3):
@@ -237,7 +237,45 @@ class DetFader():
             # clrs[self.ids]=self.clr[i]
             # self.model.set_colors(clrs)
             self.i=i
+ 
         
+#%% The following function requires a listener in pyDR (threading)
+def xtc_request(atoms,xtc_type:str,rho_index:int,ids:list,cmx,file):
+    """
+    Requests a particular xtc from pyDR
+
+    Parameters
+    ----------
+    atoms : Atom group
+        Atoms in the relevant model.
+    xtc_type : str
+        DESCRIPTION.
+    rho_index : TYPE
+        DESCRIPTION.
+    ids : TYPE
+        DESCRIPTION.
+    cmx : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+
+    for k,id0 in enumerate(ids):
+        a0=atoms[np.array(id0,dtype=int)]
+        if np.any(a0.selected) or np.any(a0.bonds.selected):
+            q=k
+            break
+    else:
+        q=-1
+    # cmx.client.send(('xtc_request',xtc_type,rho_index,q))
+    with open(file,'w') as f:
+        f.write(f'xtc_request {xtc_type} {rho_index} {q}')
+    print('xtc_request',xtc_type,rho_index,q)
+    # sleep(.5)
+    
 #%% THe functions below will typically be used outside of event loops.
 #cmx (the CMXReceiver instance) should always be the first argument!!
     
@@ -317,5 +355,8 @@ def draw_surface(cmx,x,y,z,colors:list=(.3,.3,.3,1)):
     if colors.ndim>1:
         colors=np.reshape(colors,[z.size,colors.shape[-1]])
     load_cart_surface(cmx.session,x,y,z,colors=colors)
+
+
+
 
       

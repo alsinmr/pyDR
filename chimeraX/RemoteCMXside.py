@@ -277,7 +277,31 @@ class CMXReceiver():
                 if m.parent is None:
                     counter+=1
         self.client.send(mdls)
+        
+    def how_many_atoms(self,mdl_num):
+        """
+        Tells how many atoms are in a model
 
+        Parameters
+        ----------
+        mdn_num : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+
+        if len(self.session.models)<=mdl_num:
+            self.client.send(-1)
+            return
+        if not(hasattr(self.session.models[mdl_num],'atoms')):
+            self.client.send(-1)
+            return
+        self.client.send(len(self.session.models[mdl_num].atoms))
+        
+        
     def send_command(self,string):
         """todo I found out, that creating any Model with the command line interface inside the thread will cause a program
         crash. since I want to create the buttons inside chimera i needed to implement this funciton from the remote side here

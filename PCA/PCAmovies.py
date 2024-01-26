@@ -39,6 +39,7 @@ class PCAmovies():
         self._xtc=None
         self._select=None
         self._options=Options(self)
+        self._thread=None
     
     
     @property
@@ -222,34 +223,117 @@ class PCAmovies():
         
         return out
 
-    def weight(self,timescale):
-        """
-        Returns a weighting of the principal components for a given timescale
-        or timescales.
+    # def weight(self,timescale):
+    #     """
+    #     Returns a weighting of the principal components for a given timescale
+    #     or timescales.
         
-        This is determined from the stored sensitity object and the relative
-        amplitudes of the detectors at the given timescale. 
+    #     This is determined from the stored sensitity object and the relative
+    #     amplitudes of the detectors at the given timescale. 
+
+    #     Parameters
+    #     ----------
+    #     timescale : float,array
+    #         timescale or timescales given on a log-scale. The default is None.
+
+    #     Returns
+    #     -------
+    #     np.array
+
+    #     """
+    #     if timescale is None:
+    #         timescale=timescale_swp(self.zrange)
+    #     timescale=np.atleast_1d(timescale)
+        
+    #     i=np.array([np.argmin(np.abs(ts-self.sens.z)) for ts in timescale],dtype=int)
+    #     wt0=self.sens.rhoz[:,i]
+    #     # wt0/=wt0.sum(0)
+        
+    #     return self.data.R@wt0
+    
+    
+    def xtc_from_weight(self,wt,rho_index:int,frac:float=0.75,filename:str='temp.xtc',
+                        nframes:int=150,framerate:int=15,scaling:float=1):
+        """
+        General function for calculating the xtc from a weighting of principal components
 
         Parameters
         ----------
-        timescale : float,array
-            timescale or timescales given on a log-scale. The default is None.
+        wt : TYPE
+            DESCRIPTION.
+        rho_index : int
+            DESCRIPTION.
+        frac : float, optional
+            DESCRIPTION. The default is 0.75.
+        filename : str, optional
+            DESCRIPTION. The default is 'temp.xtc'.
+        nframes : int, optional
+            DESCRIPTION. The default is 150.
+        framerate : int, optional
+            DESCRIPTION. The default is 15.
+        scaling : float, optional
+            DESCRIPTION. The default is 1.
 
         Returns
         -------
-        np.array
+        None.
 
         """
-        if timescale is None:
-            timescale=timescale_swp(self.zrange)
-        timescale=np.atleast_1d(timescale)
         
-        i=np.array([np.argmin(np.abs(ts-self.sens.z)) for ts in timescale],dtype=int)
-        wt0=self.sens.rhoz[:,i]
-        # wt0/=wt0.sum(0)
+        timescale=self.PCARef.sens.info['z0'][rho_index]
+        step=np.round(10**timescale*1e12/self.PCARef.source.select.traj.dt/framerate).astype(int)
+        if step==0:step=1
+        if step*nframes>len(self.pca.traj):
+            step=np.round(len(self.pca.traj)/nframes).astype(int)
+            
+        Delta=np.concatenate([np.zeros([wt.sum(),1]),
+                              np.diff(self.pca.PCamp[wt,:step*nframes:step],axis=1)],axis=1)
+        pos=self.pca.pos[0]+scaling*np.cumsum(self.pca.PCxyz[:,:,wt]@Delta,axis=-1).T
         
-        return self.data.R@wt0
+        
+        ag=copy(self.pca.atoms)
+        with Writer(filename, n_atoms=len(ag)) as w:
+            for pos0 in pos:
+                # ag.positions=self.pca.mean+((wt[:,k]*self.pca.PCamp[:,i[k]])*self.pca.PCxyz).sum(-1).T
+                ag.positions=pos0
+                w.write(ag)
+                
+        self._xtc=filename
+        
+        return self
     
+    def xtc_rho(self,rho_index:int,frac:float=0.75,filename:str='temp.xtc',
+                      nframes:int=150,framerate:int=15,scaling:float=1):
+        """
+        
+
+        Parameters
+        ----------
+        rho_index : int
+            DESCRIPTION.
+        frac : float, optional
+            DESCRIPTION. The default is 0.75.
+        filename : str, optional
+            DESCRIPTION. The default is 'temp.xtc'.
+        nframes : int, optional
+            DESCRIPTION. The default is 150.
+        framerate : int, optional
+            DESCRIPTION. The default is 15.
+        scaling : float, optional
+            DESCRIPTION. The default is 1.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        wt=self.pca.Weighting.rho_spec(rho_index=rho_index,PCAfit=self.PCARef,frac=frac)
+        
+        self.xtc_from_weight(wt=wt,rho_index=rho_index,frac=frac,filename=filename,
+                        nframes=nframes,framerate=framerate,scaling=scaling)
+        
+        return self
     
     def xtc_bond(self,index:int,rho_index:int,frac:float=0.75,filename:str='temp.xtc',
                  nframes:int=150,framerate:int=15,scaling:float=1):
@@ -276,29 +360,61 @@ class PCAmovies():
         None.
 
         """
-        timescale=self.PCARef.sens.info['z0'][rho_index]
+
+        
+        wt=self.pca.Weighting.bond(index=index,rho_index=rho_index,PCAfit=self.PCARef,frac=frac)
+        
+        self.xtc_from_weight(wt=wt,rho_index=rho_index,frac=frac,filename=filename,
+                        nframes=nframes,framerate=framerate,scaling=scaling)
+
+        return self
+    
+    def xtc_noweight(self,rho_index:int=None,mode_index:int=None,filename:str='temp.xtc',
+                     nframes:int=150,framerate:int=15):
+        """
+        Produces an unweighted xtc (all modes), for comparison to weighted xtcs
+
+        Parameters
+        ----------
+        rho_index : int, optional
+            DESCRIPTION. The default is None.
+        mode_index : int, optional
+            DESCRIPTION. The default is None.
+        filename : str, optional
+            DESCRIPTION. The default is 'temp.xtc'.
+        nframes : int, optional
+            DESCRIPTION. The default is 150.
+        framerate : int, optional
+            DESCRIPTION. The default is 15.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        if mode_index is not None:
+            rho_index=np.argmax(self.PCARef.R[mode_index])
+        
+        assert rho_index is not None,"rho_index or mode_index must be specified"
+        timescale=self.sens.info['z0'][rho_index]
+        
         step=np.round(10**timescale*1e12/self.PCARef.source.select.traj.dt/framerate).astype(int)
         if step==0:step=1
         if step*nframes>len(self.pca.traj):
             step=np.round(len(self.pca.traj)/nframes).astype(int)
-        
-        wt=self.pca.Weighting.bond(index=index,rho_index=rho_index,PCAfit=self.PCARef,frac=frac)
-        
-        Delta=np.concatenate([np.zeros([wt.sum(),1]),
-                              np.diff(self.pca.PCamp[wt,:step*nframes:step],axis=1)],axis=1)
-        pos=self.pca.pos[0]+scaling*np.cumsum(self.pca.PCxyz[:,:,wt]@Delta,axis=-1).T
-        
-        
+            
         ag=copy(self.pca.atoms)
         with Writer(filename, n_atoms=len(ag)) as w:
-            for pos0 in pos:
-                # ag.positions=self.pca.mean+((wt[:,k]*self.pca.PCamp[:,i[k]])*self.pca.PCxyz).sum(-1).T
+            for pos0 in self.pca.pos[::step]:
                 ag.positions=pos0
                 w.write(ag)
                 
         self._xtc=filename
         
         return self
+
+            
         
     def xtc_mode(self,mode_index,filename:str='temp.xtc',nframes:int=150,
                  framerate:int=15,scaling:float=1):
@@ -430,6 +546,100 @@ class PCAmovies():
         
         return self
     
+    @property
+    def thread(self):
+        return self._thread
+    
+    @thread.setter
+    def thread(self):
+        if self._thread is not None:self.thread.stop()
+        
+    
+    def bond_interactive(self,rho_index=None,frac:float=0.75,
+                 nframes:int=150,framerate:int=15,scaling:float=1):
+        self.molsys.movie()
+            
+        
+        if rho_index is None:rho_index=np.arange(self.pca.Data.PCARef.ne)
+        rho_index=np.atleast_1d(rho_index)
+        out={'mdl_num':self.molsys.movie.mdlnums[1],
+             'ids':[rs.ids for rs in self.select.repr_sel],
+             'xtc_type':'xtc_bond',
+             'rho_index':rho_index,
+             'file':os.path.join(self.molsys.directory,'xtc_temp')}
+        
+        chimera=self.pca.project.chimera
+        chimera.CMX.add_event(chimera.CMXid,'PCAtraj',out)
+        
+        
+        if self.thread is not None:self.thread.stop()
+        
+        mv=self.molsys.movie
+        cmds=[f'~ribbon #{mv.mdlnums[0]}',f'show #{mv.mdlnums[0]}',
+              f'color #{mv.mdlnums[0]} tan',f'style #{mv.mdlnums[0]} ball']
+        self.molsys.movie.command_line(cmds)
+        
+        self._thread=BondWait(self,frac=frac,nframes=nframes,framerate=framerate,
+                                  scaling=scaling)
+        self._thread.start()
+        
+        self.options.Detectors(rho_index=rho_index)
+        
+        
+        return self
+        
+from threading import Thread
+from time import sleep
+class BondListener(Thread):
+    def __init__(self,movie,**kwargs):
+        super().__init__()
+        self.PCAmovie=movie
+        self.MSmovie=movie.molsys.movie
+        self.conn=movie.molsys.movie.CMX.conn[movie.molsys.movie.CMXid]
+        self.kwargs=kwargs
+        self.cont=True
+    def run(self):
+        out=self.conn.recv()
+        if out[0]=='xtc_request':
+            if out[3]==-1:
+                self.PCAmovie.xtc_rho(rho_index=out[2],**self.kwargs).play_xtc()
+            else:
+                self.PCAmovie.xtc_bond(index=out[3],rho_index=out[2],**self.kwargs).play_xtc()
+            self.MSmovie.command_line(f'coordset #{self.MSmovie.mdlnums[0]} 1,')
+        if self.cont:self.run()
+    def stop(self):
+        self.cont=False
+        
+class BondWait(Thread):
+    def __init__(self,movie,**kwargs):
+        super().__init__()
+        self.PCAmovie=movie
+        self.MSmovie=movie.molsys.movie
+        self.conn=movie.molsys.movie.CMX.conn[movie.molsys.movie.CMXid]
+        self.kwargs=kwargs
+        self.cont=True
+        self.file=os.path.join(self.PCAmovie.molsys.directory,'xtc_temp')
+    def run(self):
+        while self.cont:
+            if os.path.exists(self.file):
+                with open(self.file,'r') as f:
+                    out=f.readline().strip().split()
+                    if out[0]=='xtc_request':
+                        if out[3]==-1:
+                            self.PCAmovie.xtc_rho(rho_index=int(out[2]),**self.kwargs).play_xtc()
+                        else:
+                            self.PCAmovie.xtc_bond(index=int(out[3]),rho_index=int(out[2]),
+                                                   **self.kwargs).play_xtc()
+                        self.MSmovie.command_line(f'coordset #{self.MSmovie.mdlnums[0]} 1,')
+                os.remove(self.file)
+                if 'Detectors' in self.PCAmovie.options.dict:
+                    self.PCAmovie.options.dict.pop('Detectors')
+            sleep(.2)
+    def stop(self):
+        self.cont=False
+            
+        
+    
     
     
 class Options():
@@ -494,9 +704,13 @@ class Options():
 
         """
         
+        R=self.pca_movie.BondRef.R
+        ids=[rs.ids for rs in self.pca_movie.select.repr_sel]
+        
         out=dict(R=R,rho_index=rho_index,ids=ids)
-        # CMXRemote.remove_event(ID,'Detectors')
-        CMXRemote.add_event(ID,'Detectors',out)
+        self.dict['Detectors']=lambda out=out:self.add_event('Detectors',out)
+        return self
+    
     
     def DetFader(self,tau=None,index=None,rho_index=None,remove:bool=False):
         """

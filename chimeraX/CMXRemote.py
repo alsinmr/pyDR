@@ -398,6 +398,41 @@ class CMXRemote():
             cls.conn[ID].send(('valid_models',))
         except:
             print('Connection failed')
+            return []
+        tr=Listen(cls.conn[ID])
+        tr.start()
+        t0=time()
+        while time()-t0<1:
+            if tr.response:
+                return tr.response if isinstance(tr.response,list) else []
+        return []
+    
+    @classmethod
+    def how_many_atoms(cls,ID:int,mdl_num:int)->int:
+        """
+        Queries chimeraX to determine how many atoms are in a given model. 
+        
+        Returns -1 if the model does not exist or does not contain atoms
+        
+        returns session.models[mdl_num].atoms.__len__()
+
+        Parameters
+        ----------
+        ID : int
+            ID of chimeraX session.
+        mdl_num : int
+            Model number (session.models[mdl_num])
+
+        Returns
+        -------
+        int
+            DESCRIPTION.
+
+        """
+        try:
+            cls.conn[ID].send(('how_many_atoms',mdl_num))
+        except:
+            print('Connection failed')
             return None
         tr=Listen(cls.conn[ID])
         tr.start()
@@ -405,8 +440,8 @@ class CMXRemote():
         while time()-t0<1:
             if tr.response:
                 return tr.response
-        return []
-                    
+        return -2
+        
     
 #%% Thread handling        
 class Listen(Thread):

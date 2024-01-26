@@ -582,6 +582,48 @@ class Weighting():
         
         return (PCAfit.R@wt0).flatten() if oneD else PCAfit.R@wt0
     
+    def rho_spec(self,rho_index:int,PCAfit=None,frac:float=0.75):
+        """
+        Determines which principal components account for most of a detector 
+        response for all bonds. By default, we account for 75% (frac=0.75) of 
+        the given bond. 
+        
+        At the moment, we just select N principle components until we account
+        for 75% of the motion. We have considered using some kind of
+        variable function, rather than just a boolean (include/don't include)
+
+        Parameters
+        ----------
+        rho_index : int, optional
+            Index of the detector. If set to None (the default), then this will
+            return the an index to cover the whole timescale range, i.e. all
+            of S2 for that bond
+        PCAfit : TYPE, optional
+            DESCRIPTION. The default is None.
+        frac : float, optional
+            DESCRIPTION. The default is 0.75.
+
+        Returns
+        -------
+        None.
+
+        """
+        if PCAfit is None:PCAfit=self.pca.Data.PCARef
+        A=self.rho_from_PCA(PCAfit)
+        
+        A=self.rho_from_PCA(PCAfit)[rho_index].sum(0).astype(np.float64)
+        A+=np.arange(A.size)*1e-12 #Hack to avoid non-unique values of A
+        
+        Asort,i=np.unique(A,return_inverse=True)
+        N=np.argmax(np.cumsum(Asort[::-1])/A.sum()>frac)+1
+        
+        out=np.zeros(self.pca.nPC,dtype=bool)
+        out[-N:]=True
+        out=out[i]
+        
+        return out
+        
+    
     def bond(self,index:int,rho_index:int=None,PCAfit=None,frac:float=0.75):
         """
         Determines which principal components account for most of a detector 
@@ -612,7 +654,7 @@ class Weighting():
         """
         if PCAfit is None:PCAfit=self.pca.Data.PCARef
         if rho_index is None:
-            A=self.pca.S2m[:,index].astype(np.float64)
+            A=self.pca.S2.Am[:,index].astype(np.float64)
         else:
             A=self.rho_from_PCA(PCAfit)[rho_index][index].astype(np.float64)
 

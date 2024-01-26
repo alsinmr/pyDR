@@ -91,13 +91,15 @@ class MovieSys():
 
     def open_pdb(self):
         """
-        Launches a movie of the stored trajectory in ChimeraX
+        Opens the current pdb in ChimeraX
 
         Returns
         -------
         self
 
         """
+        
+        if self.valid():return self
         
         CMX=self.CMX
         ID=self.CMXid
@@ -108,6 +110,30 @@ class MovieSys():
             pass
         self.mdlnums=CMX.valid_models(ID)[-1],CMX.how_many_models(ID)-1
         return self
+    
+    def valid(self):
+        """
+        Checks if the current model is still open in ChimeraX, as determined
+        by the number of atoms in the model. At the moment, we don't worry if
+        the model is replaced by another with the same number of atoms.
+        
+        If the model still is valid, True is returned
+        
+        If molsys is not currently connected to a model, then False is returned.
+
+        Returns
+        -------
+        bool
+
+        """
+        if self.mdlnums is None:
+            return False
+        
+        n_atoms=self.CMX.how_many_atoms(self.CMXid,self.mdlnums[1])
+        if n_atoms==self.molsys.uni.atoms.__len__():
+            return True
+        return False
+        
         
     def update_traj(self):
         """
@@ -119,6 +145,8 @@ class MovieSys():
         None.
 
         """
+ 
+        
         nm=self.mdlnums[0]
         for file in self.traj.files:self.CMX.send_command(self.CMXid,f'open "{file}" structureModel #{nm}')
         
@@ -149,7 +177,7 @@ class MovieSys():
         self
 
         """
-        if self.mdlnums is None:
+        if not(self.valid()):
             self.open_pdb()
         self.update_traj()
         return self
