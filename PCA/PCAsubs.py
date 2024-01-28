@@ -10,6 +10,7 @@ import numpy as np
 from ..MDtools import Ctcalc
 from .. import clsDict
 from .. import Defaults
+from ..MDtools import vft
 from copy import copy
 import matplotlib.pyplot as plt
 dtype=Defaults['dtype']
@@ -719,7 +720,8 @@ class Weighting():
         
         return out
 
-#%% Impulse response: A last attemp
+#%% Impulse response: A last attempt
+
 class Impulse():
     def __init__(self,pca):
         self.pca=pca
@@ -733,6 +735,12 @@ class Impulse():
             self._PCamp=np.array([a[i0:i0+l2] for a,i0 in zip(self.pca.PCamp,i)])
         return self._PCamp
     
+    @property
+    def v_dev(self):
+        v=vft.norm(self.pca.Vecs.v_mean_pos.T)
+        alpha,beta,gamma=vft.getFrame(v,return_angles=True)
+        
+        
 
 #%% Port various correlation functions to data objects        
 class PCA2Data():
