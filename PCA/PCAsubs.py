@@ -455,6 +455,8 @@ class PCA_S2():
             self._S2m=S20m[1:]/S20m[:-1]
         return self._S2m[self.pca.Ct.tc_rev_index]
     
+
+    
     @property
     def Am(self):
         """
@@ -471,6 +473,54 @@ class PCA_S2():
             S20m=np.concatenate([np.ones((1,self.S20m.shape[1])),self.S20m],axis=0)
             self._Am=S20m[:-1]-S20m[1:]
         return self._Am[self.pca.Ct.tc_rev_index]
+    
+    def S20mCC(self,q):
+        """
+        Calculates the contribution to the total order parameter arising from
+        the mth principal component, noting that we number according to sorting
+        of the correlation times (so zero is the fastest PC, and -1 is the 
+        slowest PC)
+        
+        Note this is the product of all S2 up to mode m
+
+        Returns
+        -------
+        2D array (n PCs x n bonds)
+
+        """
+        
+
+        pca=self.pca
+        d20m=self.d2_0m
+        
+        PC=pca.PCxyz[:,:,pca.Ct.tc_index]
+        Lambda=pca.Lambda[pca.Ct.tc_index]
+        
+                
+        
+        X=np.zeros([pca.PC.shape[1],pca.nbonds])
+        for k in range(3):
+            for j in range(3):
+                P=(pca.mean[pca.sel1index[q],k]-pca.mean[pca.sel2index[q],k])*\
+                    (pca.mean[pca.sel1index,j]-pca.mean[pca.sel2index,j])
+                    
+                    
+                a=Lambda*(PC[k,pca.sel1index[q]]-PC[k,pca.sel2index[q]])*\
+                    (PC[j,pca.sel1index]-PC[j,pca.sel2index])
+                    
+                b=(P+np.cumsum(a.T,axis=0))/np.sqrt(d20m[:,q]*d20m.T).T
+                
+                # b=P/d20m[0]
+                
+                X+=(b**2)
+        S20m=-1/2+3/2*X
+        #Cleanup: make the S20m sorted
+        while np.any(S20m[:-1]<S20m[1:]):
+            i=S20m[:-1]<S20m[1:]
+            S20m[:-1][i]=S20m[1:][i]+1e-7
+            
+            
+        return S20m
     
     def plotS2_direct_v_prod(self,ax=None):
         """
@@ -668,6 +718,20 @@ class Weighting():
         out=out[i]
         
         return out
+
+#%% Impulse response: A last attemp
+class Impulse():
+    def __init__(self,pca):
+        self.pca=pca
+        self._PCamp=None
+        
+    @property
+    def PCamp(self):
+        if self._PCamp is None:
+            l2=self.pca.PCamp.shape[1]//2
+            i=np.argmax(self.pca.PCamp[:,:l2],axis=-1)
+            self._PCamp=np.array([a[i0:i0+l2] for a,i0 in zip(self.pca.PCamp,i)])
+        return self._PCamp
     
 
 #%% Port various correlation functions to data objects        

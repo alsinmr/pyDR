@@ -18,7 +18,7 @@ from .. import clsDict
 from copy import copy,deepcopy
 from ..misc.tools import linear_ex
 from .PCAmovies import PCAmovies
-from .PCAsubs import PCA_Ct,PCA_S2,PCAvecs,PCA2Data,Weighting
+from .PCAsubs import PCA_Ct,PCA_S2,PCAvecs,PCA2Data,Weighting,Impulse
 
 
 
@@ -82,6 +82,12 @@ class PCA():
             self._Weighting=Weighting(self)
         return self._Weighting
     
+    @property
+    def Impulse(self):
+        if self._Impulse is None:
+            self._Impulse=Impulse(self)
+        return self._Impulse
+    
     #%% Misc.
     def clear(self):
         """
@@ -93,7 +99,7 @@ class PCA():
 
         """
         keys=['_pos','_covar','_sel1index','_sel2index','_lambda','_PC','_pcamp','_mean',
-              '_S2','_Ct','_Vecs','_Data','_Movie','_Weighting']
+              '_S2','_Ct','_Vecs','_Data','_Movie','_Weighting','_Impulse']
         for k in keys:setattr(self,k,None)
         return self
     
