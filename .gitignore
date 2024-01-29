@@ -1,5 +1,6 @@
 *.pyc
 *.DS_Store
+*.xtc
 .DS_Store
 .spyproject/**
 calced_data/**
@@ -24,5 +25,4 @@ test.py
 Kai/__pychache__/*
 examples/
 /GUI/designer2py/mplcanvas.py
-.DS_Store
-.DS_Store
+

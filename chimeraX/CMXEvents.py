@@ -60,7 +60,7 @@ class TimescaleIndicator():
         i = self.model.active_coordset_id - 1
         if i != self.i:
             tau = self.tau[i] * 1e3
-            if i == 0:
+            if i == 0 and False:
                 text = '1 s: {:.0f} ps'.format(self.tau[1] * 1e3)
             elif tau < 1e3:
                 text = '1 s: {:.0f} ps'.format(tau)

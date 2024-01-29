@@ -726,19 +726,98 @@ class Impulse():
     def __init__(self,pca):
         self.pca=pca
         self._PCamp=None
+        self._v_dev=None
         
     @property
     def PCamp(self):
+        """
+        PC amplitudes starting from the max or min of each principal component
+        occuring during the first half of the stored trajectory
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
+        """
         if self._PCamp is None:
             l2=self.pca.PCamp.shape[1]//2
-            i=np.argmax(self.pca.PCamp[:,:l2],axis=-1)
+            i=np.argmax(np.abs(self.pca.PCamp[:,:l2]),axis=-1)
             self._PCamp=np.array([a[i0:i0+l2] for a,i0 in zip(self.pca.PCamp,i)])
         return self._PCamp
     
     @property
     def v_dev(self):
-        v=vft.norm(self.pca.Vecs.v_mean_pos.T)
-        alpha,beta,gamma=vft.getFrame(v,return_angles=True)
+        """
+        Vector pointing in the direction of the max deviation of each bond
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
+        """
+        if self._v_dev is None:
+            v0=vft.norm(self.pca.Vecs.v_mean_pos.T)
+            euler=vft.getFrame(v0)
+            v=vft.R(vft.norm(np.swapaxes(self.pca.Vecs.v.T,1,2)),*vft.pass2act(*euler))
+            # v=vft.applyFrame(,nuZ_F=v0)
+            _,beta,gamma=vft.getFrame(v,return_angles=True)
+            beta=beta.mean(0)
+            gamma=np.mod(gamma,np.pi).mean(0)
+            self._v_dev=vft.R(vft.R([0,0,1],0,beta,gamma),*euler)
+            
+        return self._v_dev
+        
+    
+    def sign(self,index:int):
+        """
+        Returns the sign to apply to each principal component to get the Impulse
+        response function for a given bond (puts all PCs in phase)
+
+        Parameters
+        ----------
+        index : int
+            Bond index
+
+        Returns
+        -------
+        np.array
+            Array of 1 or -1 for each principal component.
+
+        """
+        v0=vft.norm((self.pca.Vecs.v_mean_pos[index]+(self.PCamp[:,0]*\
+            (self.pca.PCxyz[:,self.pca.sel1index[index]]-self.pca.PCxyz[:,self.pca.sel2index[index]])).T).T)
+        v1=vft.norm((self.pca.Vecs.v_mean_pos[index]-(self.PCamp[:,0]*\
+            (self.pca.PCxyz[:,self.pca.sel1index[index]]-self.pca.PCxyz[:,self.pca.sel2index[index]])).T).T)
+            
+        vref=self.v_dev[:,index]
+        
+        return (2*np.argmax([(v0.T*vref).sum(1),(v1.T*vref).sum(1)],axis=0)-1)
+    
+    def PCamp_bond(self,index:int):
+        """
+        Returns the PC amplitudes with signs shifted to maximize motion of the
+        selected bond
+
+        Parameters
+        ----------
+        index : int
+            Bond index
+
+        Returns
+        -------
+        np.array
+            Array of amplitudes for each principal component with signs 
+            switched to produced the impulse response
+
+        """
+        
+        return (self.PCamp.T*self.sign(index)).T
+        
+        
+        
+            
         
         
 

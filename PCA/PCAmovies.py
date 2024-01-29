@@ -252,7 +252,7 @@ class PCAmovies():
     #     return self.data.R@wt0
     
     
-    def xtc_from_weight(self,wt,rho_index:int,frac:float=0.75,filename:str='temp.xtc',
+    def xtc_from_weight(self,wt,rho_index:int,filename:str='temp.xtc',
                         nframes:int=150,framerate:int=15,scaling:float=1):
         """
         General function for calculating the xtc from a weighting of principal components
@@ -263,8 +263,6 @@ class PCAmovies():
             DESCRIPTION.
         rho_index : int
             DESCRIPTION.
-        frac : float, optional
-            DESCRIPTION. The default is 0.75.
         filename : str, optional
             DESCRIPTION. The default is 'temp.xtc'.
         nframes : int, optional
@@ -302,6 +300,36 @@ class PCAmovies():
         
         return self
     
+    def xtc_from_PCamp(self,PCamp,rho_index:int,filename:str='temp.xtc',nframes:int=150,
+                       framerate:int=15,scaling:float=1):
+        
+        timescale=self.PCARef.sens.info['z0'][rho_index]
+        step=np.round(10**timescale*1e12/self.PCARef.source.select.traj.dt/framerate).astype(int)
+        step=1
+        if step==0:step=1
+        if step*nframes>PCamp.shape[1]:
+            step=np.round(PCamp.shape[1]/nframes).astype(int)
+        
+        pos=self.pca.mean+scaling*(self.pca.PCxyz@PCamp[:,:nframes*step:step]).T
+        
+        ag=copy(self.pca.atoms)
+        with Writer(filename, n_atoms=len(ag)) as w:
+            for pos0 in pos:
+                # ag.positions=self.pca.mean+((wt[:,k]*self.pca.PCamp[:,i[k]])*self.pca.PCxyz).sum(-1).T
+                ag.positions=pos0
+                w.write(ag)
+                
+        self._xtc=filename
+        
+        self.options.TimescaleIndicator(tau=np.ones(nframes)*step*self.pca.select.traj.dt)
+        
+        return self
+                                      
+                                      
+        
+    
+    
+    
     def xtc_rho(self,rho_index:int,frac:float=0.75,filename:str='temp.xtc',
                       nframes:int=150,framerate:int=15,scaling:float=1):
         """
@@ -330,7 +358,7 @@ class PCAmovies():
         
         wt=self.pca.Weighting.rho_spec(rho_index=rho_index,PCAfit=self.PCARef,frac=frac)
         
-        self.xtc_from_weight(wt=wt,rho_index=rho_index,frac=frac,filename=filename,
+        self.xtc_from_weight(wt=wt,rho_index=rho_index,filename=filename,
                         nframes=nframes,framerate=framerate,scaling=scaling)
         
         return self
@@ -367,6 +395,16 @@ class PCAmovies():
         self.xtc_from_weight(wt=wt,rho_index=rho_index,frac=frac,filename=filename,
                         nframes=nframes,framerate=framerate,scaling=scaling)
 
+        return self
+    
+    def xtc_impulse(self,index:int,rho_index:int,frac:float=0.75,filename:str='temp.xtc',
+                 nframes:int=150,framerate:int=15,scaling:float=1):
+        PCamp=self.pca.Impulse.PCamp_bond(index)
+        wt=self.pca.Weighting.bond(index=index,rho_index=rho_index)
+        
+        self.xtc_from_PCamp(PCamp=(PCamp.T*wt).T, rho_index=rho_index,filename=filename,
+                            nframes=nframes,framerate=framerate,scaling=scaling)
+        
         return self
     
     def xtc_noweight(self,rho_index:int=None,mode_index:int=None,filename:str='temp.xtc',
