@@ -46,21 +46,21 @@ class DetectorFader():
 
 
 class TimescaleIndicator():
-    def __init__(self, cmx, tau):
+    def __init__(self, cmx, tau, mn:int=-1):
         self.cmx = cmx
         self.session = cmx.session
-        self.model = self.session.models[-1]
+        self.model = self.session.models[mn]
         self.tau = tau
         self.i = -1
         self.label = label_create(self.session, 'timescale',  # Create a 2d label
-                                  text='1 s: {:.0f} ps'.format(self.tau[1] * 1e3),
+                                  text='1 s: {:.0f} ps'.format(self.tau[0] * 1e3),
                                   xpos=0.02, ypos=.05, size=50)
 
     def __call__(self):
         i = self.model.active_coordset_id - 1
         if i != self.i:
             tau = self.tau[i] * 1e3
-            if i == 0 and False:
+            if i == 0:
                 text = '1 s: {:.0f} ps'.format(self.tau[1] * 1e3)
             elif tau < 1e3:
                 text = '1 s: {:.0f} ps'.format(tau)

@@ -15,7 +15,7 @@ select=pyDR.MolSelect(topo='/Users/albertsmith/Documents/Dynamics/MDsims/HETs/ba
 
 pca=PCA(select)
 pca.select_bond('15N',resids=np.concatenate([np.arange(225,248),np.arange(261,281)]))
-pca.select_bond('15N')
+# pca.select_bond('15N')
 pca.select_atoms('all')
 
 

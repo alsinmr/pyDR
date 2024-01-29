@@ -251,7 +251,7 @@ class PCAmovies():
         
     #     return self.data.R@wt0
     
-    
+    #%% xtc writers
     def xtc_from_weight(self,wt,rho_index:int,filename:str='temp.xtc',
                         nframes:int=150,framerate:int=15,scaling:float=1):
         """
@@ -304,8 +304,8 @@ class PCAmovies():
                        framerate:int=15,scaling:float=1):
         
         timescale=self.PCARef.sens.info['z0'][rho_index]
-        step=np.round(10**timescale*1e12/self.PCARef.source.select.traj.dt/framerate).astype(int)
-        step=1
+        step=np.round(10**timescale*1e12/self.PCARef.source.select.traj.dt/framerate/3).astype(int)
+        # step=1
         if step==0:step=1
         if step*nframes>PCamp.shape[1]:
             step=np.round(PCamp.shape[1]/nframes).astype(int)
@@ -321,7 +321,7 @@ class PCAmovies():
                 
         self._xtc=filename
         
-        self.options.TimescaleIndicator(tau=np.ones(nframes)*step*self.pca.select.traj.dt)
+        self.options.TimescaleIndicator(tau=np.ones(nframes)*step*self.pca.select.traj.dt/1e3)
         
         return self
                                       
@@ -329,7 +329,7 @@ class PCAmovies():
         
     
     
-    
+    #%% Display modes
     def xtc_rho(self,rho_index:int,frac:float=0.75,filename:str='temp.xtc',
                       nframes:int=150,framerate:int=15,scaling:float=1):
         """
@@ -399,11 +399,13 @@ class PCAmovies():
     
     def xtc_impulse(self,index:int,rho_index:int,frac:float=0.75,filename:str='temp.xtc',
                  nframes:int=150,framerate:int=15,scaling:float=1):
-        PCamp=self.pca.Impulse.PCamp_bond(index)
+        PCamp=self.pca.Impulse.PCamp_bond(index)[:,1:]
         wt=self.pca.Weighting.bond(index=index,rho_index=rho_index)
         
         self.xtc_from_PCamp(PCamp=(PCamp.T*wt).T, rho_index=rho_index,filename=filename,
                             nframes=nframes,framerate=framerate,scaling=scaling)
+        
+        self.options.commands=['~ribbon #{0}','show #{0}']
         
         return self
     
@@ -685,9 +687,21 @@ class Options():
     def __init__(self,pca_movie):
         self.dict={}
         self.pca_movie=pca_movie
-        
+        self._commands=[]
+    
+    @property
+    def commands(self):
+        return self._commands
+    @commands.setter
+    def commands(self,value):
+        if isinstance(value,str):
+            value=[value]
+        assert isinstance(value,list),'Commands must be a list'
+        self._commands=value
+    
     def __call__(self):
         for f in self.dict.values():f()
+        self.run_commands()
     
     def clear(self):
         for k in self.dict:
@@ -708,6 +722,10 @@ class Options():
         
     def remove_event(self,name):
         self.CMX.remove_event(self.CMXid,name)
+        
+    def run_commands(self):
+        for cmd in self.commands:
+            self.CMX.command_line(self.CMXid,cmd.format(self.pca_movie.molsys.movie.mdlnums[0]))
     
     def TimescaleIndicator(self,tau=None,remove:bool=False):
         """
@@ -725,12 +743,15 @@ class Options():
         None.
 
         """
-        if tau is None:tau=10**self.pca_movie.setup['tscale_swp']*1e9
+        
         if remove:
             if __name__ in self.dict:self.dict.pop(__name__)
             return
+        if tau is None:tau=10**self.pca_movie.setup['tscale_swp']*1e9
         if tau is not None:
-            self.dict['TimescaleIndicator']=lambda tau=tau:self.add_event('TimescaleIndicator', tau)
+            self.dict['TimescaleIndicator']=\
+                lambda tau=tau:self.add_event('TimescaleIndicator', tau,
+                                              self.pca_movie.molsys.movie.mdlnums[1])
         return self
     
     def Detectors(self,index=None,rho_index=None,remove:bool=False):
