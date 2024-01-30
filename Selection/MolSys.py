@@ -417,6 +417,7 @@ class Trajectory():
         if name in ['t0','tf','step']:
             value=int(value)
         if name=='tf':
+            if value is None:value=self.__tf
             if value>self.__tf:
                 print(f'Warning: tf={value} is greater than the original trajectory length, setting to {self.__tf}')
                 value=self.__tf

@@ -139,6 +139,13 @@ class PCAmovies():
         return self.select.molsys
     
     @property
+    def mdlnums(self):
+        return self.molsys.movie.mdlnums
+    
+    def command_line(self,cmds):
+        self.molsys.movie.command_line(cmds)
+    
+    @property
     def directory(self):
         """
         Reference to the molsys default directory
@@ -399,7 +406,7 @@ class PCAmovies():
     
     def xtc_impulse(self,index:int,rho_index:int,frac:float=0.75,filename:str='temp.xtc',
                  nframes:int=150,framerate:int=15,scaling:float=1):
-        PCamp=self.pca.Impulse.PCamp_bond(index)[:,1:]
+        PCamp=self.pca.Impulse.PCamp_bond(index)[:,0:]
         wt=self.pca.Weighting.bond(index=index,rho_index=rho_index)
         
         self.xtc_from_PCamp(PCamp=(PCamp.T*wt).T, rho_index=rho_index,filename=filename,
@@ -583,6 +590,7 @@ class PCAmovies():
         self.molsys.new_trajectory(self._xtc)
         self.molsys.movie()
         self.options()
+        self.command_line(f'coordset #{self.mdlnums[0]}')
         
         return self
     
@@ -745,7 +753,8 @@ class Options():
         """
         
         if remove:
-            if __name__ in self.dict:self.dict.pop(__name__)
+            if 'TimescaleIndicator' in self.dict:self.dict.pop('TimescaleIndicator')
+            self.remove_event('TimescaleIndicator')
             return
         if tau is None:tau=10**self.pca_movie.setup['tscale_swp']*1e9
         if tau is not None:
@@ -793,11 +802,14 @@ class Options():
 
         """
         
-        if tau is None:tau=10**self.pca_movie.setup['tscale_swp']
+        
         
         if remove:
-            if __name__ in self.dict:self.dict.pop(__name__)
+            if 'DetFader' in self.dict:self.dict.pop('DetFader')
+            self.remove_event('DetFader')
             return
+        
+        if tau is None:tau=10**self.pca_movie.setup['tscale_swp']
         
         data=self.pca_movie.BondRef
         rhoz=data.sens.rhoz

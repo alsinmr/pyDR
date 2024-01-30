@@ -72,11 +72,10 @@ class MovieSys():
         None.
 
         """
-        if isinstance(cmds,list):
-            for cmd in cmds:
-                self.command_line(cmd)
-            return self
-        self.CMX.send_command(self.CMXid,cmds)
+        if cmds is None:return
+        if isinstance(cmds,str): cmds=[cmds]
+        for cmd in cmds:            
+            self.CMX.send_command(self.CMXid,cmd)
         return self
     
     @property
