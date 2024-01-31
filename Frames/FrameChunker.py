@@ -230,7 +230,7 @@ class Chunk():
     def partial_chunk(self):
         """
         If a chunk was partially completed, this determines how many data
-        objects of that chunk were finised
+        objects of that chunk were finished
 
         Returns
         -------

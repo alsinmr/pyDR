@@ -775,7 +775,7 @@ class MolSelect():
             for i in index:self.del_sel(i)
             return
         
-        for f in ['sel1','sel2','_repr_sel','label']:
+        for f in ['sel1','sel2','_repr_sel','_label']:
             v=getattr(self,f)
             if v is not None and len(v):
                 setattr(self,f,np.delete(v,index))

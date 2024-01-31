@@ -167,7 +167,7 @@ class FrameObj():
         self.__frames_loaded=False #Flag to check if frames currently loaded
         self.include=None #Record of which frames were included in calculation
         self.mode=self.defaults['mode']
-        self.sampling_info={'tf':None,'dt':None,'n':None,'nr':None} #Record the sampling info
+        self.sampling_info={'tf':None,'dt':None,'n':None,'nr':None,'t0':None} #Record the sampling info
         
         self.return_index=ReturnIndex(**self.terms)   
         self.t=None
@@ -351,8 +351,8 @@ class FrameObj():
         tf=len(self.select.traj)
         index=sparse_index(tf,n,nr)
         if self.__frames_loaded:
-            if np.all(self.vecs['index']==index):return
-        self.sampling_info={'tf':tf,'dt':self.select.traj.dt/1e3,'n':n,'nr':nr}
+            if np.all(self.vecs['index']==index) and self.sampling_info['t0']==self.traj.t0:return
+        self.sampling_info={'tf':tf,'dt':self.select.traj.dt/1e3,'n':n,'nr':nr,'t0':self.traj.t0}
         self.vecs=mol2vec(self,index=index)
         self.__frames_loaded=True
         self.include=None   #If new frames loaded, we should re-set what frames used for correlation functions
