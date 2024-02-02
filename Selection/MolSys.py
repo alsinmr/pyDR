@@ -56,6 +56,8 @@ class MolSys():
 
         """
         self._directory=None
+        self._uni=None
+        
         
         if topo is not None and len(topo)==4 and not(os.path.exists(topo)):
             topo=getPDB(topo)
@@ -69,14 +71,14 @@ class MolSys():
                 traj_files=[os.path.abspath(tf) for tf in traj_files]
             else:
                 traj_files=os.path.abspath(traj_files)
-            self._uni=Universe(os.path.abspath(topo),traj_files)
+            self._uni=Universe(os.path.abspath(topo))
         else:
             try:
                 self._uni=Universe(topo)
             except:
                 self._uni=readPDB(topo)
 
-        
+        self._traj_info={'traj_files':traj_files,'t0':t0,'tf':tf,'step':step,'dt':dt}
         self._orig_topo=topo
         
         i=self.uni.atoms.types==''
@@ -99,6 +101,9 @@ class MolSys():
     
     @property
     def traj(self):
+        if self._traj_info['traj_files'] is not None: #Skip loading the trajectory until required
+            self.new_trajectory(**self._traj_info)
+            self._traj_info['traj_files']=None
         return self._traj
     @property
     def topo(self):
@@ -419,7 +424,7 @@ class Trajectory():
         if name=='tf':
             if value is None:value=self.__tf
             if value>self.__tf:
-                print(f'Warning: tf={value} is greater than the original trajectory length, setting to {self.__tf}')
+                # print(f'Warning: tf={value} is greater than the original trajectory length, setting to {self.__tf}')
                 value=self.__tf
             value=(value-1)%self.__tf+1 #Take care of negative indices
             
