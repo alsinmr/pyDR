@@ -42,6 +42,15 @@ class Data():
             assert R.shape[1]==sens.rhoz.shape[0],"Shape of sensitivity object is not consistent with shape of R"
         
         self.R=R if R is not None else np.zeros([0,sens.rhoz.shape[0] if sens else 0],dtype=dtype)
+        
+        if Rstd is None and sens is not None:
+            self.Rstd=np.atleast_2d(sens.info['stdev']).repeat(self.R.shape[0],axis=0).astype(dtype)
+        elif Rstd is None:
+            self.Rstd=np.ones(self.R.shape,dtype=dtype)
+        else:
+            self.Rstd=np.array(Rstd,dtype=dtype)
+        if np.any(self.Rstd==0):
+            print("Rstd cannot contain zero. This will cause fitting to fail")
         self.Rstd=Rstd if Rstd is not None else np.zeros(self.R.shape,dtype=dtype)
         self.S2=np.array(S2) if S2 is not None else None
         self.S2std=np.array(S2std) if S2std is not None else None
