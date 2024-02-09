@@ -49,7 +49,7 @@ class Data():
             self.Rstd=np.ones(self.R.shape,dtype=dtype)
         else:
             self.Rstd=np.array(Rstd,dtype=dtype)
-            sens.info['stdev']=self.Rstd.median(axis=0)
+            sens.info['stdev']=np.median(self.Rstd,axis=0)
         if np.any(self.Rstd==0):
             print("Rstd cannot contain zero. This will cause fitting to fail")
             
