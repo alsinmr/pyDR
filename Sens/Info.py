@@ -145,11 +145,11 @@ class Info():
         """
         x=index
         if isinstance(x,tuple):
-            assert len(x)==2 and not(isinstance(x[0],int)) and isinstance(x[1],int),\
+            assert len(x)==2 and not(isinstance(x[0],int)) and isinstance(x[1],np.integer),\
             "Request either a given parameter (provide the key), a given experiment (provide the index as int), or provide the key,index pair"
             return self.__values[self.keys.index(x[0]),x[1]]
         else:
-            if isinstance(x,int) or (hasattr(x,'dtype') and np.issubdtype(x.dtype,int)):
+            if isinstance(x,int) or (hasattr(x,'dtype') and np.issubdtype(x.dtype,np.integer)):
                 assert x<self.N,"Index must be less than the number of experiments ({0})".format(self.N)
                 return {key:value for key,value in zip(self.keys,self.__values[:,x])}
             elif isinstance(x,slice):
