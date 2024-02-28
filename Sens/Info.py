@@ -183,7 +183,7 @@ class Info():
             self.new_parameter(**{index:value})
             return
         
-        if isinstance(value,dict) and isinstance(index,int):
+        if isinstance(value,dict) and np.issubdtype(np.array(index).dtype, np.integer):
             "Index/dictionary pair: assign values for experiment {index}"
             assert all([k in self.keys for k in value.keys()]),"Unknown parameters found in dictionary"
             for k,v in value.items():self[k,index]=v

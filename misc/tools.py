@@ -34,7 +34,7 @@ class NucInfo(Info):
         with open(dir_path+'/GyroRatio.txt','r') as f:
             for line in f:
                 line=line.strip().split()
-                self.new_exper(Nuc=line[3],mass=float(line[1]),spin=float(line[5]),\
+                self.new_exper(Nuc=line[3],mass=int(line[1]),spin=float(line[5]),\
                                gyro=float(line[6])*muen/h,abundance=float(line[7])/100)
     
     def __call__(self,Nuc=None,info='gyro'):
