@@ -476,7 +476,7 @@ class Trajectory():
             return [self.mda_traj.filename] #Always return a list
     
 class MolSelect():
-    def __init__(self,molsys:MolSys=None,topo:str=None,traj_files:list=None,t0:int=0,tf:int=None,step:int=1,dt:float=None,project=None):
+    def __init__(self,topo:str=None,traj_files:list=None,molsys:MolSys=None,t0:int=0,tf:int=None,step:int=1,dt:float=None,project=None):
         """
         Provide either a MolSys object, or provide a topology file (usually pdb)
         to generate a selection (MolSelect) object. 
@@ -511,6 +511,11 @@ class MolSelect():
 
         """
         assert not(molsys is None and topo is None),'Either molsys or topo must be provided'
+        
+        
+        if isinstance(topo,clsDict['MolSys']):
+            molsys=topo
+            topo=None
         
         if molsys is None:
             molsys=MolSys(topo=topo,traj_files=traj_files,t0=t0,tf=tf,step=step,dt=dt,project=project)
