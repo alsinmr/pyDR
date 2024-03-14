@@ -260,7 +260,7 @@ class PCAmovies():
     
     #%% xtc writers
     def xtc_from_weight(self,wt,rho_index:int,filename:str='temp.xtc',
-                        nframes:int=150,framerate:int=15,scaling:float=1):
+                        nframes:int=150,framerate:int=15,pc_scaling:float=1):
         """
         General function for calculating the xtc from a weighting of principal components
 
@@ -276,7 +276,7 @@ class PCAmovies():
             DESCRIPTION. The default is 150.
         framerate : int, optional
             DESCRIPTION. The default is 15.
-        scaling : float, optional
+        pc_scaling : float, optional
             DESCRIPTION. The default is 1.
 
         Returns
@@ -284,6 +284,7 @@ class PCAmovies():
         None.
 
         """
+        
         
         timescale=self.PCARef.sens.info['z0'][rho_index]
         step=np.round(10**timescale*1e12/self.PCARef.source.select.traj.dt/framerate).astype(int)
@@ -293,7 +294,7 @@ class PCAmovies():
             
         Delta=np.concatenate([np.zeros([wt.sum(),1]),
                               np.diff(self.pca.PCamp[wt,:step*nframes:step],axis=1)],axis=1)
-        pos=self.pca.pos[0]+scaling*np.cumsum(self.pca.PCxyz[:,:,wt]@Delta,axis=-1).T
+        pos=self.pca.pos[0]+pc_scaling*np.cumsum(self.pca.PCxyz[:,:,wt]@Delta,axis=-1).T
         
         
         ag=copy(self.pca.atoms)
@@ -305,10 +306,12 @@ class PCAmovies():
                 
         self._xtc=filename
         
+        
         return self
     
     def xtc_from_PCamp(self,PCamp,rho_index:int,filename:str='temp.xtc',nframes:int=150,
-                       framerate:int=15,scaling:float=1):
+                       framerate:int=15,pc_scaling:float=1):
+        
         
         timescale=self.PCARef.sens.info['z0'][rho_index]
         step=np.round(10**timescale*1e12/self.PCARef.source.select.traj.dt/framerate/3).astype(int)
@@ -317,7 +320,7 @@ class PCAmovies():
         if step*nframes>PCamp.shape[1]:
             step=np.round(PCamp.shape[1]/nframes).astype(int)
         
-        pos=self.pca.mean+scaling*(self.pca.PCxyz@PCamp[:,:nframes*step:step]).T
+        pos=self.pca.mean+pc_scaling*(self.pca.PCxyz@PCamp[:,:nframes*step:step]).T
         
         ag=copy(self.pca.atoms)
         with Writer(filename, n_atoms=len(ag)) as w:
@@ -338,7 +341,7 @@ class PCAmovies():
     
     #%% Display modes
     def xtc_rho(self,rho_index:int,frac:float=0.75,filename:str='temp.xtc',
-                      nframes:int=150,framerate:int=15,scaling:float=1):
+                      nframes:int=150,framerate:int=15,pc_scaling:float=1):
         """
         
 
@@ -354,7 +357,7 @@ class PCAmovies():
             DESCRIPTION. The default is 150.
         framerate : int, optional
             DESCRIPTION. The default is 15.
-        scaling : float, optional
+        pc_scaling : float, optional
             DESCRIPTION. The default is 1.
 
         Returns
@@ -366,12 +369,12 @@ class PCAmovies():
         wt=self.pca.Weighting.rho_spec(rho_index=rho_index,PCAfit=self.PCARef,frac=frac)
         
         self.xtc_from_weight(wt=wt,rho_index=rho_index,filename=filename,
-                        nframes=nframes,framerate=framerate,scaling=scaling)
+                        nframes=nframes,framerate=framerate,pc_scaling=pc_scaling)
         
         return self
     
     def xtc_bond(self,index:int,rho_index:int,frac:float=0.75,filename:str='temp.xtc',
-                 nframes:int=150,framerate:int=15,scaling:float=1):
+                 nframes:int=150,framerate:int=15,pc_scaling:float=1):
         """
         
 
@@ -396,21 +399,22 @@ class PCAmovies():
 
         """
 
+
         
         wt=self.pca.Weighting.bond(index=index,rho_index=rho_index,PCAfit=self.PCARef,frac=frac)
         
-        self.xtc_from_weight(wt=wt,rho_index=rho_index,frac=frac,filename=filename,
-                        nframes=nframes,framerate=framerate,scaling=scaling)
+        self.xtc_from_weight(wt=wt,rho_index=rho_index,filename=filename,
+                        nframes=nframes,framerate=framerate,pc_scaling=pc_scaling)
 
         return self
     
     def xtc_impulse(self,index:int,rho_index:int,frac:float=0.75,filename:str='temp.xtc',
-                 nframes:int=150,framerate:int=15,scaling:float=1):
+                 nframes:int=150,framerate:int=15,pc_scaling:float=1):
         PCamp=self.pca.Impulse.PCamp_bond(index)[:,0:]
         wt=self.pca.Weighting.bond(index=index,rho_index=rho_index)
         
         self.xtc_from_PCamp(PCamp=(PCamp.T*wt).T, rho_index=rho_index,filename=filename,
-                            nframes=nframes,framerate=framerate,scaling=scaling)
+                            nframes=nframes,framerate=framerate,pc_scaling=pc_scaling)
         
         self.options.commands=['~ribbon #{0}','show #{0}']
         
@@ -464,7 +468,7 @@ class PCAmovies():
             
         
     def xtc_mode(self,mode_index,filename:str='temp.xtc',nframes:int=150,
-                 framerate:int=15,scaling:float=1):
+                 framerate:int=15,pc_scaling:float=1):
         """
         Displays a specific mode
 
@@ -494,7 +498,7 @@ class PCAmovies():
             
         Delta=np.concatenate([np.zeros(1),
                   np.diff(self.pca.PCamp[mode_index,:step*nframes:step],axis=0)],axis=0)
-        pos=self.pca.pos[0]+scaling*np.cumsum(np.atleast_3d(self.pca.PCxyz[:,:,mode_index])@\
+        pos=self.pca.pos[0]+pc_scaling*np.cumsum(np.atleast_3d(self.pca.PCxyz[:,:,mode_index])@\
                                       np.atleast_2d(Delta),axis=-1).T
         ag=copy(self.pca.atoms)
         with Writer(filename, n_atoms=len(ag)) as w:
@@ -604,7 +608,7 @@ class PCAmovies():
         
     
     def bond_interactive(self,rho_index=None,frac:float=0.75,
-                 nframes:int=150,framerate:int=15,scaling:float=1):
+                 nframes:int=150,framerate:int=15,scaling:float=1,pc_scaling:float=1):
         self.molsys.movie()
             
         
@@ -629,10 +633,10 @@ class PCAmovies():
         self.molsys.movie.command_line(cmds)
         
         self._thread=BondWait(self,frac=frac,nframes=nframes,framerate=framerate,
-                                  scaling=scaling)
+                                pc_scaling=pc_scaling)
         self._thread.start()
         
-        self.options.Detectors(rho_index=rho_index)
+        self.options.Detectors(rho_index=rho_index,scaling=scaling)
         
         
         return self
@@ -763,7 +767,7 @@ class Options():
                                               self.pca_movie.molsys.movie.mdlnums[1])
         return self
     
-    def Detectors(self,index=None,rho_index=None,remove:bool=False):
+    def Detectors(self,index=None,rho_index:int=None,scaling:float=10,remove:bool=False):
         """
         
 
@@ -776,7 +780,7 @@ class Options():
         R=self.pca_movie.BondRef.R
         ids=[rs.ids for rs in self.pca_movie.select.repr_sel]
         
-        out=dict(R=R,rho_index=rho_index,ids=ids)
+        out=dict(R=R*scaling,rho_index=rho_index,ids=ids)
         self.dict['Detectors']=lambda out=out:self.add_event('Detectors',out)
         return self
     
@@ -802,8 +806,7 @@ class Options():
 
         """
         
-        
-        
+        print('check1')
         if remove:
             if 'DetFader' in self.dict:self.dict.pop('DetFader')
             self.remove_event('DetFader')

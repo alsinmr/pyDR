@@ -239,7 +239,6 @@ class PCAtraj(Detectors):
         file=dct.get('file')
         self.setup(xtc_type,ids,rho_index,file)
         self.mouse_button = QApplication.mouseButtons
-        print('Check4')
         
     def setup(self,xtc_type,ids,rho_index,file):
         cmap = lambda ind: (np.array(get_cmap("tab10")(ind % 10)) * 255).astype(int) 

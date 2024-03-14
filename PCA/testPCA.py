@@ -10,13 +10,19 @@ import pyDR
 import numpy as np
 from pyDR.PCA.PCAclean import PCA
 
-select=pyDR.MolSelect(topo='/Users/albertsmith/Documents/Dynamics/MDsims/HETs/backboneB.pdb',
-                      traj_files='/Users/albertsmith/Documents/Dynamics/MDsims/HETs/backboneB.xtc',step=1,tf=10000)
+# select=pyDR.MolSelect(topo='/Users/albertsmith/Documents/Dynamics/MDsims/HETs/backboneB.pdb',
+#                       traj_files='/Users/albertsmith/Documents/Dynamics/MDsims/HETs/backboneB.xtc',step=1,tf=10000)
+
+
+select=pyDR.MolSelect(topo='/Users/albertsmith/Documents/Dynamics/MDsims.nosync/Y1/prot.pdb',
+                      traj_files='/Users/albertsmith/Documents/Dynamics/MDsims.nosync/Y1/apo1.xtc',
+                      step=1,t0=5900,tf=19150)
+
 
 pca=PCA(select)
-pca.select_bond('15N',resids=np.concatenate([np.arange(225,248),np.arange(261,281)]))
+pca.select_bond('15N')
 # pca.select_bond('15N')
-pca.select_atoms('all')
+pca.select_atoms('name N C CA CB O HN')
 
 
 
