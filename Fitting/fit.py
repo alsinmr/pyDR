@@ -349,6 +349,7 @@ def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,inc
     
     
     op_in_rho=not(data.source.Type=='NMR')  #Order parameter adds to detector responses (order parameter in rho)
+    # op_in_rho=False
     if op_in_rho and np.any(data.sens.rhoz[:,-1]>0.99):
         op_loc=np.argwhere(data.sens.rhoz[:,-1]>0.99)[0,-1]
     else:
@@ -398,9 +399,11 @@ def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,inc
                         A00.append((pinv.T*DelR).sum(1))
                         A00[-1][A00[-1]<0]=0
                         A00[-1][A00[-1]>1]=1
+
                         err.append(((DelR.T-m.T*A00[-1])**2).sum(0))
                     err=np.array(err)
                     i=err.argmin(0)
+
                     A00=np.array(A00).T
                     A[k]=np.array([A00[k][i0] for k,i0 in enumerate(i)])
                     z[k]=zswp[i]
@@ -433,6 +436,7 @@ def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,inc
         Rc+=(linear_ex(data.sens.z,data.sens.rhoz.T,z[m]).T*A[m]).T
     z,A=np.array(z),np.array(A)
     if op_in_rho:
+        A[:,A.sum(0)>1]/=A[:,A.sum(0)>1].sum(0)
         Rc+=np.atleast_2d((1-A.sum(0))).T@np.atleast_2d(data.sens.rhoz[:,-1])
 
     out=copy(data)

@@ -235,7 +235,11 @@ class DataMngr():
                         src_fname=os.path.abspath(src_data)
                 else:
                     if src_data in self.data_objs:
-                        src_fname=os.path.join(self.directory,self.saved_files[self.data_objs.index(src_data)])
+                        file=self.saved_files[self.data_objs.index(src_data)]
+                        if file is None:
+                            src_fname=None
+                        else:
+                            src_fname=os.path.join(self.directory,)
                     else:
                         src_fname=None
                         

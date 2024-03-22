@@ -78,10 +78,12 @@ class PCA_Ct():
             DESCRIPTION.
 
         """
+        
         if self._tcavg is None:
+            dt=self.t[1]
             i=np.argmax(self.Ct<0,axis=1)
-            self._tcavg=np.array([(Ct[:i0]).sum() for Ct,i0 in zip(self.Ct,i)],dtype=np.float64)
-            self._tcavg+=np.arange(len(self._tcavg))*1e-12
+            self._tcavg=np.array([(Ct[:i0]).sum()*dt for Ct,i0 in zip(self.Ct,i)],dtype=np.float64)
+            self._tcavg+=np.arange(len(self._tcavg))*1e-12 #Enforce unique values
         return self._tcavg
     
     @property
@@ -1027,6 +1029,8 @@ class PCA2Data():
     def _raw(self,key):
         """
         Exports a matrix of correlation functions to a data object
+        
+        
 
         Parameters
         ----------
