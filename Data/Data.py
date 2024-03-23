@@ -485,14 +485,14 @@ class Data():
 
         # CMXRemote.send_command(ID,'close')
         
-        print('updated')
         self.select.chimera()
         
         # om=CMXRemote.how_many_models(ID)
         # CMXRemote.send_command(ID,'open "{0}" maxModels 1'.format(self.select.molsys.topo))
         # while om==CMXRemote.how_many_models(ID):
         #     pass
-        # mn=CMXRemote.valid_models(ID)[-1]
+        mn=CMXRemote.valid_models(ID)[-1]
+        CMXRemote.send_command(ID,f'color #{mn} tan')
         # CMXRemote.command_line(ID,'sel #{0}'.format(mn))
 
         # CMXRemote.send_command(ID,'style sel ball')

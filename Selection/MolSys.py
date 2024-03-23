@@ -1051,8 +1051,8 @@ class MolSelect():
                     backbone_only=False
                     break     
         if backbone_only:
-            CMXRemote.send_command(ID,'~show ~(sel&@N,C,CA,C,O,H,HN)')
-            print('checkpont')
+            CMXRemote.send_command(ID,'~show sel')
+            CMXRemote.send_command(ID,'show sel&@N,C,CA,C,O,H,HN')
             
         CMXRemote.send_command(ID,'~sel')
         

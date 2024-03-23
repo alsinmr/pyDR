@@ -821,24 +821,30 @@ class Data_iRED(Data):
             CMXRemote.send_command(ID,'color '+'|'.join(['#{0}/{1}:{2}@{3},'.format(mn,s.segid,s.resid,s.name) for s in sel0])+' black')
             return sel0
         else:
-            # mn=CMXRemote.how_many_models(ID)+1
-            om=CMXRemote.how_many_models(ID)
-            CMXRemote.send_command(ID,'open "{0}"  maxModels 1'.format(self.select.molsys.topo))
-            while om==CMXRemote.how_many_models(ID):
-                pass
-            mn=CMXRemote.valid_models(ID)[-1]
+            # om=CMXRemote.how_many_models(ID)
+            # CMXRemote.send_command(ID,'open "{0}"  maxModels 1'.format(self.select.molsys.topo))
+            # while om==CMXRemote.how_many_models(ID):
+            #     pass
+            # mn=CMXRemote.valid_models(ID)[-1]
             
-            CMXRemote.command_line(ID,'sel #{0}'.format(mn))
+            # CMXRemote.command_line(ID,'sel #{0}'.format(mn))
 
 
-            CMXRemote.send_command(ID,'set bgColor gray')
-            CMXRemote.send_command(ID,'style sel ball')
-            CMXRemote.send_command(ID,'size sel stickRadius 0.2')
-            CMXRemote.send_command(ID,'size sel atomRadius 0.8')
-            CMXRemote.send_command(ID,'~ribbon')
-            CMXRemote.send_command(ID,'show sel')
-            CMXRemote.send_command(ID,'color sel tan')
-            CMXRemote.send_command(ID,'~sel')
+            # CMXRemote.send_command(ID,'set bgColor gray')
+            # CMXRemote.send_command(ID,'style sel ball')
+            # CMXRemote.send_command(ID,'size sel stickRadius 0.2')
+            # CMXRemote.send_command(ID,'size sel atomRadius 0.8')
+            # CMXRemote.send_command(ID,'~ribbon')
+            # CMXRemote.send_command(ID,'show sel')
+            # CMXRemote.send_command(ID,'color sel tan')
+            # CMXRemote.send_command(ID,'~sel')
+            
+            
+
+            self.select.chimera()
+            mn=CMXRemote.valid_models(ID)[-1]
+            CMXRemote.send_command(ID,f'color #{mn} tan')
+                
             
             out=dict(R=R,rho_index=rho_index,ids=ids)
             CMXRemote.add_event(ID,'DetCC',out)
