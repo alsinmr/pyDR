@@ -1041,6 +1041,19 @@ class MolSelect():
         CMXRemote.send_command(ID,'~ribbon')
         CMXRemote.send_command(ID,'show sel')
         CMXRemote.send_command(ID,'color sel tan')
+        
+        
+        backbone_only=True
+        for rs in self.repr_sel:
+            if not(backbone_only):break
+            for name in rs.names:
+                if name not in ['N','HN','CA','H','O','C']:
+                    backbone_only=False
+                    break     
+        if backbone_only:
+            CMXRemote.send_command(ID,'~show ~(sel&@N,C,CA,C,O,H,HN)')
+            print('checkpont')
+            
         CMXRemote.send_command(ID,'~sel')
         
         if index is None:index=np.arange(len(self))

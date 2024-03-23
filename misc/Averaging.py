@@ -284,7 +284,7 @@ def avgData(data,index:list,wt:list=None):
     
     return out
 
-def avgDataObjs(*args,wt:list=None):
+def avgDataObjs(*args,wt:list=None,incl_src:bool=False):
     """
     Currently a very simple averaging of data objects with identical sizes.
     Labels and selections will come from the first data object. R, S2 will come
@@ -301,6 +301,9 @@ def avgDataObjs(*args,wt:list=None):
     wt : list-like, optional
         Weighting for each data object (length equal to number of data objects).
         Will be automatically normalized to sum to 1
+    incl_src : bool, optional
+        If set to True, the source data will also be averaged and included in the
+        project. Otherwise source data will be set to None
 
     Returns
     -------
@@ -356,8 +359,10 @@ def avgDataObjs(*args,wt:list=None):
         'AvOb_'+out.source.additional_info
         
     #Also average the source data
-    if not(np.any([d.src_data is None for d in data])):
-        out.src_data=avgDataObjs([d.src_data for d in data],wt=wt)
+    if incl_src and not(np.any([d.src_data is None for d in data])):
+        out.src_data=avgDataObjs([d.src_data for d in data],wt=wt,incl_src=incl_src)
+    else:
+        out.src_data=None
         
     #Append results to project
     if data[0].project is not None:data[0].project.append_data(out)

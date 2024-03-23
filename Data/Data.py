@@ -484,23 +484,29 @@ class Data():
 
 
         # CMXRemote.send_command(ID,'close')
-        om=CMXRemote.how_many_models(ID)
-        CMXRemote.send_command(ID,'open "{0}" maxModels 1'.format(self.select.molsys.topo))
-        while om==CMXRemote.how_many_models(ID):
-            pass
-        mn=CMXRemote.valid_models(ID)[-1]
-        CMXRemote.command_line(ID,'sel #{0}'.format(mn))
+        
+        print('updated')
+        self.select.chimera()
+        
+        # om=CMXRemote.how_many_models(ID)
+        # CMXRemote.send_command(ID,'open "{0}" maxModels 1'.format(self.select.molsys.topo))
+        # while om==CMXRemote.how_many_models(ID):
+        #     pass
+        # mn=CMXRemote.valid_models(ID)[-1]
+        # CMXRemote.command_line(ID,'sel #{0}'.format(mn))
 
-        CMXRemote.send_command(ID,'style sel ball')
-        CMXRemote.send_command(ID,'size sel stickRadius 0.2')
-        CMXRemote.send_command(ID,'size sel atomRadius 0.8')
-        CMXRemote.send_command(ID,'~ribbon')
-        CMXRemote.send_command(ID,'show sel')
-        CMXRemote.send_command(ID,'color sel tan')
-        CMXRemote.send_command(ID,'~sel')
+        # CMXRemote.send_command(ID,'style sel ball')
+        # CMXRemote.send_command(ID,'size sel stickRadius 0.2')
+        # CMXRemote.send_command(ID,'size sel atomRadius 0.8')
+        # CMXRemote.send_command(ID,'~ribbon')
+        # CMXRemote.send_command(ID,'show sel')
+        # CMXRemote.send_command(ID,'color sel tan')
+        # CMXRemote.send_command(ID,'~sel')
 
         for cmd in saved_commands:
             CMXRemote.send_command(ID,cmd)
+        
+
 
         out=dict(R=R,rho_index=rho_index,ids=ids)
         # CMXRemote.remove_event(ID,'Detectors')
