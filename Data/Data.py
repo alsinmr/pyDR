@@ -109,6 +109,9 @@ class Data():
         """Special controls for setting particular attributes.
         """
 
+        if name=='chimera':
+            assert False,'Do no do that'
+
         if name == 'sens' and hasattr(self,'detect'):
             if hasattr(value,'opt_pars'):
                 value.lock() #Lock detectors that are assigned as sensitivities
@@ -380,8 +383,8 @@ class Data():
         proj._subproject=True
         proj._parent=self.source.project
         proj._index=np.array([],dtype=int)  #Make an empty subproject
-        proj=proj+obj           #
-        return proj+self
+        proj=proj+self           #
+        return proj+obj
     
     def __radd__(self,obj):
         if obj==0:

@@ -12,7 +12,7 @@ import os
 from multiprocessing.connection import Listener
 from pyDR.chimeraX.chimeraX_funs import get_path,py_line,WrCC,chimera_path,run_command
 from threading import Thread
-from time import time
+from time import time,sleep
 from platform import platform
 from subprocess import Popen,check_output,DEVNULL
 from pyDR import clsDict
@@ -25,6 +25,7 @@ class CMXRemote():
     port0=7000
     rc_port0=60958
     conn=list()
+    # listeners=list()
     closed=list()
     
     
@@ -39,6 +40,7 @@ class CMXRemote():
                 ID=len(cls.ports)
                 cls.PIDs.append(None)
                 cls.conn.append(None)
+                # cls.listeners.append(None)
                 cls.closed.append(True)
                 cls.ports.append(cls.port0+ID)
                 
@@ -89,6 +91,8 @@ class CMXRemote():
             if not(cls.tr.is_alive()):
                 cls.conn[ID]=cls.tr.conn 
                 cls.listener.close()    #Once the connection is made, we close the listener
+                # cls.listeners[ID]=NewListen(cls.conn[ID])
+                # cls.listeners[ID].start()
                 break     #Connection successfully made if we reach this point
         else:
             cls.conn[ID]=None
@@ -117,6 +121,7 @@ class CMXRemote():
                 cls.closed[ID]=True
             if cls.conn[ID] is not None:
                 cls.conn[ID].close()
+                # cls.listeners[ID].stop()
 
     
     @classmethod
@@ -130,6 +135,7 @@ class CMXRemote():
                 if not(cls.conn[ID].closed):
                     cls.command_line(ID,'exit')
                     cls.conn[ID].close()
+                    # cls.listeners[ID].stop()
                 cls.closed[ID]=True
 
     @classmethod
@@ -152,8 +158,9 @@ class CMXRemote():
         tr=Listen(cls.conn[ID])
         tr.start()
         t0=time()
-        while time()-t0<1:
+        while time()-t0<5:
             if tr.response=='still here':
+            # if cls.listeners[ID].response=='still here':
                 return True
         return False
     
@@ -338,8 +345,10 @@ class CMXRemote():
         tr.start()
         t0=time()
         while time()-t0<1:
-            if tr.response:
-                return tr.response
+            out=tr.response
+            # out=cls.listeners[ID].response
+            if out:
+                return out
 #%% Execute function (not in event loop)
     @classmethod
     def run_function(cls,ID,name,*args):
@@ -373,8 +382,10 @@ class CMXRemote():
         tr.start()
         t0=time()
         while time()-t0<1:
-            if tr.response:
-                return tr.response
+            # out=cls.listeners[ID].response
+            out=tr.response
+            if out:
+                return out
         return 0
     
     @classmethod
@@ -403,8 +414,10 @@ class CMXRemote():
         tr.start()
         t0=time()
         while time()-t0<1:
-            if tr.response:
-                return tr.response if isinstance(tr.response,list) else []
+            # out=cls.listeners[ID].response
+            out=tr.response
+            if out:
+                return out if isinstance(out,list) else []
         return []
     
     @classmethod
@@ -438,8 +451,10 @@ class CMXRemote():
         tr.start()
         t0=time()
         while time()-t0<1:
-            if tr.response:
-                return tr.response
+            # out=cls.listeners[ID].response
+            out=tr.response
+            if out:
+                return out
         return -2
         
     
@@ -451,6 +466,40 @@ class Listen(Thread):
         self.response=None
     def run(self):
         self.response=self.conn.recv()
+        
+        
+# class NewListen(Thread):
+#     def __init__(self,conn):
+#         super().__init__()
+#         self.conn=conn
+#         self.response=None
+#         self.running=True
+#     def run(self):
+#         while self.running:
+#             sleep(.1)
+#             try:
+#                 self.response=self.conn.recv()
+#                 for k in range(30):
+#                     if self.response is None:
+#                         break
+#                     sleep(.1)
+                    
+#                 self.response=None
+#             except:
+#                 self.response=None
+#             if self.conn.closed:
+#                 self.stop()
+#     @property
+#     def response(self):
+#         out=self._response
+#         self._response=None
+#         return out
+#     @response.setter
+#     def response(self,response):
+#         self._response=response
+#     def stop(self):
+#         self.running=False
+            
         
  
 class StartThread(Thread):

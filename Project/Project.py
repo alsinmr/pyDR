@@ -611,6 +611,74 @@ class Chimera():
                 self.command_line('move {0} {1} models #{2} coordinateSystem #{3}'.format(\
                                 ax,offset*k,mdl_num,mn))
         self.command_line('view')
+        
+    def CCchimera(self,index=None,rho_index=None,indexCC:int=None,
+                  scaling:float=1,norm:bool=True,offset=None):
+        
+        """
+        Plots the cross correlation of motion for a given detector window in 
+        chimera. 
+
+        Parameters
+        ----------
+        index : list-like, optional
+            Select which residues to plot. The default is None.
+        rho_index : int, optional
+            Select which detector to initially show. The default is None.
+        indexCC : int,optional
+            Select which row of the CC matrix to show. Must be used in combination
+            with rho_index. Note that if index is also used, indexCC is applied
+            AFTER index.
+        scaling : float, optional
+            Scale the display size of the detectors. If not provided, a scaling
+            will be automatically selected based on the size of the detectors.
+            The default is None.
+        norm : bool, optional
+            Normalizes the data to the amplitude of the corresponding detector
+            responses (makes diagonal of CC matrix equal to 1).
+            The default is True
+
+        Returns
+        -------
+        None
+
+        """
+        
+        if self.current is None:self.current=0
+        
+        
+        #A bunch of stuff to try to guess which atoms to align
+        res0=[np.min(d.select.uni.residues.resids) for d in self.project]
+        ress=[np.max([res0[0],r]) for r in res0]
+        i0=[np.argwhere(r==d.select.uni.residues.resids)[0,0] for d,r in zip(self.project,ress)]
+        resl=[len(d.select.uni.residues[i:]) for i,d in zip(i0,self.project)]
+        resl=[np.min([resl[0],r]) for r in resl]
+        resf=[(self.project[0].select.uni.residues.resids[i0[0]+l-1],
+               d.select.uni.residues.resids[i+l-1]) for d,i,l in zip(self.project,i0,resl)]
+
+        for k,d in enumerate(self.project):
+            if not(hasattr(d,'CC')) or d.CC is None:continue
+            if offset is None:
+                offset=np.std(d.select.pos,0)*6
+                # offset[offset!=offset.min()]=0
+                ax=['x','y','z'].pop(np.argmin(offset))
+                offset=offset.min()
+            d.CCchimera(index=index,rho_index=rho_index,indexCC=indexCC,scaling=scaling,
+                        norm=norm)
+            
+            if not(k):
+                mn=self.CMX.valid_models(self.CMXid)[-1]
+            else:
+                mdl_num=self.CMX.valid_models(self.CMXid)[-1]
+                cmds='align #{3}:{4}-{5}@CA toAtoms #{0}:{1}-{2}@CA cutoffDistance 5'.format(\
+                                    mn,ress[k],resf[k][0],mdl_num,ress[k],resf[k][1])
+                self.command_line(cmds)
+            
+                
+            # self.CMX.conn[self.CMXid].send(('shift_position',-1,offset*k))
+                self.command_line('move {0} {1} models #{2} coordinateSystem #{3}'.format(\
+                                ax,offset*k,mdl_num,mn))
+        self.command_line('view')
     
     
     
@@ -808,7 +876,7 @@ class Project():
             super().__setattr__('_directory',value)
             return
 
-        if len(self)==1 and not(hasattr(self.__class__,name)) and hasattr(self[0],name):
+        if len(self)==1 and name!='chimera' and not(hasattr(self.__class__,name)) and hasattr(self[0],name):
             #Only one data object in project, and the data object has attribute name, but the project does not
             setattr(self[0],name,value) #Set the attribute for the data object, not the project
             return
@@ -856,6 +924,13 @@ class Project():
     @property
     def detect(self):
         return DetectMngr(self)
+    
+    #%% Chimera Cross-correlation
+    def CCchimera(self,index=None,rho_index=None,indexCC:int=None,
+                  scaling:float=1,norm:bool=True,offset=None):
+        self.chimera.CCchimera(index=index,rho_index=rho_index,indexCC=indexCC,
+                               scaling=scaling,norm=norm,offset=offset)
+    
     #%% Clear memory
     def clear_memory(self,include_rawMD=False):
         """
@@ -1058,6 +1133,7 @@ class Project():
         if isinstance(index, int) or (hasattr(index,'ndim') and index.ndim==0): #Just return the data object
             assert index < self.__len__(), "index too large for project of length {}".format(self.__len__())
             return self.data[self._index[index]]
+        
         
         if len(self)==0:
             proj=copy(self)

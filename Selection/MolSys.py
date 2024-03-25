@@ -16,6 +16,7 @@ from pyDR import Defaults,clsDict
 from copy import copy
 import os
 from pyDR.Selection.MovieSys import MovieSys
+from time import time
 dtype=Defaults['dtype']
 
 class MolSys():
@@ -209,8 +210,14 @@ class MolSys():
 
 
         CMXRemote.send_command(ID,'open "{0}" maxModels 1'.format(self.topo))
-        mn=CMXRemote.valid_models(ID)[-1]
-        CMXRemote.command_line(ID,'sel #{0}'.format(mn))
+        
+        vm=[]
+        t0=time()
+        while not(vm):
+            vm=CMXRemote.valid_models(ID)
+            assert time()-t0<10,'Timeout occured while opening model in ChimeraX'
+        mn=vm[-1]
+        CMXRemote.command_line(ID,f'sel #{mn}')
 
         CMXRemote.send_command(ID,'style sel ball')
         CMXRemote.send_command(ID,'size sel stickRadius 0.2')

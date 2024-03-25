@@ -47,7 +47,7 @@ class EventManager(Thread):
         return self.cmx.isRunning   #Check if CMXReceiver has been terminated by other means
     
     def run(self):
-        print('Event manager started')
+        # print('Event manager started')
         while self.is_session_alive:
             self.running=True
             sleep(.03)
@@ -60,7 +60,7 @@ class EventManager(Thread):
                         self.cmx._events.pop(name)
         else:
             self.running=False
-            print('Event manager stopped')
+            # print('Event manager stopped')
 
 
 class CMXReceiver():
