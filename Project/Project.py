@@ -239,7 +239,7 @@ class DataMngr():
                         if file is None:
                             src_fname=None
                         else:
-                            src_fname=os.path.join(self.directory,)
+                            src_fname=os.path.join(self.directory,file)
                     else:
                         src_fname=None
                         
