@@ -266,7 +266,7 @@ class MolSys():
         
         folder=os.path.split(self.topo)[0]
         
-        filename='timestep{0}.pdb'.format(self.traj.mda_traj.ts.frame)
+        filename=self.topo.rsplit('.',maxsplit=1)[0]+'_ts{0}.pdb'.format(self.traj.mda_traj.ts.frame)
         filename=os.path.join(folder,filename) if os.access(folder, os.W_OK) else os.path.abspath(filename)
         if len(self.uni.atoms)<100000:
             self.uni.atoms.write(filename)

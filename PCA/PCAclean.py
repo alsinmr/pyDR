@@ -18,7 +18,7 @@ from .. import clsDict
 from copy import copy,deepcopy
 from ..misc.tools import linear_ex
 from .PCAmovies import PCAmovies
-from .PCAsubs import PCA_Ct,PCA_S2,PCAvecs,PCA2Data,Weighting,Impulse
+from .PCAsubs import PCA_Ct,PCA_S2,PCAvecs,PCA2Data,Weighting,Impulse,Hist
 
 
 
@@ -88,6 +88,12 @@ class PCA():
             self._Impulse=Impulse(self)
         return self._Impulse
     
+    @property
+    def Hist(self):
+        if self._Hist is None:
+            self._Hist=Hist(self)
+        return self._Hist
+    
     #%% Misc.
     def clear(self):
         """
@@ -99,7 +105,7 @@ class PCA():
 
         """
         keys=['_pos','_covar','_sel1index','_sel2index','_lambda','_PC','_pcamp','_mean',
-              '_S2','_Ct','_Vecs','_Data','_Movie','_Weighting','_Impulse']
+              '_S2','_Ct','_Vecs','_Data','_Movie','_Weighting','_Impulse','_Hist']
         for k in keys:setattr(self,k,None)
         return self
     
@@ -216,6 +222,8 @@ class PCA():
 
     @property
     def project(self):
+        if self._project is None:
+            self._project=clsDict['Project']()
         return self._project
     
     @project.setter
@@ -300,7 +308,7 @@ class PCA():
         if self._sel2index is None:self.atoms
         return self._sel2index
     
-        
+    #%% Trajectory        
     @property
     def traj(self):
         """
@@ -312,6 +320,11 @@ class PCA():
 
         """
         return self.select.traj
+    
+    #Loading/positions    
+    @property
+    def t(self):
+        return np.arange(len(self.traj))*self.traj.dt*1e-3
     
     @property
     def pos(self):
@@ -343,7 +356,16 @@ class PCA():
             
         atoms=self.atoms
         self.traj.ProgressBar=True
-        pos=np.array([atoms.positions for _ in self.traj])
+        
+        pos=[]
+        ref=self.uni.select_atoms(self.align_ref)
+        self.traj[0]
+        ref0=ref.positions
+        ref0-=ref0.mean(0)
+        for _ in self.traj:
+            pos.append(self.align(ref0,ref,atoms))
+        
+        # pos=np.array([atoms.positions for _ in self.traj])
 
         self._source=clsDict['Source'](Type='PCAmode',select=copy(self.select),filename=self.traj.files,
                       status='raw')
@@ -353,38 +375,57 @@ class PCA():
         if self.sel0 is not None:
             self.source.details.append('PCA sel0 selection with {0} elements'.format(len(self.sel0)))
         
-        self._pos=pos
-        self.align()
+        self._pos=np.array(pos)
+        # self.align(ref)
         self._covar=None #Clears any existing covariance matrix
+    
+    @staticmethod
+    def align(ref0,ref,atoms):
+        ref=ref.positions
+        pos=atoms.positions
         
-    def align(self):
-        ref_group=self.atoms.select_atoms(self.align_ref)
-        if len(ref_group):
-            i=np.digitize(ref_group.indices,self.atoms.indices)-1
-        else:
-            i=np.arange(len(self.atoms))
+        pos-=ref.mean(0)
+        ref-=ref.mean(0)
         
-        pos=self.pos.swapaxes(0,1)
-        pos-=pos[i].mean(0)
-        pos=pos.swapaxes(0,1)
+        H=ref0.T@ref
+        U,S,Vt=svd(H)
+        V=Vt.T
+        Ut=U.T
         
-        # ref=pos.mean(0)
+        R=V@Ut
+        return (R@pos.T).T
         
-        pos_ref=pos[:,i]
-        ref=pos_ref[0]
         
-        for k,pos0 in enumerate(pos_ref):
-            H=pos0.T@ref
+    # def align(self):
+    #     ref_group=self.atoms.select_atoms(self.align_ref)
+    #     if len(ref_group):
+    #         i=np.digitize(ref_group.indices,self.atoms.indices)-1
+    #     else:
+    #         i=np.arange(len(self.atoms))
+        
+    #     pos=self.pos.swapaxes(0,1)
+    #     pos-=pos[i].mean(0)
+    #     pos=pos.swapaxes(0,1)
+        
+    #     # ref=pos.mean(0)
+        
+    #     pos_ref=pos[:,i]
+    #     ref=pos_ref[0]
+        
+    #     for k,pos0 in enumerate(pos_ref):
+    #         H=pos0.T@ref
             
-            U,S,Vt=svd(H)
-            V=Vt.T
-            Ut=U.T
+    #         U,S,Vt=svd(H)
+    #         V=Vt.T
+    #         Ut=U.T
             
-            # d=np.linalg.det(np.dot(V,Ut))
-            R=V@Ut
-            pos[k]=(R@pos[k].T).T
+    #         # d=np.linalg.det(np.dot(V,Ut))
+    #         R=V@Ut
+    #         pos[k]=(R@pos[k].T).T
         
-        self._pos=pos
+    #     self._pos=pos
+    
+    
     
     @property
     def mean(self):
@@ -508,3 +549,5 @@ class PCA():
             mat0=(self.pos-self.mean).reshape([self.pos.shape[0],self.pos.shape[1]*self.pos.shape[2]])
             self._pcamp=(mat0@self.PC).T
         return self._pcamp
+
+    
