@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
+from .. import clsDict
 
 sel_names={'ARG':['CZ','NE'],'HIS':['CG','CB'],'HSD':['CG','CB'],'LYS':['NZ','CE'],
            'ASP':['CG','CB'],'GLU':['CD','CG'],'SER':['OG','CB'],'THR':['CG2','CB'],
@@ -28,6 +29,7 @@ class StateCounter:
         self._sel1=None
         self._sel2=None
         self._included=None
+        self._FrObj=None
         
         return self
         
@@ -108,5 +110,26 @@ class StateCounter:
         if self._included is None:
             if self.sel1 is None:return None
         return self._included
+    
+    @property
+    def FrObj(self):
+        """
+        Returns the frame object for the side chain rotamers
+
+        Returns
+        -------
+        None.
+
+        """
+        if self._FrObj is None:
+            sel=clsDict['MolSelect'](self.select.molsys)
+            sel._mdmode=True
+            sel.sel1=self.sel1
+            sel.sel2=self.sel2
+            self._FrObj=clsDict['FrameObj'](sel)
+            self._FrObj.tensor_frame(sel1=1,sel2=2)
+            
+        return self._FrObj
+            
                 
             
