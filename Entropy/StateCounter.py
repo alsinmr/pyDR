@@ -1,13 +1,22 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from .. import clsDict
+from .. import clsDict,Defaults
+from ..MDtools import vft
+from copy import copy
 
-sel_names={'ARG':['CZ','NE'],'HIS':['CG','CB'],'HSD':['CG','CB'],'LYS':['NZ','CE'],
+
+sel_names={'ARG':['CZ','NE'],'HIS':['CD2','CG'],'HSD':['CD2','CG'],'LYS':['NZ','CE'],
            'ASP':['CG','CB'],'GLU':['CD','CG'],'SER':['OG','CB'],'THR':['CG2','CB'],
-           'ASN':['OD1','CG'],'GLN':['OE1','CD'],'CYS':['SG','CB'],'VAL':['CB','CA'],
+           'ASN':['OD1','CG'],'GLN':['OE1','CD'],'CYS':['SG','CB'],'VAL':['CG1','CB'],
            'ILE':['CD','CG1'],'LEU':['CD1','CG'],'MET':['CE','SD'],'PHE':['CG','CB'],
-           'TYR':['CG','CB'],'TRP':['CG','CB']}
+           'TYR':['CG','CB'],'TRP':['CD1','CG']}
+
+sel_mult={'ARG':[3,3,3,3],'HIS':[2,3],'HSD':[2,3],'LYS':[3,3,3,3],
+          'ASP':[3],'GLU':[3,3],'SER':[3],'THR':[3],
+          'ASN':[2,3],'GLN':[2,3,3],'CYS':[3],'VAL':[3],
+          'ILE':[3,3],'LEU':[3,3],'MET':[3,3,3],'PHE':[3],'TYR':[3],'TRP':[2,3]}
+
 
 class StateCounter:
     def __init__(self,select):
@@ -26,10 +35,12 @@ class StateCounter:
 
         """
         self._resi=None
-        self._sel1=None
-        self._sel2=None
-        self._included=None
+        self._sel=None
+        self._index=None
         self._FrObj=None
+        self._chi_t=None
+        self._vt=None
+        self._mult=None
         
         return self
         
@@ -48,88 +59,362 @@ class StateCounter:
                 
     
     @property
-    def sel1(self):
+    def sel(self):
         """
-        Returns the bond selection (sel1) for defining the rotameric state
+        List of selections that are used to define the vectors required for
+        extracting the sidechain rotamer angles
 
         Returns
         -------
-        numpy array
+        list
+            7-element list of atom groups stepping from the outermost to innermost
+            atoms
 
         """
-        if self._sel1 is None:
-            if self._resi is None:return None
-            self._sel1=[]
-            self._sel2=[]
-            self._included=[]
-            for res in self.resi:
-                self._included.append(False)
-                if res.resname in sel_names:
-                    q=sel_names[res.resname]
-                    if q[0] in res.atoms.names and q[1] in res.atoms.names:
-                        self._included[-1]=True
-                        self._sel1.append(res.atoms[res.atoms.names==q[0]])
-                        self._sel2.append(res.atoms[res.atoms.names==q[1]])
-                    else:
-                        print(f'Residue {res.resname} found in topology, but one or more atoms ({q[0],q[1]}) were not found')
-                        
-            self._sel1=np.sum(self._sel1)
-            self._sel2=np.sum(self._sel2)
-            self._included=np.array(self._included,dtype=bool)
+        if self._sel is None:
+            if self.select.sel1 is None:return []
             
-        return self._sel1
-                         
+            self._sel=[self.select.uni.atoms[:0] for _ in range(7)]
+            self._index=np.zeros([7,len(self.resi)],dtype=bool)
+            
+            for k,resi in enumerate(self._resi):
+                if resi.resname in sel_names:
+                    atoms=get_chain(resi)
+                    for m,(a,b) in enumerate(zip(atoms,self._sel)):
+                        self._sel[m]=b+a
+                        self._index[m,k]=True
+                    
+        return self._sel
+    
     @property
-    def sel2(self):
+    def index(self):
         """
-        Returns the bond selection (sel1) for defining the rotameric state
+        Logical index that specifies for each residue how many of the atoms are
+        defined (from 0 up to 7 atoms)
 
         Returns
         -------
-        numpy array
+        TYPE
+            DESCRIPTION.
 
         """
-        if self._sel2 is None:
-            if self.sel1 is None:return None
-        return self._sel2
+        if self._index is None:
+            if self.sel is None:return np.zeros([7,0],dtype=bool)
+            
+        return self._index
     
     @property
-    def included(self):
+    def mult(self):
         """
-        Returns a boolean index to indicate which residues were included in the
-        entropy calculation
-        
-        e.g. Alanine, glycine, proline have fixed entropies and are therefore
-        omitted. Unrecognized residues are also not included
+        Returns how many possible states exist for each rotamer of each side
+        chain.
 
         Returns
         -------
-        boolean array
+        list
+            4-element list of the number of states existing for each rotamer of
+            each side chain
 
         """
-        if self._included is None:
-            if self.sel1 is None:return None
-        return self._included
+        if self._mult is None:
+            out=[]
+            for k,i in enumerate(self.index[3:]):
+                out.append(np.array([sel_mult[res.resname][k] for res in self.resi[i]],dtype=int))
+            self._mult=out
+        return self._mult
+            
     
     @property
-    def FrObj(self):
+    def v(self):
         """
-        Returns the frame object for the side chain rotamers
+        6-element list of bond vectors, used to extract the sidechain rotamer
+        angles. Bond vectors are corrected for the periodic boundary conditions
+        and normalized.
+
+        Returns
+        -------
+        out : list
+            6-element list of 3xN numpy arrays
+
+        """
+        out=[]
+        for sel0,sel1,i0,i1 in zip(self.sel[:-1],self.sel[1:],self.index[:-1],self.index[1:]):
+            v0=sel0.positions[i1[i0]]-sel1.positions
+            out.append(vft.norm(vft.pbc_corr(v0.T,self.select.box)))
+            
+        return out
+    
+    @property
+    def v_in_frame(self):
+        """
+        4-element list of bond vectors that are given in the frame of the next
+        two bonds inwards
+            *The next bond defines z
+            *One bond further defines the xz plane
+            
+        We store this as just the x and y components, including normalization 
+        to 1.
+
+        Returns
+        -------
+        out : list
+            4-element list of 2xN numpy arrays
+
+        """
+        out=[]
+        for v0,v1,v2,i0,i1,i2 in zip(self.v[:-2],self.v[1:-1],self.v[2:],
+                                     self.index[1:-2],self.index[2:-1],self.index[3:]):
+            v=vft.applyFrame(v0[:,i2[i0]],nuZ_F=v1[:,i2[i1]],nuXZ_F=v2)
+            out.append(v[:2]/np.sqrt(v[0]**2+v[1]**2))
+            
+        return out
+    
+    #%% Functions requiring loading of the trajectory
+    @property
+    def traj(self):
+        return self.select.traj
+    
+    def load(self):
+        """
+        Sweeps through the trajectory and store v_in_frame at each step
 
         Returns
         -------
         None.
 
         """
-        if self._FrObj is None:
-            sel=clsDict['MolSelect'](self.select.molsys)
-            sel._mdmode=True
-            sel.sel1=self.sel1
-            sel.sel2=self.sel2
-            self._FrObj=clsDict['FrameObj'](sel)
-            self._FrObj.tensor_frame(sel1=1,sel2=2)
+        
+        out=[np.zeros([2,v.shape[1],len(self.traj)]) for v in self.v_in_frame]
+        
+        self.traj.ProgressBar=Defaults['ProgressBar']
+        
+        for k,_ in enumerate(self.traj):
+            for m,v in enumerate(self.v_in_frame):
+                out[m][:,:,k]=v
+        self._vt=out
+        
+        self.traj.ProgressBar=False
+        return self
+    
+    @property
+    def vt(self):
+        """
+        Returns the bond vectors in their reference frames for all times in the
+        trajectory
+
+        Returns
+        -------
+        list:
+            4-element list of 3xNxnt numpy arrays
+
+        """
+        if self._vt is None:
+            self.load()
+        return self._vt
+        
+    
+    @property
+    def chi(self):
+        """
+        4-element list of rotamer angles (in degrees)
+
+        Returns
+        -------
+        out : list
+            4-element list of N-element numpy arrays
+
+        """
+        out=[]
+        for v in self.vt:
+            out.append(np.mod(np.arctan2(v[1],v[0])*180/np.pi+180,360))
+        return out
+    
+    @property
+    def v_avg(self):
+        """
+        Returns the time-averaged vector direction for each bond, where before
+        averaging, we rotate vectors with angles greater than 360/mult such that
+        all angles are less than 360/mult
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        out=[]
+        for v,chi,mult in zip(self.vt,self.chi,self.mult):
+            v=copy(v)
             
-        return self._FrObj
+            for q in [2,3]:
+                for angle in [m*360/q for m in range(1,q)]:
+                    i=(np.logical_and(chi.T>=angle,mult==q)).T
+                    v0=v[0,i]*np.cos(2*np.pi/q)+v[1,i]*np.sin(2*np.pi/q)
+                    v1=-v[0,i]*np.sin(2*np.pi/q)+v[1,i]*np.cos(2*np.pi/q)
+                    v[0,i]=v0
+                    v[1,i]=v1
+            v=v.mean(-1)
+            v/=np.sqrt(v[0]**2+v[1]**2) #Renormalization
+            out.append(v)
             
+        return out
+    
+    @property
+    def state(self):
+        """
+        Returns the rotameric state for each sidechain and rotamer
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        state=[]
+        for v,vref0,mult in zip(self.vt,self.v_avg,self.mult):
+            state.append(np.zeros(v.shape[1:],dtype=int))
+            for q in [2,3]:
+                i=mult==q
+                overlap=[]
+                for m in range(q):
+                    angle=2*np.pi*m/q
+                    vref=np.concatenate(([vref0[0,i]*np.cos(angle)-vref0[1,i]*np.sin(angle)],
+                                         [vref0[1,i]*np.sin(angle)+vref0[0,i]*np.cos(angle)]),
+                                        axis=0)
+                    overlap.append(v[0,i].T*vref[0]+v[1,i].T*vref[1])
+                    
+                state[-1][i]=np.argmax(overlap,axis=0).T
+        return state
                 
             
+                    
+            
+    
+
+            
+# Tools for selecting the correct atoms to get rotamers
+                
+
+
+def get_chain(resi=None,atom=None,sel0=None,exclude=None):
+    """
+    Returns the chain of atoms required to calculate rotamers for a given residue
+
+    Parameters
+    ----------
+    resi : MDanalysis residue
+        Residue for desired rotamers
+
+    Returns
+    -------
+    atom group
+        DESCRIPTION.
+
+    """
+    
+    if resi is not None:
+        resname=resi.resname
+        sel0=resi.atoms
+        i=sel0.names==sel_names[resname][0] #This is one bond away from our starting point
+        exclude=[sel0[i][0]]
+        i=sel0.names==sel_names[resname][1] #This is our starting point
+        atom=sel0[i][0]
+    
+    
+    if exclude is None:exclude=[]
+    '''searching a path from a methyl group of a residue down to the C-alpha of the residue
+    returns a list of atoms (mda.Atom) beginning with the Hydrogens of the methyl group and continuing
+    with the carbons of the side chain
+    returns empty list if atom is not a methyl carbon'''
+    final=False
+    def get_bonded():
+        '''it happens, that pdb files do not contain bond information, in that case, we switch to selection
+        by string parsing'''
+        return np.sum(find_bonded([atom],sel0,n=4,d=1.9))
+    
+    a_name=atom.name.lower()
+    if 'c'==a_name and len(exclude):
+        return [atom]
+    elif a_name == "n":
+        return []
+    connected_atoms = []
+    bonded = get_bonded()
+    if len(exclude)==1:
+        if resi is not None:
+            final=True
+            # if not "c"==a_type:
+            #     return []
+        else:
+            return []
+    connected_atoms.append(atom)
+    exclude.append(atom)
+    for a in bonded:
+        if not a in exclude:
+            nxt = get_chain(atom=a,sel0=sel0,exclude=exclude)
+            for b in nxt:
+               connected_atoms.append(b)
+    if len(connected_atoms)>1:
+        if final:
+            return exclude[0]+np.sum(connected_atoms)
+        else:
+            return connected_atoms
+    else:
+        return []  
+
+
+def find_bonded(sel,sel0=None,exclude=None,n=4,sort='dist',d=1.65):
+    """
+    Finds bonded atoms for each input atom in a given selection. Search is based
+    on distance. Default is to define every atom under 1.65 A as bonded. It is 
+    recommended to also provide a second selection (sel0) out of which to search
+    for the bound atoms. If not included, the full MD analysis universe is searched.
+    
+    Note- a list of selections is returned. Sorting may be determined in one
+    of several ways (set sort)
+        'dist':     Sort according to the nearest atoms
+        'mass':     Sort according to the largest atoms first
+        'massi':    Sort according to smallest atoms first (H first)
+        'cchain':   Sort, returing C atoms preferentially (followed by sorting by mass)
+    
+    One may also exclude a set of atoms (exclude), which then will not be returned
+    in the list of bonded atoms. Note that exclude should be a list the same
+    size as sel (either a selection the same size as sel, or a list of selections
+    with a list length equal to the number of atoms in sel)
+    """
+    
+    if not(hasattr(sel,'__len__')):sel=[sel]
+    
+    out=[sel[0].universe.atoms[0:0] for _ in range(n)]  #Empty output
+    
+    if sel0 is None:
+        sel0=sel[0].universe
+    
+    for m,s in enumerate(sel):
+        sel01=sel0.select_atoms('point {0} {1} {2} {3}'.format(*s.position,d))
+        sel01=sel01-s #Exclude self
+        if exclude is not None:
+            sel01=sel01-exclude[m]
+        if sort[0].lower()=='d':
+            i=np.argsort(((sel01.positions-s.position)**2).sum(axis=1))
+        elif sort[0].lower()=='c':
+            C=np.array([s.name[0]=='C' for s in sel01])
+#            C=sel01.type=='C'
+            nC=np.logical_not(C)
+            i1=np.argsort(sel01[nC].masses)[::-1]
+            C=np.argwhere(C)[:,0]
+            nC=np.argwhere(nC)[:,0]
+            i=np.concatenate((C,nC[i1]))
+        elif sort.lower()=='massi':
+            i=np.argsort(sel01.masses)
+        else:
+            i=np.argsort(sel01.masses)[::-1]
+        sel01=sel01[i]
+        for k in range(n):
+            if len(sel01)>k:
+                out[k]+=sel01[k]
+            else:
+                #Append self if we don't find enough bound atoms
+                out[k]+=s #Why do we do this? Here we add the original selection where no bonds are found....very strange, I think.
+                #Apparently, this breaks find_methyl without the above line.
+                # pass           
+    return out           
