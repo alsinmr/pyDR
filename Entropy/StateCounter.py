@@ -3,7 +3,9 @@
 import numpy as np
 from .. import clsDict,Defaults
 from ..MDtools import vft
+from ..misc.tools import AA
 from copy import copy
+import matplotlib.pyplot as plt
 
 
 sel_names={'ARG':['CZ','NE'],'HIS':['CD2','CG'],'HSD':['CD2','CG'],'LYS':['NZ','CE'],
@@ -19,6 +21,8 @@ sel_mult={'ARG':[3,3,3,3],'HIS':[2,3],'HSD':[2,3],'LYS':[3,3,3,3],
 
 
 class StateCounter:
+    R=8.31446261815324 #J/mol/K
+    
     def __init__(self,select):
         self.select=select
         
@@ -38,9 +42,16 @@ class StateCounter:
         self._sel=None
         self._index=None
         self._FrObj=None
-        self._chi_t=None
         self._vt=None
+        self._chi=None
+        self._v_avg=None
+        self._state=None
+        self._state0=None
         self._mult=None
+        self._Sres=None
+        self._CCstate=None
+        self._Scc=None
+        self._CC=None
         
         return self
         
@@ -56,6 +67,12 @@ class StateCounter:
             self._resi=np.array(self._resi,dtype=object)
             
         return self._resi
+    
+    @property
+    def N(self):
+        if self.resi is None:return 0
+        return len(self.resi)
+    
                 
     
     @property
@@ -75,7 +92,7 @@ class StateCounter:
             if self.select.sel1 is None:return []
             
             self._sel=[self.select.uni.atoms[:0] for _ in range(7)]
-            self._index=np.zeros([7,len(self.resi)],dtype=bool)
+            self._index=np.zeros([7,self.N],dtype=bool)
             
             for k,resi in enumerate(self._resi):
                 if resi.resname in sel_names:
@@ -122,6 +139,23 @@ class StateCounter:
                 out.append(np.array([sel_mult[res.resname][k] for res in self.resi[i]],dtype=int))
             self._mult=out
         return self._mult
+    
+    @property
+    def total_mult(self):
+        """
+        Returns the total number of states for each residue, that is, the product
+        of multiplicity of each rotamer of the side chain.
+        
+        Returns
+        -------
+        None.
+
+        """
+        out=np.ones(self.N,dtype=int)
+        
+        for mult,i in zip(self.mult,self.index[3:]):
+            out[i]*=mult
+        return out
             
     
     @property
@@ -224,10 +258,12 @@ class StateCounter:
             4-element list of N-element numpy arrays
 
         """
-        out=[]
-        for v in self.vt:
-            out.append(np.mod(np.arctan2(v[1],v[0])*180/np.pi+180,360))
-        return out
+        if self._chi is None:
+            out=[]
+            for v in self.vt:
+                out.append(np.mod(np.arctan2(v[1],v[0])*180/np.pi+180,360))
+            self._chi=out
+        return self._chi
     
     @property
     def v_avg(self):
@@ -242,25 +278,27 @@ class StateCounter:
 
         """
         
-        out=[]
-        for v,chi,mult in zip(self.vt,self.chi,self.mult):
-            v=copy(v)
+        if self._v_avg is None:
+            out=[]
+            for v,chi,mult in zip(self.vt,self.chi,self.mult):
+                v=copy(v)
+                
+                for q in [2,3]:
+                    for angle in [m*360/q for m in range(1,q)]:
+                        i=(np.logical_and(chi.T>=angle,mult==q)).T
+                        v0=v[0,i]*np.cos(2*np.pi/q)+v[1,i]*np.sin(2*np.pi/q)
+                        v1=-v[0,i]*np.sin(2*np.pi/q)+v[1,i]*np.cos(2*np.pi/q)
+                        v[0,i]=v0
+                        v[1,i]=v1
+                v=v.mean(-1)
+                v/=np.sqrt(v[0]**2+v[1]**2) #Renormalization
+                out.append(v)
+            self._v_avg=out
             
-            for q in [2,3]:
-                for angle in [m*360/q for m in range(1,q)]:
-                    i=(np.logical_and(chi.T>=angle,mult==q)).T
-                    v0=v[0,i]*np.cos(2*np.pi/q)+v[1,i]*np.sin(2*np.pi/q)
-                    v1=-v[0,i]*np.sin(2*np.pi/q)+v[1,i]*np.cos(2*np.pi/q)
-                    v[0,i]=v0
-                    v[1,i]=v1
-            v=v.mean(-1)
-            v/=np.sqrt(v[0]**2+v[1]**2) #Renormalization
-            out.append(v)
-            
-        return out
+        return self._v_avg
     
     @property
-    def state(self):
+    def state0(self):
         """
         Returns the rotameric state for each sidechain and rotamer
 
@@ -269,28 +307,168 @@ class StateCounter:
         None.
 
         """
-        
-        state=[]
-        for v,vref0,mult in zip(self.vt,self.v_avg,self.mult):
-            state.append(np.zeros(v.shape[1:],dtype=int))
-            for q in [2,3]:
-                i=mult==q
-                overlap=[]
-                for m in range(q):
-                    angle=2*np.pi*m/q
-                    vref=np.concatenate(([vref0[0,i]*np.cos(angle)-vref0[1,i]*np.sin(angle)],
-                                         [vref0[1,i]*np.sin(angle)+vref0[0,i]*np.cos(angle)]),
-                                        axis=0)
-                    overlap.append(v[0,i].T*vref[0]+v[1,i].T*vref[1])
-                    
-                state[-1][i]=np.argmax(overlap,axis=0).T
-        return state
+        if self._state0 is None:
+            state=[]
+            for v,vref0,mult in zip(self.vt,self.v_avg,self.mult):
+                state.append(np.zeros(v.shape[1:],dtype=int))
+                for q in [2,3]:
+                    i=mult==q
+                    overlap=[]
+                    for m in range(q):
+                        angle=2*np.pi*m/q
+                        vref=np.concatenate(([vref0[0,i]*np.cos(angle)-vref0[1,i]*np.sin(angle)],
+                                             [vref0[1,i]*np.sin(angle)+vref0[0,i]*np.cos(angle)]),
+                                            axis=0)
+                        overlap.append(v[0,i].T*vref[0]+v[1,i].T*vref[1])
+                        
+                    state[-1][i]=np.argmax(overlap,axis=0).T
+            self._state0=state
+        return self._state0
+    
+    @property
+    def state(self):
+        """
+        Returns an index for each residue and timepoint, indicating the rotameric
+        state for that residue
+
+        Returns
+        -------
+        state : TYPE
+            DESCRIPTION.
+
+        """
+        if self._state is None:
+            x=[np.ones(self.N,dtype=int)]
+            for mult,i in zip(self.mult[:-1],self.index[3:]):
+                x.append(copy(x[-1]))
+                x[-1][i]*=mult
                 
+            state=np.zeros([self.N,self.state0[0].shape[1]],dtype=int)
+            for state0,x0,i in zip(self.state0,x,self.index[3:]):
+                state[i]+=(x0[i]*state0.T).T
+            self._state=state
             
-                    
+        return self._state
+    
+    @property
+    def CCstate(self):
+        """
+        Returns the states for all pairs of residues, which can then be used in
+        CC analysis
+
+        Returns
+        -------
+        np.array
+
+        """
+        if self._CCstate is None:
+            out=np.zeros([self.N,self.N,self.state.shape[1]],dtype=int)
+            
+            for k,(tm,state) in enumerate(zip(self.total_mult,self.state)):
+                out[k]=state+tm*self.state
+            self._CCstate=out
+        return self._CCstate
             
     
+    #%% Entropy calculations
+    @property
+    def Sres(self):
+        """
+        Returns the entropy of individual side chains (J*mol^-1*K^-1)
 
+        Returns
+        -------
+        np.array
+
+        """
+        if self._Sres is None:
+            S=np.zeros(self.N)
+            state=self.state
+            for k in range(self.total_mult.max()):
+                p=(state==k).mean(-1)
+                i=p>0
+                S[i]-=p[i]*np.log(p[i])
+                
+            self._Sres=S*self.R
+        return self._Sres
+            
+    @property
+    def Scc(self):
+        """
+        Returns the pairwise entropy for sidechains (J*mol^-1*K^-1)
+
+        Returns
+        -------
+        np.array
+
+        """
+        if self._Scc is None:
+            S=np.zeros([self.N,self.N])
+            state=self.CCstate
+            Nt=self.state.shape[1]
+            for k in range(self.N):
+                for j in range(k,self.N):
+                    p=np.unique(self.CCstate[k,j],return_counts=True)[1]/Nt
+                    S[k,j]=-(p*np.log(p)).sum()
+                    S[j,k]=S[k,j]
+                
+            self._Scc=S*self.R
+        return self._Scc
+    
+    @property
+    def CC(self):
+        """
+        Returns the correlation coefficients between residues, which varies
+        between 0 and 1
+
+        Returns
+        -------
+        np.array
+
+        """
+        if self._CC is None:
+            bottom=np.zeros([self.N,self.N])
+            bottom+=self.Sres
+            bottom=bottom.T+self.Sres
+            top=2*bottom-2*self.Scc
+            self._CC=top/bottom
+        return self._CC
+    
+    #%% Plotting
+    def plotCC(self,ax=None,**kwargs):
+        
+        if ax is None:ax=plt.subplots()[1]
+        
+        if 'cmap' not in kwargs:
+            kwargs['cmap']='cool'
+        CC=copy(self.CC)
+        CC-=np.diag(np.diag(CC))
+        hdl=ax.imshow(CC,**kwargs)
+        ax.figure.colorbar(hdl,ax=ax)
+        kwargs['cmap']='binary'
+        # ax.imshow(np.eye(self.N),**kwargs)
+        
+        label=[]
+        for resi in self.resi:
+            if resi.resname.capitalize() in AA.codes:
+                label.append(f'{AA(resi.resname).symbol}{resi.resid}')
+            else:
+                label.append(f'X{resi.resid}')
+            
+        
+        def format_func(value,tick_number):
+            if int(value)>=len(label) or int(value)<0:return ''
+            return label[int(value)]
+        
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(format_func))
+        ax.tick_params(axis='x', labelrotation=90)
+        
+        return ax
+        
+        
+        
+    
             
 # Tools for selecting the correct atoms to get rotamers
                 

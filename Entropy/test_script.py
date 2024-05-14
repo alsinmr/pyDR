@@ -23,6 +23,7 @@ else:
 
 select=pyDR.MolSelect(topo,traj,project=proj)
 select.select_bond('15N')
+select.traj.step=10
 
 SC=StateCounter(select)
 

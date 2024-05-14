@@ -1,3 +1,3 @@
 # -*- coding: utf-8 -*-
 
-from StateCounter import StateCounter
+from ..Entropy.StateCounter import StateCounter
