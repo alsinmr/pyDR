@@ -10,7 +10,7 @@ from pyDR.Entropy.StateCounter import StateCounter
 proj=pyDR.Project()
 
 
-if os.path.exists('Volumes/My Book/'):
+if os.path.exists('/Volumes/My Book/'):
     md_dir='/Volumes/My Book/Y1/apo'
     
     topo=os.path.join(md_dir,'prot.pdb')
@@ -23,7 +23,8 @@ else:
 
 select=pyDR.MolSelect(topo,traj,project=proj)
 select.select_bond('15N')
-select.traj.step=10
+select.traj.step=1
 
 SC=StateCounter(select)
 
+SC.plotCC()

@@ -7,6 +7,8 @@ from ..misc.tools import AA
 from copy import copy
 import matplotlib.pyplot as plt
 
+from matplotlib.colors import ListedColormap
+
 
 sel_names={'ARG':['CZ','NE'],'HIS':['CD2','CG'],'HSD':['CD2','CG'],'LYS':['NZ','CE'],
            'ASP':['CG','CB'],'GLU':['CD','CG'],'SER':['OG','CB'],'THR':['CG2','CB'],
@@ -52,6 +54,7 @@ class StateCounter:
         self._CCstate=None
         self._Scc=None
         self._CC=None
+        self._DelS=None
         
         return self
         
@@ -97,6 +100,9 @@ class StateCounter:
             for k,resi in enumerate(self._resi):
                 if resi.resname in sel_names:
                     atoms=get_chain(resi)
+                    if len(atoms)-3!=len(sel_mult[resi.resname]):
+                        print(resi)
+                        print(atoms.names)
                     for m,(a,b) in enumerate(zip(atoms,self._sel)):
                         self._sel[m]=b+a
                         self._index[m,k]=True
@@ -434,22 +440,142 @@ class StateCounter:
             self._CC=top/bottom
         return self._CC
     
-    #%% Plotting
-    def plotCC(self,ax=None,**kwargs):
+    @property
+    def Smax(self):
+        """
+        Returns the maximum possible entropy for each sidechain, resulting
+        from uniform distribution of orientations.
+
+        Returns
+        -------
+        np.array
+
+        """
+        return np.log(self.total_mult)*self.R
         
-        if ax is None:ax=plt.subplots()[1]
+    @property
+    def DelS(self):
+        """
+        Returns the change in the total entropy resulting from a given residue
+        being removed from the system.
+
+        Returns
+        -------
+        None.
+
+        """
+        x=np.cumsum([self.total_mult])
+    
+    #%% Plotting
+    
+    def plotCC(self,index=None,ax=None,CCsum:bool=True,**kwargs):
+        """
+        Make a CC plot for all residue pairs
+
+        Parameters
+        ----------
+        index : np.array, optional
+            Index of residues to include. The default is None (all residues).
+        ax : matplotlib axis, optional
+            Axis to use for plot. The default is None.
+        **kwargs : TYPE
+            Keyword arguments passed to plt.imshow
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
+        """
+        
+        if index is None:index=np.ones(self.N,dtype=bool)
+        if ax is None:
+            ax=plt.subplots()[1]
+
         
         if 'cmap' not in kwargs:
-            kwargs['cmap']='cool'
+            kwargs['cmap']='binary'
         CC=copy(self.CC)
         CC-=np.diag(np.diag(CC))
-        hdl=ax.imshow(CC,**kwargs)
-        ax.figure.colorbar(hdl,ax=ax)
-        kwargs['cmap']='binary'
-        # ax.imshow(np.eye(self.N),**kwargs)
+        npts=CC[index][:,index].shape[0]
+        ax.imshow(CC[index][:,index],**kwargs)
         
+        
+
+        cmap0=plt.get_cmap('binary')
+        cmap=cmap0(np.arange(cmap0.N))
+        cmap[:,-1]=np.linspace(0,1,cmap0.N)
+        cmap=ListedColormap(cmap)
+        kwargs['cmap']=cmap
+        
+        ax.imshow(np.eye(npts),**kwargs)
+        
+        
+        if CCsum:
+            x=CC[index].sum(0)
+            x/=x[np.logical_not(np.isnan(x))].max()/30
+            print(x)
+            ax.plot(-x-npts/7,np.arange(npts),color='black',clip_on=False)
+             
+        hdl=ax.imshow(CC[index][:,index],**kwargs)
+        ax2=ax.figure.add_subplot(3,1,3)
+        ax2.set_position([.9,.125,.01,.85])
+        
+        hdl=ax.figure.colorbar(hdl,ax=ax,cax=ax2)
+        hdl.set_label('C.C')
+        # ax.set_position([.2,.125,.85,.85])
+    
+        ax.xaxis.set_major_formatter(self._axis_formatter(index))
+        ax.yaxis.set_major_formatter(self._axis_formatter(index))
+        ax.tick_params(axis='x', labelrotation=90)
+        # ax.set_aspect('equal')
+        if CCsum:
+            ax.set_position([.12,.125,.85,.85])
+        else:
+            ax.set_position([.05,.125,.85,.85])
+        
+        return ax
+    
+    def plotS(self,index=None,Smax:bool=True,ax=None,**kwargs):
+        """
+        Plot the entropy for each residue. By default, also shows the max
+        entropy for each residue
+
+        Parameters
+        ----------
+        index : np.array, optional
+            Index of residues to include. The default is None (all residues).
+        Smax : bool, optional
+            Include a plot of the maximum S. The default is True.
+        ax : matplotlib axis, optional
+            Axis to use for plot. The default is None.
+        **kwargs : TYPE
+            Keyword arguments passed to plt.bar
+
+        Returns
+        -------
+        None.
+
+        """
+        if index is None:index=np.ones(self.N,dtype=bool)
+        if ax is None:ax=plt.subplots()[1]
+        
+        color=kwargs.pop('color') if 'color' in kwargs else 'steelblue'
+        
+        if Smax:
+            x=self.Smax[index]
+            ax.bar(np.arange(len(x)),x,color='silver',**kwargs)
+        x=self.Sres[index]
+        ax.bar(np.arange(len(x)),x,color=color,**kwargs)
+        ax.xaxis.set_major_formatter(self._axis_formatter(index))
+        ax.tick_params(axis='x', labelrotation=90)
+        ax.set_ylabel(r'S$_{res}$ / J*mol$^{-1}$*K$^{-1}$')
+        
+        return ax
+    
+    def _axis_formatter(self,index):
         label=[]
-        for resi in self.resi:
+        for resi in self.resi[index]:
             if resi.resname.capitalize() in AA.codes:
                 label.append(f'{AA(resi.resname).symbol}{resi.resid}')
             else:
@@ -460,11 +586,8 @@ class StateCounter:
             if int(value)>=len(label) or int(value)<0:return ''
             return label[int(value)]
         
-        ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
-        ax.yaxis.set_major_formatter(plt.FuncFormatter(format_func))
-        ax.tick_params(axis='x', labelrotation=90)
+        return plt.FuncFormatter(format_func)
         
-        return ax
         
         
         
@@ -492,7 +615,7 @@ def get_chain(resi=None,atom=None,sel0=None,exclude=None):
     
     if resi is not None:
         resname=resi.resname
-        sel0=resi.atoms
+        sel0=resi.atoms-resi.atoms[[name[0]=='H' for name in resi.atoms.names]]
         i=sel0.names==sel_names[resname][0] #This is one bond away from our starting point
         exclude=[sel0[i][0]]
         i=sel0.names==sel_names[resname][1] #This is our starting point
