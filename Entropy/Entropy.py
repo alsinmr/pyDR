@@ -22,11 +22,12 @@ sel_mult={'ARG':[3,3,3,3],'HIS':[2,3],'HSD':[2,3],'LYS':[3,3,3,3],
           'ILE':[3,3],'LEU':[3,3],'MET':[3,3,3],'PHE':[3],'TYR':[3],'TRP':[2,3]}
 
 
-class StateCounter:
+class EntropyCC:
     R=8.31446261815324 #J/mol/K
     
     def __init__(self,select):
-        self.select=select
+        self.select=copy(select)
+        self.select.molsys._traj=copy(select.traj)
         
         self.reset()
         
@@ -41,6 +42,7 @@ class StateCounter:
 
         """
         self._resi=None
+        self._resid=None
         self._sel=None
         self._index=None
         self._FrObj=None
@@ -56,6 +58,8 @@ class StateCounter:
         self._CC=None
         self._DelS=None
         
+        self.project=self.select.project
+        
         return self
         
     @property
@@ -64,12 +68,21 @@ class StateCounter:
             if self.select.sel1 is None:return None
             
             self._resi=[]
+            self._resids=[]
             for s in self.select.sel1:
                 self._resi.append(s.residues[0])
+                self._resids.append(self._resi[-1].resid)
+            self.select.repr_sel=[r.atoms.select_atoms('not name H*') for r in self._resi]
                 
             self._resi=np.array(self._resi,dtype=object)
+            self._resids=np.array(self._resids,dtype=int)
             
         return self._resi
+    
+    @property
+    def resids(self):
+        if self.resi is None:return None
+        return self._resids
     
     @property
     def N(self):
@@ -102,7 +115,7 @@ class StateCounter:
                     atoms=get_chain(resi)
                     if len(atoms)-3!=len(sel_mult[resi.resname]):
                         print(resi)
-                        print(atoms.names)
+                        for a in atoms:print(a.names)
                     for m,(a,b) in enumerate(zip(atoms,self._sel)):
                         self._sel[m]=b+a
                         self._index[m,k]=True
@@ -510,11 +523,12 @@ class StateCounter:
         
         ax.imshow(np.eye(npts),**kwargs)
         
+        # plt.rcParams['figure.constrained_layout.use']=True
+        
         
         if CCsum:
             x=CC[index].sum(0)
             x/=x[np.logical_not(np.isnan(x))].max()/30
-            print(x)
             ax.plot(-x-npts/7,np.arange(npts),color='black',clip_on=False)
              
         hdl=ax.imshow(CC[index][:,index],**kwargs)
@@ -528,7 +542,7 @@ class StateCounter:
         ax.xaxis.set_major_formatter(self._axis_formatter(index))
         ax.yaxis.set_major_formatter(self._axis_formatter(index))
         ax.tick_params(axis='x', labelrotation=90)
-        # ax.set_aspect('equal')
+        # ax.set_aspect('auto')
         if CCsum:
             ax.set_position([.12,.125,.85,.85])
         else:
@@ -587,6 +601,139 @@ class StateCounter:
             return label[int(value)]
         
         return plt.FuncFormatter(format_func)
+    
+#%% Chimera functions
+    def chimera(self,index=None,scaling:float=None,norm:bool=True,color=[1,0,0,1]):
+        """
+        Plots the entopy (or normalized entropy, relative to max possible entropy)
+        of each side chain onto the molcule
+
+        Parameters
+        ----------
+        index : np.array, optional
+            Index which sidechains to show. The default is None.
+        scaling : float, optional
+            Scale the radii from the entropy. The default is None.
+        norm : bool, optional
+            Normalize relative to the maximum possible entropy. The default is True.
+        color : tuple, optional
+            Color of spheres. The default is [1,0,0,1].
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        if norm:
+            n=copy(self.Smax)
+            n[n==0]=1
+            x=self.Sres/n
+        else:
+            x=copy(self.Sres)
+        x[np.isnan(x)]=0
+
+        if scaling is None:scaling=1/x.max()
+        
+        x*=scaling
+        
+        self.select.chimera(x=x,index=index,color=color)
+        
+        
+        
+        CMXRemote=clsDict['CMXRemote']
+        if self.project is not None:
+            ID=self.project.chimera.CMXid
+            if ID is None:
+                self.project.chimera.current=0
+                ID=self.project.chimera.CMXid
+        else:
+            ID=CMXRemote.launch()
+        mn=CMXRemote.valid_models(ID)[-1]    
+        CMXRemote.send_command(ID,f'ribbon #{mn}')
+        CMXRemote.send_command(ID,f'show #{mn}&~@H*&~:GLY,ALA,PRO')
+        
+            
+    def CCchimera(self,index=None,indexCC:int=None,scaling:float=None,norm:bool=True) -> None:
+        """
+        Plots the cross correlation of motion for a given detector window in 
+        chimera. 
+    
+        Parameters
+        ----------
+        index : list-like, optional
+            Select which residues to plot. The default is None.
+        indexCC : int,optional
+            Select which row of the CC matrix to show. Must be used in combination
+            with rho_index. Note that if index is also used, indexCC is applied
+            AFTER index.
+        scaling : float, optional
+            Scale the display size of the detectors. If not provided, a scaling
+            will be automatically selected based on the size of the detectors.
+            The default is None.
+        norm : bool, optional
+            Normalizes the data to the amplitude of the corresponding CC coeffiecent 
+            (makes diagonal of CC matrix equal to 1).
+            The default is True
+    
+        Returns
+        -------
+        None
+    
+        """
+        
+        CMXRemote=clsDict['CMXRemote']
+    
+        index=np.arange(self.CC.shape[0]) if index is None else np.array(index)
+    
+
+        x=self.CC[index][:,index]
+        x[np.isnan(x)]=0
+        x[x<0]=0
+        
+        x *= 1/(x-np.eye(x.shape[0])).max() if scaling is None else scaling
+    
+        if self.project is not None:
+            ID=self.project.chimera.CMXid
+            if ID is None:
+                self.project.chimera.current=0
+                ID=self.project.chimera.CMXid
+        else:
+            ID=CMXRemote.launch()
+            cmds=[]
+    
+    
+        ids=np.array([s.atoms.indices for s in self.resi[index]],dtype=object)
+    
+    
+    
+        # CMXRemote.send_command(ID,'close')
+    
+    
+        
+        if indexCC is not None:
+            x=x[indexCC].squeeze()
+            x[np.isnan(x)]=0
+            self.select.chimera(x=x,index=index)
+            sel0=self.select.repr_sel[index][indexCC]
+            mn=CMXRemote.valid_models(ID)[-1]
+            CMXRemote.send_command(ID,'color '+'|'.join(['#{0}/{1}:{2}@{3}'.format(mn,s.segid,s.resid,s.name) for s in sel0])+' black')
+            # print('color '+'|'.join(['#{0}/{1}:{2}@{3}'.format(mn,s.segid,s.resid,s.name) for s in sel0])+' black')
+        else:
+
+            self.select.chimera()
+            mn=CMXRemote.valid_models(ID)[-1]
+            CMXRemote.send_command(ID,f'color #{mn} tan')
+            CMXRemote.send_command(ID,f'ribbon #{mn}')
+            CMXRemote.send_command(ID,f'show #{mn}&~@H*&~:GLY,ALA,PRO')
+            CMXRemote.send_command(ID,f'set bgColor gray')
+                        
+            out=dict(R=x,ids=ids)
+            CMXRemote.add_event(ID,'CC',out)
+        
+        
+        if self.project is not None:
+            self.project.chimera.command_line(self.project.chimera.saved_commands)
         
         
         
@@ -631,7 +778,7 @@ def get_chain(resi=None,atom=None,sel0=None,exclude=None):
     def get_bonded():
         '''it happens, that pdb files do not contain bond information, in that case, we switch to selection
         by string parsing'''
-        return np.sum(find_bonded([atom],sel0,n=4,d=1.9))
+        return np.sum(find_bonded([atom],sel0,n=4,d=2.1))
     
     a_name=atom.name.lower()
     if 'c'==a_name and len(exclude):
@@ -719,3 +866,37 @@ def find_bonded(sel,sel0=None,exclude=None,n=4,sort='dist',d=1.65):
                 #Apparently, this breaks find_methyl without the above line.
                 # pass           
     return out           
+
+
+def CombineEntropy(*ECC):
+    """
+    Takes multiple EntropyCC objects and combines them into one new EntropyCC 
+    object which evaluates the entropy across all objects. This is useful in
+    case the entropy/correlation across one state that occurs in different parts
+    of the trajectory should be combined for  evaluation.
+
+    Selection should be the same for all objects. An error will be thrown if
+    residue numbers do not match
+
+    Parameters
+    ----------
+    *ECC : EntropyCC objects
+        Objects to be combined.
+
+    Returns
+    -------
+    EntropyCC
+        Combined object
+
+    """
+    
+    
+    
+    assert np.all([len(ECC[0].resi)==len(ECC0.resi) for ECC0 in ECC[1:]]),"Residue selection must match for all EntropyCC objects"
+    assert np.all([np.all([r0.resnum==r1.resnum for r0,r1 in zip(ECC[0].resi,ECC0.resi)]) for ECC0 in ECC[1:]])
+    
+    out=EntropyCC(ECC[0].select)
+    
+    out._vt=[np.concatenate([ECC0._vt[k] for ECC0 in ECC],axis=-1) for k in range(len(ECC[0]._vt))]
+    
+    return out

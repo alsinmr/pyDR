@@ -326,12 +326,17 @@ class CMXReceiver():
         
         self.Stop() #Stop the event manager
         if name in self._events:
-            name0=name+'0'
             k=0
-            while name0 in self._events:
+            while f'{name}{k}' in self._events:
                 k+=1
-                name0=name+str(k)
-            name=name0
+            name=f'{name}{k}'
+            
+            # name0=name+'0'
+            # k=0
+            # while name0 in self._events:
+            #     k+=1
+            #     name0=name+str(k)
+            # name=name0
         self._events[name]=event #Add the event
         self.Start()
         

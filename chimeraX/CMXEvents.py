@@ -189,8 +189,8 @@ class Detectors(Hover):
             for i in range(R.T[rho_index].shape[0]):
                 # label = label_create(self.session,"det{}".format(i), text="ρ{}".format(rho_index[i])
                 label = label_create(self.session, "det{}".format(np.random.randint(1000000)),
-                                     text="ρ{}".format(rho_index[i])
-                                     , xpos=.95, ypos=.9 - i * .075,
+                                     text="ρ{}".format(rho_index[i]),
+                                     xpos=.95, ypos=.9 - i * .075,
                                      color=cmap(rho_index[i]), bg_color=np.array([255, 255, 255, 0], dtype=int))
                 self.labels.append(self.session.models[-1])
                 # TODO It seems that a pdb with multiple structures not loaded as a coordset might not have model.atoms ??
@@ -200,16 +200,47 @@ class Detectors(Hover):
                                      : set_color_radius(atoms, R, color, ids))
         return
 
+class CC(Detectors):
+    def open_detector(self, ids, R,rho_index=None):
+        print(R)
+
+        cmap = lambda ind: (np.array(get_cmap("tab10")(ind % 10)) * 255).astype(int)  # get_cmap("tab10")
+        self.labels = []
+        self.commands = []
+
+        self.commands.append(lambda atoms=self.model.atoms,  # residues[res_nums-1].atoms[atom_nums],
+                                    R=R,
+                                    color=cmap(0), ids=ids
+                             : set_color_radius_CC(atoms, R, color, ids))
+    def __call__(self):
+        # mouse_button = self.mouse_button()  ### checkiung for the Mouse click
+        # if mouse_button == Qt.MouseButton.LeftButton or mouse_button == Qt.MouseButton.RightButton:
+        self.commands[0]()  # HERE IS WHERE THE COMMAND GETS CALLED!!!!!!!!
+        
+
 class DetCC(Detectors):
     def open_detector(self, ids, R, rho_index):
 
         cmap = lambda ind: (np.array(get_cmap("tab10")(ind % 10)) * 255).astype(int)  # get_cmap("tab10")
-
         self.labels = []
         self.commands = []
 
         # todo one can set the label text to the correlation time
-        if len(rho_index) == 1:
+
+        if rho_index is None:  #e.g. entropy CC, where no timescale involved
+            for i in range(1):
+                # label = label_create(self.session,"det{}".format(i), text="ρ{}".format(rho_index[i])
+                label = label_create(self.session, "det{}".format(np.random.randint(1000000)),
+                                     text="update"
+                                     , xpos=.95, ypos=.9 - i * .075,
+                                     color=[100,100,100,255], bg_color=np.array([255, 255, 255, 0], dtype=int))
+                self.labels.append(self.session.models[-1])
+                # TODO It seems that a pdb with multiple structures not loaded as a coordset might not have model.atoms ??
+                self.commands.append(lambda atoms=self.model.atoms,  # residues[res_nums-1].atoms[atom_nums],
+                                            R=R,
+                                            color=cmap(0), ids=ids
+                                     : set_color_radius_CC(atoms, R, color, ids))
+        elif len(rho_index) == 1:
             "If only one rho_index, then just set the radii initially (no label)"
             set_color_radius_CC(self.model.atoms, R.T[rho_index[0]], cmap(rho_index[0]), ids)
         else:
