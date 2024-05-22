@@ -68,14 +68,18 @@ from pyDR.chimeraX.Movies import Movies
 
 from pyDR.Project import Project,Source
 
+from pyDR.Entropy import EntropyCC
+
 clsDict.update({'Data':Data,'Data_iRED':Data_iRED,'Source':Source,'Info':Sens.Info,
          'Sens':Sens.Sens,'Detector':Sens.Detector,'NMR':Sens.NMR,'MD':Sens.MD,'SolnNMR':Sens.SolnNMR,
          'MolSys':MolSys,'MolSelect':MolSelect,'Project':Project,
          'FrameObj':Frames.FrameObj,'Ctcalc':MDtools.Ctcalc,
-         'DataPlots':Plotting.DataPlots,'CMXRemote':CMXRemote,'Movies':Movies})
+         'DataPlots':Plotting.DataPlots,'CMXRemote':CMXRemote,'Movies':Movies,
+         'EntropyCC':EntropyCC})
 
 
 
+#%% Edit matlabplot subplotspec behavior to be consistent across versions
 from matplotlib.axes import Subplot as _Subplot
 from matplotlib.gridspec import SubplotSpec as _SubplotSpec
 if hasattr(_SubplotSpec,'is_first_col'):
@@ -92,6 +96,8 @@ if hasattr(_SubplotSpec,'is_first_col'):
         return self.get_subplotspec().is_last_row()
     _Subplot.is_last_row=_fun
 
+
+#%% Warning handling
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings('ignore', module='MDAnalysis')

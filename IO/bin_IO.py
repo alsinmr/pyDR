@@ -56,6 +56,8 @@ def write_file(filename,ob,overwrite=False):
             write_Data_iRED(f,ob)
         elif object_class=='Source':
             write_Source(f,ob)
+        elif object_class=='EntropyCC':
+            write_EntropyCC(f,ob)
             
 def read_file(filename:str,directory:str='')->object:
     with open(filename,'rb') as f:
@@ -78,6 +80,8 @@ def read_file(filename:str,directory:str='')->object:
             return out
         if l=='OBJECT:MOLSELECT':
             return read_MolSelect(f,directory=directory)
+        if l=='OBJECT:ENTROPYCC':
+            return read_EntropyCC(f)
 
 
 #%% Info Input/Output
@@ -465,6 +469,30 @@ def read_MolSelect(f,directory=''):
         line=decode(f.readline())[:-1]
     return select
 
+#%% EntropyCC
+def write_EntropyCC(f,ECC):
+    f.write(b'OBJECT:ENTROPYCC\n')
+    write_MolSelect(f, ECC.select)
+    flds=['Sres','Scc']
+    
+    for fld in flds:
+        f.write(bytes(f'\n{fld}\n','utf-8'))
+        np.save(f,getattr(ECC,fld),allow_pickle=True)
+    f.write(b'END:OBJECT\n')
+    
+def read_EntropyCC(f):
+    EntropyCC=clsDict['EntropyCC']
+    line=decode(f.readline())[:-1]
+    assert line=='OBJECT:MOLSELECT','First object in EntropyCC should be the selection object'
+    ECC=EntropyCC(read_MolSelect(f))
+    
+    flds=['Sres','Scc']
+    for l in f:
+        k=decode(l)[:-1]
+        if k=='END:OBJECT':break
+        if k in flds:
+            setattr(ECC,f'_{k}',np.load(f,allow_pickle=False))
+    return ECC
 
 #%% Numpy object Input/Ouput    
 def write_np_object(f,ob):

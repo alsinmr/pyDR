@@ -4,8 +4,10 @@ import numpy as np
 from .. import clsDict,Defaults
 from ..MDtools import vft
 from ..misc.tools import AA
+from ..IO.bin_IO import read_EntropyCC,write_EntropyCC
 from copy import copy
 import matplotlib.pyplot as plt
+import os
 
 from matplotlib.colors import ListedColormap
 
@@ -26,11 +28,40 @@ class EntropyCC:
     R=8.31446261815324 #J/mol/K
     
     def __init__(self,select):
+        """
+        Initialize the Entropy Cross-Correlation object with either a selection
+        object or filename from a saved EntropyCC object
+
+        Parameters
+        ----------
+        select : MolSelect or string
+            pyDR selection object or filename
+
+        Returns
+        -------
+        None
+
+        """
+        filename=None
+        if isinstance(select,str):
+            filename=select
+            with open(filename,'rb') as f:
+                assert bytes.decode(f.readline()).strip()=='OBJECT:ENTROPYCC','Not an EntropyCC object'
+                temp=read_EntropyCC(f)
+                select=temp.select
+
+    
+
         self.select=copy(select)
+        self.select.molsys=copy(select.molsys)
         self.select.molsys._traj=copy(select.traj)
         
         self.reset()
         
+        if filename is not None:
+            self._Sres=temp._Sres
+            self._Scc=temp._Scc
+            
         
     def reset(self):
         """
@@ -45,7 +76,6 @@ class EntropyCC:
         self._resid=None
         self._sel=None
         self._index=None
-        self._FrObj=None
         self._vt=None
         self._chi=None
         self._v_avg=None
@@ -56,11 +86,19 @@ class EntropyCC:
         self._CCstate=None
         self._Scc=None
         self._CC=None
-        self._DelS=None
         
-        self.project=self.select.project
         
         return self
+    
+    @property
+    def project(self):
+        if self.select.project is None:
+            self.select.molsys.project=clsDict['Project']()
+        return self.select.project
+    
+    @project.setter
+    def project(self,project):
+        self.select.molsys.project=project
         
     @property
     def resi(self):
@@ -248,6 +286,23 @@ class EntropyCC:
         
         self.traj.ProgressBar=False
         return self
+    
+    @property
+    def t(self):
+        """
+        Time axis in nanoseconds. Note that for appended trajectories, t is not
+        valid and will return None
+
+        Returns
+        -------
+        TYPE
+            np.array
+
+        """
+        if self._state is not None:
+            if self.state.shape[1]!=len(self.traj):return None
+            
+        return np.arange(len(self.traj))*self.traj.dt/1000
     
     @property
     def vt(self):
@@ -450,6 +505,8 @@ class EntropyCC:
             bottom+=self.Sres
             bottom=bottom.T+self.Sres
             top=2*bottom-2*self.Scc
+            i=top==0
+            bottom[i]=1
             self._CC=top/bottom
         return self._CC
     
@@ -466,18 +523,6 @@ class EntropyCC:
         """
         return np.log(self.total_mult)*self.R
         
-    @property
-    def DelS(self):
-        """
-        Returns the change in the total entropy resulting from a given residue
-        being removed from the system.
-
-        Returns
-        -------
-        None.
-
-        """
-        x=np.cumsum([self.total_mult])
     
     #%% Plotting
     
@@ -649,7 +694,8 @@ class EntropyCC:
                 ID=self.project.chimera.CMXid
         else:
             ID=CMXRemote.launch()
-        mn=CMXRemote.valid_models(ID)[-1]    
+        mn=CMXRemote.valid_models(ID)[-1]   
+        CMXRemote.send_command(ID,f'~show #{mn}')
         CMXRemote.send_command(ID,f'ribbon #{mn}')
         CMXRemote.send_command(ID,f'show #{mn}&~@H*&~:GLY,ALA,PRO')
         
@@ -717,13 +763,18 @@ class EntropyCC:
             self.select.chimera(x=x,index=index)
             sel0=self.select.repr_sel[index][indexCC]
             mn=CMXRemote.valid_models(ID)[-1]
-            CMXRemote.send_command(ID,'color '+'|'.join(['#{0}/{1}:{2}@{3}'.format(mn,s.segid,s.resid,s.name) for s in sel0])+' black')
+            CMXRemote.send_command(ID,'color '+'|'.join([f'#{mn}/{s.segid}:{s.resid}@{s.name}' for s in sel0])+' black')
+            CMXRemote.send_command(ID,f'~show #{mn}')
+            CMXRemote.send_command(ID,f'ribbon #{mn}')
+            CMXRemote.send_command(ID,f'show #{mn}&~@H*&~:GLY,ALA,PRO')
+            CMXRemote.send_command(ID,f'set bgColor gray')
             # print('color '+'|'.join(['#{0}/{1}:{2}@{3}'.format(mn,s.segid,s.resid,s.name) for s in sel0])+' black')
         else:
 
             self.select.chimera()
             mn=CMXRemote.valid_models(ID)[-1]
             CMXRemote.send_command(ID,f'color #{mn} tan')
+            CMXRemote.send_command(ID,f'~show #{mn}')
             CMXRemote.send_command(ID,f'ribbon #{mn}')
             CMXRemote.send_command(ID,f'show #{mn}&~@H*&~:GLY,ALA,PRO')
             CMXRemote.send_command(ID,f'set bgColor gray')
@@ -734,6 +785,34 @@ class EntropyCC:
         
         if self.project is not None:
             self.project.chimera.command_line(self.project.chimera.saved_commands)
+            
+    def save(self,filename:str,overwrite:bool=False):
+        """
+        Save the EntropyCC object to a file. This will store the states for 
+        reanalysis. Re-accessing the vectors will require a full reload. The project
+        object is also not saved, but reloading will create a new dummy project
+        (Entropy data is not stored in projects, so the project function only
+         provides chimera functionality)
+        
+        Reloading is performed by calling EntropyCC with the filename rather than
+        the selection object.
+    
+        Parameters
+        ----------
+        filename : str
+            Storage location.
+        overwrite : bool
+            Overwrite existing file
+    
+        Returns
+        -------
+        None.
+    
+        """
+        if not(overwrite):
+            assert not(os.path.exists(filename)),'File already exists. Set overwrite=True to save anyway'
+        with open(filename,'wb') as f:
+            write_EntropyCC(f,self)
         
         
         
