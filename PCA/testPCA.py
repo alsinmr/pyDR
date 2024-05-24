@@ -22,6 +22,10 @@ select=pyDR.MolSelect(topo='/Volumes/My Book/Y1/apo/prot.pdb',
                       traj_files='/Volumes/My Book/Y1/apo/apo1.xtc',
                       step=1,t0=5900,tf=19150)
 
+select=pyDR.MolSelect(topo='/Volumes/My Book/GHSR/WT_apo.pdb',
+                      traj_files='/Volumes/My Book/GHSR/WT-apo_run1_0.1ns_just_protein.xtc',
+                      step=1,tf=100000)
+
 
 pca=PCA(select)
 pca.select_bond('15N')

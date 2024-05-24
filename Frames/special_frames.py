@@ -418,3 +418,143 @@ def hop(molecule,angle=np.arccos(np.sqrt(1/3)),sel1=None,sel2=None,sel3='auto',N
             vXZ0[:,hop]=vXZt
         return vZ0.copy(),vXZ0.copy()
     return sub
+
+
+#%% Lipid frames
+#The following frames are specifically intended for separating dynamics in lipid
+# These are introduced now 
+    
+def TetraHop(molecule,sel1=None,sel2=None,resids=None,segids=None,filter_str=None):
+    return TH(molecule,sel1=sel1,sel2=sel2,resids=resids,segids=segids,filter_str=filter_str)
+
+class TH():
+    def __init__(self,molecule,sel1=None,sel2=None,resids=None,segids=None,filter_str=None):
+        """
+        Attempts to isolate tetrahedral hops by comparing the orientation of the
+        bond in the current frame to orientations in the previous frame. If the 
+        bond remains closest to its orientation in the prevous frame, then this
+        frame remains fixed. If it better matches a different orientation, then
+        the orientation of this frame will rotate such that the bond remains
+        fixed in this frame.
+        
+        Warning: This frame cannot be used with sparse trajectory sampling!
+    
+        Parameters
+        ----------
+        molecule : TYPE
+            DESCRIPTION.
+        sel1 : TYPE, optional
+            DESCRIPTION. The default is None.
+        sel2 : TYPE, optional
+            DESCRIPTION. The default is None.
+        resids : TYPE, optional
+            DESCRIPTION. The default is None.
+        segids : TYPE, optional
+            DESCRIPTION. The default is None.
+        filter_str : TYPE, optional
+            DESCRIPTION. The default is None.
+    
+        Returns
+        -------
+        None.
+    
+        """
+        self.molecule=molecule
+        self.sel1,self.sel2=[selt.sel_simple(molecule,s,resids,segids,filter_str) for s in [sel1,sel2]]
+        
+        self.sel0=selt.find_bonded(self.sel2,self.sel2.residues.atoms,exclude=self.sel1,n=3)
+        self.vm1=None
+        self.vZc=None
+        self.vXZc=None
+        
+        
+    @property
+    def vZ(self):
+        """
+        Current Z-direction of the bonds
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
+        """
+        return vft.norm(vft.pbc_corr((self.sel1.positions-self.sel2.positions).T,self.molecule.box))
+    
+    @property
+    def vXZ(self):
+        """
+        Current XZ-directions of the bonds
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
+        """
+        
+        return vft.norm(vft.pbc_corr((self.sel0[0].positions-self.sel2.positions).T,self.molecule.box))
+    
+    @property
+    def v(self):
+        """
+        List of directions of tetrahedral bonds
+
+        Returns
+        -------
+        out : TYPE
+            DESCRIPTION.
+
+        """
+        out=[self.vZ]
+        for sel0 in self.sel0:
+            out.append(vft.norm(vft.pbc_corr((sel0.positions-self.sel2.positions).T,self.molecule.box)))
+        return out
+        
+    @property
+    def overlap(self):
+        """
+        Overlap of the current Z direction of the bond with the bonds in the
+        previous frame. If biggest hop is not with the first bond, then a 
+        hop has occured
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+        """
+        if self.vm1 is None:
+            self.vZc=self.vZ
+            self.vXZc=self.vXZ
+            return None
+        vZ=self.vZ
+        return np.array([(vm1*vZ).sum(0) for vm1 in self.vm1])
+        
+        
+    
+    @property
+    def hop(self):
+        if self.vm1 is None:
+            return np.zeros(len(self.sel1),dtype=bool)
+        else:
+            return np.logical_not(np.all(self.overlap[0]>=self.overlap[1:],axis=0))
+        
+    def __call__(self):
+        hop=self.hop
+        
+        self.vm1=self.v
+        
+        
+        
+        
+        
+        
+        
+        
+    
+    
+    
+    
+    
+    
+    

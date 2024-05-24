@@ -737,7 +737,9 @@ class EntropyCC:
         x[np.isnan(x)]=0
         x[x<0]=0
         
+        x -=np.eye(x.shape[0])
         x *= 1/(x-np.eye(x.shape[0])).max() if scaling is None else scaling
+        x+=np.eye(x.shape[0])
     
         if self.project is not None:
             ID=self.project.chimera.CMXid
