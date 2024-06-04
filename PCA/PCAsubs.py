@@ -869,6 +869,34 @@ class Hist():
         return out
     #%% PDB writing / Chimera
     
+    def PC2index(self,PCamp):
+        """
+        Returns the frame in the trajectory that most closely matches the provided
+        principal component amplitudes (PCamp). One must provide the first N 
+        principal components. To omit a principal component from the selection, 
+        set to np.nan
+
+        Parameters
+        ----------
+        PCamp : list-like (usually np.array)
+            Values of the first N principal components to match to a frame in the
+            trajectory
+
+        Returns
+        -------
+        int
+
+        """
+        PCamp=np.atleast_1d(PCamp)
+        assert PCamp.ndim==1 and PCamp.dtype!=object,"PCamp cannot have more than one dimension, and can only contain numbers/np.nan"
+        index=np.zeros(self.pca.PCamp.shape[0],dtype=bool)
+        index[:PCamp.size]=np.logical_not(np.isnan(PCamp))
+        
+        PCamp=PCamp[np.logical_not(np.isnan(PCamp))]
+        
+        return np.argmin(((self.pca.PCamp[index].T-PCamp)**2).sum(-1))
+        
+        
     def PC2pos(self,n:int=0,A:float=None,sel:int=None):
         """
         Calculates the motion on atoms resulting from the nth principal component
@@ -903,7 +931,7 @@ class Hist():
         pos0+=A*self.pca.PC[:,n].reshape([self.pca.PC.shape[0]//3,3])
         return pos0
     
-    def write_pdb(self,n:int=0,A:float=None,PCamp:list=None,filename:str=None):
+    def write_pdb(self,n:int=0,A:float=None,PCamp:list=None,from_traj:bool=True,select_str:str='protein',filename:str=None):
         """
         
 
@@ -920,27 +948,44 @@ class Hist():
             List of amplitudes for the first len(PCamp) principal components. 
             If this is provided, then 'n' and 'std' are ignored.
             The default is None.
+        from_traj : bool, optional
+            Extracts a frame from the trajectory that is closest given PCamps
+            instead of calculating the inverse position. Only active if PCamp
+            is defined. The default is True.
+        select_str : str, optional
+            If from_traj is True, this will apply a selection to the MDanalysis
+            universe. The default is 'protein'
 
         Returns
         -------
         None.
 
         """
+        frame0=self.pca.traj.frame
         if filename is None:
             folder=self.project.directory if self.project is not None and self.project.directory is not None \
                 else os.path.split(self.pca.select.molsys.topo)[0]
             filename=os.path.join(folder,'pca.pdb')
+        atoms=self.pca.uni.atoms.select_atoms(select_str) if from_traj else self.atoms
         if PCamp is not None:
-            pos=self.pca.mean
-            for k,A in enumerate(PCamp):
-                pos+=A*self.pca.PC[:,k].reshape([self.pca.PC.shape[0]//3,3])
-            self.pca.atoms.positions=pos
+            if from_traj:
+                i=self.PC2index(PCamp)
+                self.pca.traj[i]
+                atoms.positions=self.pca.align(self.pca.ref_pos, 
+                                               self.pca.uni.select_atoms(self.pca.align_ref),
+                                               atoms)
+            else:
+                pos=self.pca.mean
+                for k,A in enumerate(PCamp):
+                    pos+=A*self.pca.PC[:,k].reshape([self.pca.PC.shape[0]//3,3])
+                atoms.positions=pos
         else:
-            self.pca.atoms.positions=self.PC2pos(n=n,A=A)
-        self.pca.atoms.write(filename)
+            atoms.positions=self.PC2pos(n=n,A=A)
+        atoms.write(filename)
+        self.pca.traj[frame0]
         return filename
     
-    def chimera(self,n:int=0,std:float=1,PCamp:list=None):
+    def chimera(self,n:int=0,std:float=1,PCamp:list=None,from_traj:bool=True,select_str:str='protein'):
         """
         Plots the change in a structure for a given principal component. That is,
         if n=0, then we plot the mean structure with +/-sigma for the n=0 
@@ -963,14 +1008,21 @@ class Hist():
             List of amplitudes for the first len(PCamp) principal components. 
             If this is provided, then 'n' and 'std' are ignored.
             The default is None.
+        from_traj : bool, optional
+            Extracts a frame from the trajectory that is closest given PCamps
+            instead of calculating the inverse position. Only active if PCamp
+            is defined. The default is True.
+        select_str : str, optional
+            If from_traj is True, this will apply a selection to the MDanalysis
+            universe. The default is 'protein'
 
         Returns
         -------
-        None.
+        self
 
         """            
         if PCamp is not None:
-            filename=self.write_pdb(n=n,PCamp=PCamp)
+            filename=self.write_pdb(n=n,PCamp=PCamp,from_traj=from_traj,select_str=select_str)
             if self.project.chimera.current is None:self.project.chimera.current=0
             self.project.chimera.command_line('open "{0}"'.format(filename))
             mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
@@ -990,15 +1042,16 @@ class Hist():
             self.project.chimera.current=0
         for A0 in A:
             filename=self.write_pdb(n=n,A=A0,PCamp=PCamp)
-            print(filename)
             if self.project.chimera.current is None:self.project.chimera.current=0
             self.project.chimera.command_line('open "{0}"'.format(filename))       
             mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
             clr=[int(c*100) for c in plt.get_cmap('tab10')(mdls-1)[:-1]]
             self.project.chimera.command_line(['~ribbon','show','color #{0} {1},{2},{3}'.format(mdls,clr[0],clr[1],clr[2])])
         self.project.chimera.command_line(self.project.chimera.saved_commands)
+        
+        return self
     
-    def hist2struct(self,nmax:int=4,ref_struct:bool=True,**kwargs):
+    def hist2struct(self,nmax:int=4,from_traj:bool=True,select_str:str='protein',ref_struct:bool=False,**kwargs):
         """
         Interactively view structures corresponding to positions on the 
         histogram plots. Specify the maximum principle component to display. Then,
@@ -1010,8 +1063,16 @@ class Hist():
         ----------
         nmax : int, optional
             Maximum principal component to show. The default is 6.
+        from_traj : bool, optional
+            Extracts a frame from the trajectory that is closest to the selected
+            points instead of calculating the inverse position
+            The default is True.
+        select_str : str, optional
+            If from_traj is True, this will apply a selection to the MDanalysis
+            universe. The default is 'protein'
         ref_struct : bool, optional
-            Show a reference structure in chimera (mean structure)
+            Show a reference structure in chimera (mean structure). 
+            The default is False.
         **kwargs : TYPE
             Keyword arguments to be passed to the PCA.plot function.
 
@@ -1064,11 +1125,17 @@ class Hist():
                     hdls[i-1][1].set_visible(True)
                 
                 if not(None in PCamp):  #All positions defined. Add new molecule in chimera
-                    self.chimera(PCamp=PCamp)
+                    if from_traj:
+                        i=self.PC2index(PCamp)
+                        PCamp0=self.pca.PCamp[:len(PCamp)][:,i] #Set PCamp to the nearest value in trajectory
+                    else:
+                        PCamp0=PCamp
+                    self.chimera(PCamp=PCamp0,from_traj=from_traj)
                     for k,a in enumerate(ax):
                         mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
                         clr=plt.get_cmap('tab10')((mdls-1)%10)
-                        a.scatter(PCamp[k],PCamp[k+1],100,marker=markers[(mdls-1)%len(markers)],linewidth=3,color=clr)
+                        
+                        a.scatter(PCamp0[k],PCamp0[k+1],100,marker=markers[(mdls-1)%len(markers)],linewidth=3,color=clr)
                         
                     #Clear the positions in the plot
                     for k in range(len(PCamp)):PCamp[k]=None
@@ -1087,6 +1154,263 @@ class Hist():
         
         self.h2s_ax=ax
         return ax
+
+
+class Cluster():
+    def __init__(self,pca):
+        from sklearn import cluster as cluster
+        self.cluster=cluster
+        
+        self.algorithm='MiniBatchKMeans'
+        self.cluster_kwargs={'n_clusters':3}
+        
+        self.pca=pca
+        self._index=[0,1]
+        
+        self._cclass=None
+        self._output=None
+        self._sorting=None
+        
+    @property
+    def project(self):
+        return self.pca.project
+        
+    @property
+    def n_clusters(self):
+        if 'n_clusters' in self.cluster_kwargs:
+            return self.cluster_kwargs['n_clusters']
+        
+        if self._output is not None and hasattr(self._output,'n_clusters'):
+            return self._output.n_clusters
+        return None
+    
+    @n_clusters.setter
+    def n_clusters(self,value:int):
+        self.cluster_kwargs['n_clusters']=value
+        
+    @property
+    def index(self):
+        return self._index
+    
+    @index.setter
+    def index(self,index):
+        self._output=None
+        self._index=index
+    
+    
+    @property
+    def cclass(self):
+        setup=False
+        if self._cclass is None or str(self._cclass.__class__).split('.')[-1].split("'")[0]!=self.algorithm:
+            setup=True
+            if self.algorithm not in dir(self.cluster):
+                print('Available algorithms:')
+                for name in dir(self.cluster):
+                    if name[0]!='_':print(name)
+                assert False,'Unknown clustering algorithm'
+                
+        for key,value in self.cluster_kwargs.items():
+            if hasattr(self._output,key) and getattr(self._output,key)!=value:
+                setup=True
+                break
+        
+        if setup:
+            self._cclass=getattr(self.cluster,self.algorithm)(**self.cluster_kwargs)
+            self._output=None
+            
+            
+        return self._cclass
+    
+    @property
+    def output(self):
+        self.cclass
+        if self._output is None:
+            self._sorting=None
+            self._output=self.cclass.fit(self.pca.PCamp[self.index].T)
+        return self._output
+    
+    @property
+    def state(self):
+        if self._sorting is None:
+            self.PCavg
+        i=self._sorting
+        out=np.zeros(self.output.labels_.shape)
+        for k,i0 in enumerate(i):
+            out[self.output.labels_==i0]=k
+        
+        return out
+    
+    @property
+    def populations(self):
+        return np.unique(self.state,return_counts=True)[1]/self.state.size
+    
+    def plot(self,ax=None,skip:int=10,maxbin:float=None,nbins:int=None,cmap='binary',**kwargs):
+        nplots=len(self.index)-1
+        if ax is not None:
+            if nplots>1:
+                assert hasattr(ax,'__len__'),'For nD>2, must provide a list of axes'
+                ax=np.array(ax).flatten()
+                fig=ax[0].figure
+                
+        else:
+            i0=i1=int(np.ceil(np.sqrt(nplots)))
+            if (i0-1)*i1>=nplots:i0-=1
+            fig=plt.figure()
+            ax=[fig.add_subplot(i0,i1,k+1) for k in range(nplots)]
+            
+        for k,a in enumerate(ax):
+            self.pca.Hist.plot(self.index[k],self.index[k+1],ax=a,maxbin=maxbin,nbins=nbins,cmap=cmap,**kwargs)
+            cmap0=plt.get_cmap('tab10')
+            for q in range(self.n_clusters):
+                a.scatter(self.pca.PCamp[self.index[k]][self.state==q][::skip],
+                          self.pca.PCamp[self.index[k+1]][self.state==q][::skip],s=.1,color=cmap0(q))
+                a.scatter(self.pca.PCamp[self.index[k]][self.state==q].mean(),
+                       self.pca.PCamp[self.index[k+1]][self.state==q].mean(),s=25,
+                       color='black',marker='^')
+                a.text(self.pca.PCamp[self.index[k]][self.state==q].mean(),
+                       self.pca.PCamp[self.index[k+1]][self.state==q].mean(),
+                       f'{self.populations[q]*100:.1f}%',
+                       horizontalalignment='center',verticalalignment='center')
+                
+            if -1 in self.state:
+                a.scatter(self.pca.PCamp[self.index[k]][self.state==-1][::skip],
+                          self.pca.PCamp[self.index[k+1]][self.state==-1][::skip],s=.1,color=0.8)
+                
+        return ax
+    
+    @property
+    def PCavg(self):
+        """
+        Returns the average PC amplitudes within each cluster
+
+        Returns
+        -------
+        np.array
+
+        """
+        
+        out=np.zeros([self.n_clusters,len(self.index)])
+        
+        for k in range(self.n_clusters):
+            out[k]=self.pca.PCamp[self.index][:,self.output.labels_==k].mean(-1)
+            
+            
+        self._sorting=np.argsort(out[:,0])
+        out=out[self._sorting]        
+        
+        return out
+    
+    @property
+    def cluster_index(self):
+        """
+        Returns an index giving the frame in the trajectory corresponding to
+        the closest approach of the trajectory to the mean position of each
+        cluster
+
+        Returns
+        -------
+        np.array
+
+        """
+        
+        PCavg=self.PCavg
+        
+        out=np.zeros(self.n_clusters,dtype=int)
+        for k in range(self.n_clusters):
+            error=((self.pca.PCamp[self.index].T-PCavg[k])**2).sum(-1)
+            out[k]=np.argmin(error)
+        return out
+    
+    def write_pdb(self,state:int=None,frame:int=None,filename:str=None,from_traj:bool=True,select_str:str='protein'):
+        """
+        Writes out a pdb or pdbs corresponding to the mean position of each cluster.
+        If from_traj=True, then a frame will be taken from the trajectory that
+        is closest from to the cluster mean. Otherwise, positions will be
+        constructed by inverting PCA.
+        
+        Note that from_traj=True
+
+        Parameters
+        ----------
+        state : int, optional
+            Which PCA cluster to use. The default is None, which will write out
+            all states at once. In this case, filename should be formattable
+            so that the outputs do not overwrite each other. Leaving filename
+            as None will also work.
+        filename : str, optional
+            File name to save to. The default is None (pca{state}.pdb)
+        from_traj : bool, optional
+            Extracts a frame from the trajectory. The default is True.
+        select_str : str, optional
+            Apply selection to write out PCA results. Default is 'protein'. Note
+            that if from_traj=False, then only atoms that were in the original
+            PCA analysis can be written out.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        if filename is None:
+            folder=self.project.directory if self.project is not None and self.project.directory is not None \
+                else os.path.split(self.pca.select.molsys.topo)[0]
+            filename=os.path.join(folder,'pca{0}.pdb')
+            
+        if state is None and frame is None:
+            return [self.write_pdb(state=k,filename=filename.format(k),from_traj=from_traj) for k in range(self.n_clusters)]
+        elif frame is not None:
+            state=self.state[frame]
+            from_traj=True
+                
+        frame0=self.pca.traj.frame
+        if from_traj:
+            self.pca.traj[self.cluster_index[state] if frame is None else frame]
+            
+        else:
+            pos=self.pca.mean
+            for k,A in enumerate(self.PCavg[state]):
+                pos+=A*self.PC[:,self.index[k]].reshape([self.pca.PC.shape[0]//3,3])
+            self.pca.atoms.positions=pos
+        
+        atoms=self.pca.uni.atoms.select_atoms(select_str)
+        atoms.write(filename.format(state))
+        
+        self.pca.traj[frame0]
+            
+            
+        return filename.format(state)
+        
+    def chimera(self,state:int=None,frame:int=None,from_traj:bool=True,select_str:str='protein'):         
+        
+        
+        filenames=self.write_pdb(state=state,frame=frame,from_traj=from_traj,select_str=select_str)
+        if state is None and frame is None:
+            state=np.arange(self.n_clusters)
+        elif frame is not None:
+            state=self.state[frame]
+        if not(isinstance(filenames,list)):filenames=[filenames]
+        if not(hasattr(state,'__len__')):state=[state]
+
+        if self.project.chimera.current is None:self.project.chimera.current=0
+        
+        for state0,filename in zip(state,filenames):
+            self.project.chimera.command_line('open "{0}"'.format(filename))       
+            mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
+            clr=[int(c*100) for c in plt.get_cmap('tab10')(state0)[:-1]]
+            self.project.chimera.command_line(['~show','ribbon','color #{0} {1},{2},{3}'.format(mdls,clr[0],clr[1],clr[2])])
+        self.project.chimera.command_line(self.project.chimera.saved_commands)
+        
+        
+            
+            
+            
+            
+        
+        
+    
+    
+        
         
         
         

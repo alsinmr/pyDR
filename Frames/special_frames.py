@@ -80,6 +80,7 @@ for proteins, because it is relatively simple)
 import numpy as np
 from pyDR.MDtools import vft
 from pyDR.Selection import select_tools as selt
+from copy import copy
 
 def hop_setup(uni,sel1,sel2,sel3,sel4,ntest=1000):
     """
@@ -463,9 +464,24 @@ class TH():
         self.sel1,self.sel2=[selt.sel_simple(molecule,s,resids,segids,filter_str) for s in [sel1,sel2]]
         
         self.sel0=selt.find_bonded(self.sel2,self.sel2.residues.atoms,exclude=self.sel1,n=3)
+        
+        self.reset()
+        
+    def reset(self):
         self.vm1=None
-        self.vZc=None
-        self.vXZc=None
+        self.nuZ=np.zeros([3,len(self.sel1)])
+        self.nuZ[2]=1
+        self.nuXZ=np.zeros([3,len(self.sel1)])
+        self.nuXZ[0]=1
+        
+        self.frame=-1
+        self.traj[0]
+        self.record_state()
+        return self
+        
+    @property
+    def traj(self):
+        return self.molecule.traj
         
         
     @property
@@ -510,6 +526,18 @@ class TH():
         for sel0 in self.sel0:
             out.append(vft.norm(vft.pbc_corr((sel0.positions-self.sel2.positions).T,self.molecule.box)))
         return out
+    
+    #%% Here, we take care of the frame definition
+    
+    
+    def record_state(self):
+        if self.frame==self.traj.frame:return
+        
+        self.frame=self.traj.frame
+        self.vm1=self.v
+        self.vZm1=self.vZ
+        self.vXZm1=self.vXZ
+        return self
         
     @property
     def overlap(self):
@@ -524,9 +552,7 @@ class TH():
             DESCRIPTION.
         """
         if self.vm1 is None:
-            self.vZc=self.vZ
-            self.vXZc=self.vXZ
-            return None
+            self.vm1=self.v
         vZ=self.vZ
         return np.array([(vm1*vZ).sum(0) for vm1 in self.vm1])
         
@@ -534,15 +560,27 @@ class TH():
     
     @property
     def hop(self):
-        if self.vm1 is None:
-            return np.zeros(len(self.sel1),dtype=bool)
-        else:
-            return np.logical_not(np.all(self.overlap[0]>=self.overlap[1:],axis=0))
+        # if self.vm1 is None:
+        #     return np.zeros(len(self.sel1),dtype=bool)
+        # else:
+        return np.logical_not(np.all(self.overlap[0]>=self.overlap[1:],axis=0))
         
     def __call__(self):
-        hop=self.hop
+        if self.traj.frame==0:self.reset()
+        hop=self.hop  #Did a hop occur?
         
-        self.vm1=self.v
+
+        if np.any(hop):
+            nuZ,nuXZ=vft.applyFrame(self.nuZ[:,hop],self.nuXZ[:,hop],
+                                    nuZ_F=self.vZm1[:,hop],nuXZ_F=self.vXZm1[:,hop])
+            sc=vft.getFrame(self.vZ[:,hop],self.vXZ[:,hop])
+            
+            self.nuZ[:,hop],self.nuXZ[:,hop]=vft.R(nuZ,*sc),vft.R(nuXZ,*sc)
+        
+            
+        self.record_state()
+        
+        return copy(self.nuZ),copy(self.nuXZ)
         
         
         

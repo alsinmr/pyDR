@@ -414,6 +414,10 @@ class Trajectory():
         return self.mda_traj.time
     
     @property
+    def frame(self):
+        return (self.mda_traj.frame-self.t0)//self.step
+    
+    @property
     def details(self):
         out=['Trajectory:'+', '.join(self.files)]
         out.append('t0={0}, tf={1}, step={2}, dt={3} ps, original length={4}'.format(self.t0,self.tf,self.step,self.dt,self.__tf))

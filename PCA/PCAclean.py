@@ -18,7 +18,7 @@ from .. import clsDict
 from copy import copy,deepcopy
 from ..misc.tools import linear_ex
 from .PCAmovies import PCAmovies
-from .PCAsubs import PCA_Ct,PCA_S2,PCAvecs,PCA2Data,Weighting,Impulse,Hist
+from .PCAsubs import PCA_Ct,PCA_S2,PCAvecs,PCA2Data,Weighting,Impulse,Hist,Cluster
 
 
 
@@ -38,6 +38,7 @@ class PCA():
         self.clear()
         self._source=clsDict['Source']('PCAmode')
         self._n=None
+        self._ref_pos=None
         
         self._select_bond=self.select.select_bond
         
@@ -94,6 +95,12 @@ class PCA():
             self._Hist=Hist(self)
         return self._Hist
     
+    @property
+    def Cluster(self):
+        if self._Cluster is None:
+            self._Cluster=Cluster(self)
+        return self._Cluster
+    
     #%% Misc.
     def clear(self):
         """
@@ -105,7 +112,7 @@ class PCA():
 
         """
         keys=['_pos','_covar','_sel1index','_sel2index','_lambda','_PC','_pcamp','_mean',
-              '_S2','_Ct','_Vecs','_Data','_Movie','_Weighting','_Impulse','_Hist']
+              '_S2','_Ct','_Vecs','_Data','_Movie','_Weighting','_Impulse','_Hist','_Cluster']
         for k in keys:setattr(self,k,None)
         return self
     
@@ -359,9 +366,11 @@ class PCA():
         
         pos=[]
         ref=self.uni.select_atoms(self.align_ref)
-        self.traj[0]
-        ref0=ref.positions
-        ref0-=ref0.mean(0)
+        # self.traj[0]
+        # ref0=ref.positions
+        # ref0-=ref0.mean(0)
+        ref0=self.ref_pos
+        
         for _ in self.traj:
             pos.append(self.align(ref0,ref,atoms))
         
@@ -378,7 +387,24 @@ class PCA():
         self._pos=np.array(pos)
         # self.align(ref)
         self._covar=None #Clears any existing covariance matrix
-    
+        
+    @property
+    def ref_pos(self):
+        """
+        Store positions of the reference atoms
+
+        Returns
+        -------
+        None.
+
+        """
+        if self._ref_pos is None:
+            ref=self.uni.select_atoms(self.align_ref)
+            self.traj[0]
+            self._ref_pos=ref.positions
+            self._ref_pos-=self._ref_pos.mean(0)
+        return self._ref_pos
+        
     @staticmethod
     def align(ref0,ref,atoms):
         ref=ref.positions

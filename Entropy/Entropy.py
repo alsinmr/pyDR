@@ -27,7 +27,7 @@ sel_mult={'ARG':[3,3,3,3],'HIS':[2,3],'HSD':[2,3],'LYS':[3,3,3,3],
 class EntropyCC:
     R=8.31446261815324 #J/mol/K
     
-    def __init__(self,select):
+    def __init__(self,select,PCA=None):
         """
         Initialize the Entropy Cross-Correlation object with either a selection
         object or filename from a saved EntropyCC object
@@ -36,6 +36,7 @@ class EntropyCC:
         ----------
         select : MolSelect or string
             pyDR selection object or filename
+        pca : PCA object (optional)
 
         Returns
         -------
@@ -62,6 +63,8 @@ class EntropyCC:
             self._Sres=temp._Sres
             self._Scc=temp._Scc
             
+        self.PCA=PCA
+            
         
     def reset(self):
         """
@@ -86,7 +89,7 @@ class EntropyCC:
         self._CCstate=None
         self._Scc=None
         self._CC=None
-        
+        self._CCpca=None
         
         return self
     
@@ -523,6 +526,152 @@ class EntropyCC:
         """
         return np.log(self.total_mult)*self.R
         
+    #%% Lagged CC
+    def LaggedCC(self,i0:int,i1:int,Nt:int=1000,step=1):
+        """
+        
+
+        Parameters
+        ----------
+        i0 : int
+            DESCRIPTION.
+        i1 : int
+            DESCRIPTION.
+        Nt : int, optional
+            DESCRIPTION. The default is 1000.
+        step : TYPE, optional
+            DESCRIPTION. The default is 1.
+
+        Returns
+        -------
+        t : TYPE
+            DESCRIPTION.
+        out : TYPE
+            DESCRIPTION.
+
+        """
+        out=np.zeros([2,Nt])
+        for k,N0 in enumerate(np.arange(Nt)*step):
+            if isinstance(i0,str) and i0.lower()=='pca':
+                state0=self.PCA.Cluster.state[:(None if N0==0 else -N0)]
+                mult=self.PCA.Cluster.n_clusters
+            else:
+                state0=self.state[i0,:(None if N0==0 else -N0)]
+                mult=self.total_mult[i0]
+            p=np.unique(state0,return_counts=True)[1]/len(state0)
+            S0=-(p*np.log(p)).sum()
+            
+            if isinstance(i1,str) and i1.lower()=='pca':
+                state1=self.PCA.Cluster.state[N0:]
+            else:
+                state1=self.state[i1,N0:]
+            p=np.unique(state1,return_counts=True)[1]/len(state0)
+            S1=-(p*np.log(p)).sum()
+            
+            state=state0+mult*state1
+            p=np.unique(state,return_counts=True)[1]/len(state0)
+            Scc=-(p*np.log(p)).sum()
+
+            out[0,k]=2*(S0+S1-Scc)/(S1+S0)
+            
+        for k,N0 in enumerate(np.arange(Nt)*step):
+            if isinstance(i0,str) and i0.lower()=='pca':
+                state0=self.PCA.Cluster.state[N0:]
+                mult=self.PCA.Cluster.n_clusters
+            else:
+                state0=self.state[i0,N0:]
+                mult=self.total_mult[i0]
+            p=np.unique(state0,return_counts=True)[1]/len(state0)
+            S0=(p*np.log(p)).sum()
+            
+            if isinstance(i1,str) and i1.lower()=='pca':
+                state1=self.PCA.Cluster.state[:(None if N0==0 else -N0)]
+            else:
+                state1=self.state[i1,:(None if N0==0 else -N0)]
+            p=np.unique(state1,return_counts=True)[1]/len(state0)
+            S1=(p*np.log(p)).sum()
+            
+            state=state0+mult*state1
+            p=np.unique(state,return_counts=True)[1]/len(state0)
+            Scc=(p*np.log(p)).sum()
+
+            out[1,k]=2*(S0+S1-Scc)/(S1+S0)
+            
+        t=np.arange(Nt)*step*self.traj.dt/1e3
+            
+        return t,out
+    
+    def plot_lag(self,i0:int,i1:int,Nt:int=1000,step:int=1,ax=None):
+        t,out=self.LaggedCC(i0=i0,i1=i1,Nt=Nt,step=step)
+        
+        if ax is None:ax=plt.subplots()[1]
+        
+        ax.plot(t,out.T)
+        ax.set_xlabel(r'$\Delta$t / ns')
+        ax.set_ylabel('C.C.')
+        label0='PCA' if isinstance(i0,str) and i0.lower()=='pca' else f'{self.resids[i0]}{AA(self.resi[i0].resname).symbol}'
+        label1='PCA' if isinstance(i1,str) and i1.lower()=='pca' else f'{self.resids[i1]}{AA(self.resi[i1].resname).symbol}'
+        ax.legend((f'{label1} follows {label0}',f'{label0} follows {label1}'))
+        
+        return ax
+        
+    #%% vs PCA
+    @property
+    def Spca(self):
+        """
+        Return the entropy of states identified in PCA clustering
+
+        Returns
+        -------
+        float
+
+        """
+        if self.PCA is None:return None
+        
+        p=np.unique(self.PCA.Cluster.state,return_counts=True)[1]/len(self.PCA.Cluster.state)
+        return -self.R*(p*np.log(p)).sum()
+    
+    @property
+    def CCpca(self):
+        """
+        Return correlation coefficient between PCA states and individual side
+        chains
+
+        Returns
+        -------
+        np.array
+
+        """
+        if self._CCpca is None:
+            Spca=self.Spca
+            S=self.Sres
+            
+            state=self.state*(self.PCA.Cluster.state.max()+1)+self.PCA.Cluster.state
+            
+            SCC=np.zeros(self.N)
+            for k in range(state.max()):
+                p=(state==k).mean(-1)
+                i=p>0
+                SCC[i]+=-self.R*(p[i]*np.log(p[i]))
+            
+            self._CCpca=2*(S+Spca-SCC)/(S+Spca)
+        
+        
+        return self._CCpca
+    
+    def plotCCpca(self,index=None,ax=None,**kwargs):
+        if ax is None:ax=plt.subplots()[1]
+        if index is None:index=np.ones(len(self.CCpca),dtype=bool)
+        
+        if 'color' not in kwargs:kwargs['color']='black'
+        ax.plot(self.CCpca[index],**kwargs)
+        ax.xaxis.set_major_formatter(self._axis_formatter(index))
+        ax.tick_params(axis='x', labelrotation=90)
+        ax.set_ylabel('C.C')
+        
+        return ax
+        
+
     
     #%% Plotting
     

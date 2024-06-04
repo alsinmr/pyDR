@@ -1568,6 +1568,7 @@ def ini_vec_load(traj,frame_funs,tensor_fun,frame_index=None,index=None,info=Non
         traj[i] #Go to current frame
         for k,f in enumerate(frame_funs):
             v[k].append(f())
+
         vT.append(tensor_fun())
         "Print the progress"
         try:
@@ -1575,8 +1576,7 @@ def ini_vec_load(traj,frame_funs,tensor_fun,frame_index=None,index=None,info=Non
                 ProgressBar(c+1, len(index), prefix = 'Loading Ref. Frames:', suffix = 'Complete', length = 50) 
         except:
             pass
-                       
-    
+
     for k,v0 in enumerate(v):
         v[k]=np.array(v0)
         """Put the vectors in order such that if two vectors given, each vector
@@ -1587,6 +1587,5 @@ def ini_vec_load(traj,frame_funs,tensor_fun,frame_index=None,index=None,info=Non
 
         
     vT=np.moveaxis(vT,0,-1)
-
     
     return {'n_frames':nf,'v':v,'vT':vT,'t':t,'index':index,'frame_index':frame_index,'info':info} 
