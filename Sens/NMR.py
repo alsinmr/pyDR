@@ -64,7 +64,9 @@ class NMR(Sens):
         None.
 
         """
-        if info is not None:self.info.append(info)
+        if info is not None:
+            self.info.append(info)
+            return
         
         
         ne=0
@@ -193,10 +195,12 @@ def defaults(info,**kwargs):
     else:
         for _,value in zip([0],kwargs.values()):
             for _ in range(len(value)):info_new.new_exper()
-    for k,i in enumerate(info):
+
+    for k,i in enumerate(info_new):
         if i['Type']=='NOE':
-            info['dXY',k]=np.atleast_1d(i['dXY'])[0]
-            info['Nuc1',k]=np.atleast_1d(i['Nuc1'])[0]
+            
+            info_new['dXY',k]=np.atleast_1d(i['dXY'])[0]
+            info_new['Nuc1',k]=np.atleast_1d(i['Nuc1'])[0]
     
     "We replace None with zeros except for nuclei"
     for k in info_new.keys:
@@ -205,6 +209,7 @@ def defaults(info,**kwargs):
             for m in range(len(v)):
                 if v[m] is None:
                     info_new[k,m]=0
+                
                     
     "We override the defaults with our input values"
     for key,values in kwargs.items():
@@ -216,6 +221,9 @@ def defaults(info,**kwargs):
 
     for k,i in enumerate(info_new):
         if i['Type']=='NOE':
+            info_new['dXY',k]=np.atleast_1d(i['dXY'])[0]
+            if info_new['Nuc1'] is not None:
+                info_new['Nuc1',k]=np.atleast_1d(i['Nuc1'])[0]
             # if hasattr(i['dXY'],'size') and i['dXY'].size>1:info_new['dXY',k]=info_new['dXY',k][0]
             # if hasattr(i['Nuc1'],'size') and i['Nuc1'].size>1:info_new['Nuc1',k]=info_new['Nuc1',k][0]
             info_new['CSA',k]=0
