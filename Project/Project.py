@@ -16,6 +16,7 @@ from copy import copy
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import gc
+from shutil import copyfile
 decode=bytes.decode
 
 
@@ -843,6 +844,7 @@ class Project():
         self._directory = os.path.abspath(directory) if directory is not None else None
         if self.directory and not(os.path.exists(self.directory)) and create:
             os.mkdir(self.directory)
+            os.mkdir(os.path.join(self.directory,'scratch'))
         # assert os.path.exists(self.directory),'Project directory does not exist. Select an existing directory or set create=True'
                
         self.data=DataMngr(self)
@@ -1326,10 +1328,11 @@ class Project():
                             #Maybe just store a subset of the pdb?
                             
                             if full_pdb:
-                                if len(sel.uni.atoms)<100000:  #Built in writer doesn'twork for 100000 or more atoms
-                                    sel.uni.atoms.write(os.path.join(pdb_dir,fileout+'.pdb')) #write the pdb
-                                else:
-                                    write_PDB(sel.uni.atoms,os.path.join(pdb_dir,fileout+'.pdb'),overwrite=True)
+                                copyfile(sel.molsys.topo,os.path.join(pdb_dir,fileout+'.pdb'))
+                                # if len(sel.uni.atoms)<100000:  #Built in writer doesn'twork for 100000 or more atoms
+                                #     sel.uni.atoms.write(os.path.join(pdb_dir,fileout+'.pdb')) #write the pdb
+                                # else:
+                                #     write_PDB(sel.uni.atoms,os.path.join(pdb_dir,fileout+'.pdb'),overwrite=True)
                             else:
                                 fileout+=str(q+1)
                                 sel0=np.sum(sel.sel1+sel.sel2)

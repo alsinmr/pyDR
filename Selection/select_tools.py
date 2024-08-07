@@ -265,11 +265,13 @@ def protein_defaults(Nuc:str,mol,resids:list=None,segids:list=None,filter_str:st
         sel1=sel0.select_atoms('name CA and around 1.7 name CB')
         sel2=sel0.select_atoms('name CB and around 1.7 name CA')
     elif Nuc.lower()=='sidechain':
+        sel0=sel0.select_atoms('resname ALA ARG ASN ASP CYS CYSG CYSP GLN GLU GLY HSD HIS '+
+                               'ILE LEU LYS MET PHE PRO SER THR TRP TYR VAL')
         sel1=sel0.select_atoms('resname GLY ALA and name HA1 CB')+\
             sel0.select_atoms('resname PHE TYR and name CZ')+\
             sel0.select_atoms('resname HSD HIS and name NE2')+\
             sel0.select_atoms('resname TRP and name CZ2')+\
-            sel0.select_atoms('resname CYS and name SG')+\
+            sel0.select_atoms('resname CYS CYSG CYSP and name SG')+\
             sel0.select_atoms('resname PRO ILE LEU and name CD CD1')+\
             sel0.select_atoms('resname MET GLN and name CE NE2')+\
             sel0.select_atoms('resname GLU and name OE1')+\
@@ -281,9 +283,15 @@ def protein_defaults(Nuc:str,mol,resids:list=None,segids:list=None,filter_str:st
             sel0.select_atoms('resname VAL and name CG1')+\
             sel0.select_atoms('resname THR and name CG2')
             
-        sel1=sel1[np.argsort(sel1.resids)]
+        segids=np.unique(sel1.segids)
+        N=sel1.resids.max()+1
+        i=np.array([np.argwhere(s.segid==segids)*N+s.resid for s in sel1]).squeeze()
+        sel1=sel1[np.argsort(i)]
         sel2=sel0.select_atoms('resname GLY ALA and name CA')+sel0.select_atoms('not resname GLY ALA and name CB')
-        sel2=sel2[np.argsort(sel2.resids)]
+        segids=np.unique(sel2.segids)
+        N=sel2.resids.max()+1
+        i1=np.array([np.argwhere(s.segid==segids)*N+s.resid for s in sel2]).squeeze()
+        sel2=sel2[np.argsort(i)]
         
         i=np.isin(sel2.resids,sel1.resids)
         sel2=sel2[i]

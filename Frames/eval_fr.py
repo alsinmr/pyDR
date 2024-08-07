@@ -644,6 +644,10 @@ class FrameObj():
             A_0m_PASinf.append(vft.D2vec(vZ_inf).mean(axis=-1))
         
         source.details.append('Direct analysis of the correlation function')
+        source.select.molsys=copy(source.select.molsys)
+        source.select.molsys.make_pdb(ti=0)
+        
+        
         out=[iRED({'v':vZ,'t':v['t'],'index':index,'source':source,'sampling_info':self.sampling_info},rank=rank)]
         for k,fn in zip(range(nf+1),self.frame_names(include)):
             if k==0:
@@ -661,7 +665,8 @@ class FrameObj():
             source.details.append('Analyzed with iRED')
             source.additional_info=fn
             out.append(iRED({'v':v0,'t':v['t'],'index':index,'source':source,'sampling_info':self.sampling_info},rank=rank))
-            out.md2data=self.md2data
+            out[-1].md2data=self.md2data
+            
         return out
             
     def md2iRED(self,rank:int=2):
@@ -680,6 +685,8 @@ class FrameObj():
         include=[False for _ in range(len(self.vf))]
         out=self.frames2iRED(rank=rank,include=include)[0]
         out.source.Type='iREDmode'
+        out.source.select.molsys=copy(out.source.select.molsys)
+        out.source.select.molsys.make_pdb(ti=0)
         out.md2data=self.md2data
         return out
 
@@ -831,6 +838,11 @@ def ct2data(ct_out,mol=None):
                 data.tensors['A_0m_PASinF']=A0
             data.detect=out[0].detect
             out.append(data)
+
+    ms=copy(out[0].select.molsys)
+    ms.make_pdb(ti=0)
+    for d in out:
+        d.select.molsys=ms
 
     return out
 

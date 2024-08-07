@@ -511,7 +511,7 @@ class EntropyCC:
             i=top==0
             bottom[i]=1
             self._CC=top/bottom
-        return self._CC
+        return copy(self._CC)
     
     @property
     def Smax(self):
@@ -659,7 +659,42 @@ class EntropyCC:
         
         return self._CCpca
     
-    def plotCCpca(self,index=None,ax=None,**kwargs):
+    def CCpca_states(self,states:list):
+        """
+        Evaluates the pca CC for specific states in the PCA
+
+        Parameters
+        ----------
+        states : list
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        PCAstate=self.PCA.Cluster.state
+        i=np.sum([PCAstate==state for state in states],axis=0).astype(bool)
+        
+        p=np.unique(PCAstate[i],return_counts=True)[1]/i.sum()
+        
+        Spca=-(p*np.log(p)).sum()  #PCA entropy
+        
+        CC=[]
+        for state in self.state:
+            p=np.unique(state[i],return_counts=True)[1]/i.sum()
+            Ssc=-(p*np.log(p)).sum()
+            
+            Tstate=state*(PCAstate.max()+1)+PCAstate
+            p=np.unique(Tstate[i],return_counts=True)[1]/i.sum()
+            Stotal=-(p*np.log(p)).sum()
+            
+            CC.append(2*(Ssc+Spca-Stotal)/(Ssc+Spca))
+
+        return np.array(CC)            
+    
+    def plotCCpca(self,index=None,states:list=None,ax=None,**kwargs):
         if ax is None:ax=plt.subplots()[1]
         if index is None:index=np.ones(len(self.CCpca),dtype=bool)
         
@@ -849,19 +884,20 @@ class EntropyCC:
         CMXRemote.send_command(ID,f'show #{mn}&~@H*&~:GLY,ALA,PRO')
         
             
-    def CCchimera(self,index=None,indexCC:int=None,scaling:float=None,norm:bool=True) -> None:
+    def CCchimera(self,index=None,indexCC:int=None,states:list=None,scaling:float=None,norm:bool=True) -> None:
         """
-        Plots the cross correlation of motion for a given detector window in 
-        chimera. 
+        Plots the cross correlation of motion.
     
         Parameters
         ----------
         index : list-like, optional
-            Select which residues to plot. The default is None.
+            Select which residues to plot. The default is None (all residues).
         indexCC : int,optional
             Select which row of the CC matrix to show. Must be used in combination
             with rho_index. Note that if index is also used, indexCC is applied
             AFTER index.
+            
+            Set indexCC to 'PCA' to correlate with the backbone
         scaling : float, optional
             Scale the display size of the detectors. If not provided, a scaling
             will be automatically selected based on the size of the detectors.
@@ -879,16 +915,24 @@ class EntropyCC:
         
         CMXRemote=clsDict['CMXRemote']
     
-        index=np.arange(self.CC.shape[0]) if index is None else np.array(index)
+        index=np.arange(self.resids.size) if index is None else np.array(index)
     
-
-        x=self.CC[index][:,index]
-        x[np.isnan(x)]=0
-        x[x<0]=0
+        if isinstance(indexCC,str) and indexCC.lower()=='pca':        
+            if states is not None:
+                x=self.CCpca_states(states)[index]
+            else:
+                x=self.CCpca[index]
+            x[np.isnan(x)]=0
+            x *= 1/x.max() if scaling is None else scaling
+        else:
+            x=self.CC[index][:,index]
+            x[np.isnan(x)]=0
+            x[x<0]=0
+            x -=np.eye(x.shape[0])
+            x *= 1/x.max() if scaling is None else scaling
+            x+=np.eye(x.shape[0])
         
-        x -=np.eye(x.shape[0])
-        x *= 1/(x-np.eye(x.shape[0])).max() if scaling is None else scaling
-        x+=np.eye(x.shape[0])
+        
     
         if self.project is not None:
             ID=self.project.chimera.CMXid
@@ -897,7 +941,6 @@ class EntropyCC:
                 ID=self.project.chimera.CMXid
         else:
             ID=CMXRemote.launch()
-            cmds=[]
     
     
         ids=np.array([s.atoms.indices for s in self.resi[index]],dtype=object)
@@ -909,16 +952,25 @@ class EntropyCC:
     
         
         if indexCC is not None:
-            x=x[indexCC].squeeze()
+            if not(isinstance(indexCC,str) and indexCC.lower()=='pca'):
+                x=x[indexCC].squeeze()
+            else:
+                indexCC=None
             x[np.isnan(x)]=0
             self.select.chimera(x=x,index=index)
-            sel0=self.select.repr_sel[index][indexCC]
+
+            
+            
             mn=CMXRemote.valid_models(ID)[-1]
-            CMXRemote.send_command(ID,'color '+'|'.join([f'#{mn}/{s.segid}:{s.resid}@{s.name}' for s in sel0])+' black')
+            if indexCC is not None:
+                sel0=self.select.repr_sel[index][indexCC]
+                if hasattr(sel0,'size'):sel0=sel0[0]  #Depending on indexing type, we may still have a numpy array here
+                CMXRemote.send_command(ID,'color '+'|'.join([f'#{mn}/{s.segid}:{s.resid}@{s.name}' for s in sel0])+' black')
+            
             CMXRemote.send_command(ID,f'~show #{mn}')
             CMXRemote.send_command(ID,f'ribbon #{mn}')
             CMXRemote.send_command(ID,f'show #{mn}&~@H*&~:GLY,ALA,PRO')
-            CMXRemote.send_command(ID,f'set bgColor gray')
+            CMXRemote.send_command(ID,'set bgColor gray')
             # print('color '+'|'.join(['#{0}/{1}:{2}@{3}'.format(mn,s.segid,s.resid,s.name) for s in sel0])+' black')
         else:
 
@@ -928,7 +980,7 @@ class EntropyCC:
             CMXRemote.send_command(ID,f'~show #{mn}')
             CMXRemote.send_command(ID,f'ribbon #{mn}')
             CMXRemote.send_command(ID,f'show #{mn}&~@H*&~:GLY,ALA,PRO')
-            CMXRemote.send_command(ID,f'set bgColor gray')
+            CMXRemote.send_command(ID,'set bgColor gray')
                         
             out=dict(R=x,ids=ids)
             CMXRemote.add_event(ID,'CC',out)

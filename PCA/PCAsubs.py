@@ -829,7 +829,7 @@ class Hist():
     def project(self):
         return self.pca.project
         
-    def plot(self,n0:int=0,n1:int=1,ax=None,maxbin:float=None,nbins:int=None,cmap='nipy_spectral',**kwargs):
+    def plot(self,n0:int=0,n1:int=1,ax=None,maxbin:float=None,nbins:int=None,cmap='nipy_spectral',index=None,**kwargs):
         """
         Creates a 2D histogram of two principal components. Specify the desired
         components (n0,n1=0,1 by default)
@@ -846,6 +846,9 @@ class Hist():
             Largest bin. The default is None.
         nbins : int, optional
             Number of bins. The default is None.
+        index : np.array
+            Indexes the frames to be included in the histogram. 
+            Defaults to None (all frames) 
         **kwargs : TYPE
             Plotting arguments to be passed to hist2d.
 
@@ -859,14 +862,18 @@ class Hist():
         
         if ax is None:ax=plt.figure().add_subplot(111)
         if maxbin is None:
-            maxbin=np.max(np.abs(PCamp[min([n0,n1])])) 
+            maxbin=np.max([np.max(np.abs(PCamp[n0])),np.max(np.abs(PCamp[n1]))]) 
         if nbins is None:
             nbins=min([100,PCamp.shape[1]//4])
         
-        out=ax.hist2d(PCamp[n0],PCamp[n1],bins=np.linspace(-maxbin,maxbin,nbins),cmap=cmap,**kwargs)
+        if index is None:
+            index=np.ones(PCamp[n0].size,dtype=bool)
+        
+        out=ax.hist2d(PCamp[n0][index],PCamp[n1][index],bins=np.linspace(-maxbin,maxbin,nbins),cmap=cmap,**kwargs)
         ax.set_xlabel(f'PC {n0}')
         ax.set_ylabel(f'PC {n1}')
-        return out
+        # return out #Should we change this back to out?
+        return ax
     #%% PDB writing / Chimera
     
     def PC2index(self,PCamp):
@@ -1027,7 +1034,10 @@ class Hist():
             self.project.chimera.command_line('open "{0}"'.format(filename))
             mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
             clr=[int(c*100) for c in plt.get_cmap('tab10')(mdls-1)[:-1]]
-            self.project.chimera.command_line(['~ribbon','show','color #{0} {1},{2},{3}'.format(mdls,clr[0],clr[1],clr[2])])
+            if from_traj:
+                self.project.chimera.command_line(['ribbon #{0}','~show #{0}','color #{0} {1},{2},{3}'.format(mdls,clr[0],clr[1],clr[2])])
+            else:
+                self.project.chimera.command_line(['~ribbon #{0}','show #{0}','color #{0} {1},{2},{3}'.format(mdls,clr[0],clr[1],clr[2])])
             self.project.chimera.command_line(self.project.chimera.saved_commands)
             return
         
@@ -1051,7 +1061,7 @@ class Hist():
         
         return self
     
-    def hist2struct(self,nmax:int=4,from_traj:bool=True,select_str:str='protein',ref_struct:bool=False,**kwargs):
+    def hist2struct(self,nmax:int=4,from_traj:bool=True,select_str:str='protein',ref_struct:bool=False,ax=None,**kwargs):
         """
         Interactively view structures corresponding to positions on the 
         histogram plots. Specify the maximum principle component to display. Then,
@@ -1083,8 +1093,12 @@ class Hist():
         """
         x,y=int(np.ceil(np.sqrt(nmax))),int(np.ceil(np.sqrt(nmax)))
         if (x-1)*y>=nmax:x-=1
-        fig=plt.figure()
-        ax=[fig.add_subplot(x,y,k+1) for k in range(nmax)]
+        
+        if ax is None:
+            fig=plt.figure()
+            ax=[fig.add_subplot(x,y,k+1) for k in range(nmax)]
+        else:
+            fig=ax[0].figure
         hdls=list()
         for k,a in enumerate(ax):
             self.plot(n0=k,n1=k+1,ax=a,**kwargs)
@@ -1104,45 +1118,46 @@ class Hist():
         def onclick(event):
             if event.inaxes:
                 ax0=event.inaxes
-                i=ax.index(ax0)
-                PCamp[i]=event.xdata
-                PCamp[i+1]=event.ydata
-                hdls[i][0].set_xdata([event.xdata,event.xdata])
-                hdls[i][0].set_ydata(ax0.get_ylim())
-                hdls[i][0].set_visible(True)
-                hdls[i][1].set_xdata(ax0.get_xlim())
-                hdls[i][1].set_ydata([event.ydata,event.ydata])
-                hdls[i][1].set_visible(True)
-                if i+1<len(hdls):
-                    ax0=ax[i+1]
-                    hdls[i+1][0].set_xdata([event.ydata,event.ydata])
-                    hdls[i+1][0].set_ydata(ax0.get_ylim())
-                    hdls[i+1][0].set_visible(True)
-                if i>0:
-                    ax0=ax[i-1]
-                    hdls[i-1][1].set_xdata(ax0.get_ylim())
-                    hdls[i-1][1].set_ydata([event.xdata,event.xdata])
-                    hdls[i-1][1].set_visible(True)
-                
-                if not(None in PCamp):  #All positions defined. Add new molecule in chimera
-                    if from_traj:
-                        i=self.PC2index(PCamp)
-                        PCamp0=self.pca.PCamp[:len(PCamp)][:,i] #Set PCamp to the nearest value in trajectory
-                    else:
-                        PCamp0=PCamp
-                    self.chimera(PCamp=PCamp0,from_traj=from_traj)
-                    for k,a in enumerate(ax):
-                        mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
-                        clr=plt.get_cmap('tab10')((mdls-1)%10)
-                        
-                        a.scatter(PCamp0[k],PCamp0[k+1],100,marker=markers[(mdls-1)%len(markers)],linewidth=3,color=clr)
-                        
-                    #Clear the positions in the plot
-                    for k in range(len(PCamp)):PCamp[k]=None
-                    for h in hdls:
-                        for h0 in h:
-                            h0.set_visible(False)
-                plt.pause(0.01)
+                if ax0 in ax:
+                    i=ax.index(ax0)
+                    PCamp[i]=event.xdata
+                    PCamp[i+1]=event.ydata
+                    hdls[i][0].set_xdata([event.xdata,event.xdata])
+                    hdls[i][0].set_ydata(ax0.get_ylim())
+                    hdls[i][0].set_visible(True)
+                    hdls[i][1].set_xdata(ax0.get_xlim())
+                    hdls[i][1].set_ydata([event.ydata,event.ydata])
+                    hdls[i][1].set_visible(True)
+                    if i+1<len(hdls):
+                        ax0=ax[i+1]
+                        hdls[i+1][0].set_xdata([event.ydata,event.ydata])
+                        hdls[i+1][0].set_ydata(ax0.get_ylim())
+                        hdls[i+1][0].set_visible(True)
+                    if i>0:
+                        ax0=ax[i-1]
+                        hdls[i-1][1].set_xdata(ax0.get_ylim())
+                        hdls[i-1][1].set_ydata([event.xdata,event.xdata])
+                        hdls[i-1][1].set_visible(True)
+                    
+                    if not(None in PCamp):  #All positions defined. Add new molecule in chimera
+                        if from_traj:
+                            i=self.PC2index(PCamp)
+                            PCamp0=self.pca.PCamp[:len(PCamp)][:,i] #Set PCamp to the nearest value in trajectory
+                        else:
+                            PCamp0=PCamp
+                        self.chimera(PCamp=PCamp0,from_traj=from_traj)
+                        for k,a in enumerate(ax):
+                            mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
+                            clr=plt.get_cmap('tab10')((mdls-1)%10)
+                            
+                            a.scatter(PCamp0[k],PCamp0[k+1],100,marker=markers[(mdls-1)%len(markers)],linewidth=3,color=clr)
+                            
+                        #Clear the positions in the plot
+                        for k in range(len(PCamp)):PCamp[k]=None
+                        for h in hdls:
+                            for h0 in h:
+                                h0.set_visible(False)
+                    plt.pause(0.01)
             else: #Clicking outside the axes clears out the positions
                 for k in range(len(PCamp)):PCamp[k]=None
                 for h in hdls:
@@ -1162,7 +1177,7 @@ class Cluster():
         self.cluster=cluster
         
         self.algorithm='MiniBatchKMeans'
-        self.cluster_kwargs={'n_clusters':3}
+        self.cluster_kwargs={'n_clusters':3,'random_state':42}  #Put in random state for reproducibility
         
         self.pca=pca
         self._index=[0,1]
@@ -1170,6 +1185,7 @@ class Cluster():
         self._cclass=None
         self._output=None
         self._sorting=None
+        self._state=None #For unusual usage: manual replacement of state definition
         
     @property
     def project(self):
@@ -1187,6 +1203,10 @@ class Cluster():
     @n_clusters.setter
     def n_clusters(self,value:int):
         self.cluster_kwargs['n_clusters']=value
+        self._cclass=None
+        self._output=None
+        self._state=None
+        self._sorting=None
         
     @property
     def index(self):
@@ -1194,8 +1214,11 @@ class Cluster():
     
     @index.setter
     def index(self,index):
-        self._output=None
         self._index=index
+        self._cclass=None
+        self._output=None
+        self._state=None
+        self._sorting=None
     
     
     @property
@@ -1223,7 +1246,6 @@ class Cluster():
     
     @property
     def output(self):
-        self.cclass
         if self._output is None:
             self._sorting=None
             self._output=self.cclass.fit(self.pca.PCamp[self.index].T)
@@ -1231,20 +1253,26 @@ class Cluster():
     
     @property
     def state(self):
+        if self._state is not None:return self._state
         if self._sorting is None:
             self.PCavg
         i=self._sorting
-        out=np.zeros(self.output.labels_.shape)
+        out=np.zeros(self.output.labels_.shape,dtype=int)
         for k,i0 in enumerate(i):
             out[self.output.labels_==i0]=k
+        self._state=out
         
         return out
+    
+    @state.setter
+    def state(self,state):
+        self._state=state
     
     @property
     def populations(self):
         return np.unique(self.state,return_counts=True)[1]/self.state.size
     
-    def plot(self,ax=None,skip:int=10,maxbin:float=None,nbins:int=None,cmap='binary',**kwargs):
+    def plot(self,ax=None,skip:int=10,maxbin:float=None,nbins:int=None,cmap='binary',percent:bool=True,**kwargs):
         nplots=len(self.index)-1
         if ax is not None:
             if nplots>1:
@@ -1267,10 +1295,12 @@ class Cluster():
                 a.scatter(self.pca.PCamp[self.index[k]][self.state==q].mean(),
                        self.pca.PCamp[self.index[k+1]][self.state==q].mean(),s=25,
                        color='black',marker='^')
-                a.text(self.pca.PCamp[self.index[k]][self.state==q].mean(),
-                       self.pca.PCamp[self.index[k+1]][self.state==q].mean(),
-                       f'{self.populations[q]*100:.1f}%',
-                       horizontalalignment='center',verticalalignment='center')
+                
+                if percent:
+                    a.text(self.pca.PCamp[self.index[k]][self.state==q].mean(),
+                           self.pca.PCamp[self.index[k+1]][self.state==q].mean(),
+                           f'{self.populations[q]*100:.1f}%',
+                           horizontalalignment='center',verticalalignment='center')
                 
             if -1 in self.state:
                 a.scatter(self.pca.PCamp[self.index[k]][self.state==-1][::skip],

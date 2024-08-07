@@ -812,11 +812,11 @@ class Data_iRED(Data):
         # CMXRemote.send_command(ID,'close')
 
 
-        
         if len(rho_index)==1 and indexCC is not None:
-            x=R[indexCC][:,rho_index].squeeze()
+            x=R[indexCC].squeeze()[:,rho_index].squeeze()
             self.select.chimera(color=plt.get_cmap('tab10')(rho_index[0]),x=x,index=index)
             sel0=self.select.repr_sel[index][indexCC]
+            if hasattr(sel0,'size'):sel0=sel0[0] #sel0 may still be a np.array
             mn=CMXRemote.valid_models(ID)[-1]
             CMXRemote.send_command(ID,'color '+'|'.join(['#{0}/{1}:{2}@{3}'.format(mn,s.segid,s.resid,s.name) for s in sel0])+' black')
             # print('color '+'|'.join(['#{0}/{1}:{2}@{3}'.format(mn,s.segid,s.resid,s.name) for s in sel0])+' black')

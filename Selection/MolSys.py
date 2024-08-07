@@ -264,9 +264,14 @@ class MolSys():
         
         if self.traj is not None and len(self.traj):self.traj[ti]
         
-        folder=os.path.split(self.topo)[0]
         
-        filename=self.topo.rsplit('.',maxsplit=1)[0]+'_ts{0}.pdb'.format(self.traj.mda_traj.ts.frame)
+        if self.project is not None and self.project.directory is not None \
+            and os.path.exists(os.path.join(self.project.directory,'scratch')):
+                folder=os.path.join(self.project.directory,'scratch')
+        else:
+            folder=os.path.split(self.topo)[0]
+        
+        filename=os.path.split(self.topo)[1].rsplit('.',maxsplit=1)[0]+'_ts{0}.pdb'.format(self.traj.mda_traj.ts.frame)
         filename=os.path.join(folder,filename) if os.access(folder, os.W_OK) else os.path.abspath(filename)
         if len(self.uni.atoms)<100000:
             self.uni.atoms.write(filename)
