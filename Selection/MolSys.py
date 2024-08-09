@@ -423,6 +423,14 @@ class Trajectory():
         return (self.mda_traj.frame-self.t0)//self.step
     
     @property
+    def lengths(self):
+        l=(self.mda_traj.total_times/self.mda_traj.dt).astype(int)
+        l[0]-=self.t0
+        l[-1]-=self.__tf-self.tf
+        return l
+        
+    
+    @property
     def details(self):
         out=['Trajectory:'+', '.join(self.files)]
         out.append('t0={0}, tf={1}, step={2}, dt={3} ps, original length={4}'.format(self.t0,self.tf,self.step,self.dt,self.__tf))
@@ -435,7 +443,7 @@ class Trajectory():
                 super().__setattr__(name, value)
             return
         
-        if name in ['t0','tf','step']:
+        if name in ['t0','tf','step'] and value is not None:
             value=int(value)
         if name=='tf':
             if value is None:value=self.__tf

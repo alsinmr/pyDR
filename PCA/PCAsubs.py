@@ -953,7 +953,7 @@ class Hist():
             it exists or in the same folder as the original topology.
         PCamp : list-like, optional
             List of amplitudes for the first len(PCamp) principal components. 
-            If this is provided, then 'n' and 'std' are ignored.
+            If this is provided, then 'n' and 'A' are ignored.
             The default is None.
         from_traj : bool, optional
             Extracts a frame from the trajectory that is closest given PCamps
@@ -973,11 +973,14 @@ class Hist():
             folder=self.project.directory if self.project is not None and self.project.directory is not None \
                 else os.path.split(self.pca.select.molsys.topo)[0]
             filename=os.path.join(folder,'pca.pdb')
-        atoms=self.pca.uni.atoms.select_atoms(select_str) if from_traj else self.atoms
+        atoms=self.pca.uni.atoms.select_atoms(select_str) if (from_traj and PCamp is not None) else self.pca.atoms
         if PCamp is not None:
             if from_traj:
                 i=self.PC2index(PCamp)
                 self.pca.traj[i]
+                if hasattr(self.pca.traj,'traj_index'):
+                    q=self.pca.traj.traj_index
+                    print(f'Extracting frame {self.pca.traj.trajs[q].frame} from trajectory {q}')
                 atoms.positions=self.pca.align(self.pca.ref_pos, 
                                                self.pca.uni.select_atoms(self.pca.align_ref),
                                                atoms)
@@ -992,7 +995,7 @@ class Hist():
         self.pca.traj[frame0]
         return filename
     
-    def chimera(self,n:int=0,std:float=1,PCamp:list=None,from_traj:bool=True,select_str:str='protein'):
+    def chimera(self,n:int=0,std:float=1,PCamp:list=None,from_traj:bool=True,select_str:str='protein',cmap_ch='tab10'):
         """
         Plots the change in a structure for a given principal component. That is,
         if n=0, then we plot the mean structure with +/-sigma for the n=0 
@@ -1028,12 +1031,13 @@ class Hist():
         self
 
         """            
+        if isinstance(cmap_ch,str):cmap_ch=plt.get_cmap(cmap_ch)
         if PCamp is not None:
             filename=self.write_pdb(n=n,PCamp=PCamp,from_traj=from_traj,select_str=select_str)
             if self.project.chimera.current is None:self.project.chimera.current=0
             self.project.chimera.command_line('open "{0}"'.format(filename))
             mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
-            clr=[int(c*100) for c in plt.get_cmap('tab10')(mdls-1)[:-1]]
+            clr=[int(c*100) for c in cmap_ch(mdls-1)[:-1]]
             if from_traj:
                 self.project.chimera.command_line(['ribbon #{0}','~show #{0}','color #{0} {1},{2},{3}'.format(mdls,clr[0],clr[1],clr[2])])
             else:
@@ -1055,13 +1059,13 @@ class Hist():
             if self.project.chimera.current is None:self.project.chimera.current=0
             self.project.chimera.command_line('open "{0}"'.format(filename))       
             mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
-            clr=[int(c*100) for c in plt.get_cmap('tab10')(mdls-1)[:-1]]
+            clr=[int(c*100) for c in cmap_ch(mdls-1)[:-1]]
             self.project.chimera.command_line(['~ribbon','show','color #{0} {1},{2},{3}'.format(mdls,clr[0],clr[1],clr[2])])
         self.project.chimera.command_line(self.project.chimera.saved_commands)
         
         return self
     
-    def hist2struct(self,nmax:int=4,from_traj:bool=True,select_str:str='protein',ref_struct:bool=False,ax=None,**kwargs):
+    def hist2struct(self,nmax:int=4,from_traj:bool=True,select_str:str='protein',ref_struct:bool=False,ax=None,cmap_ch='tab10',n_colors=10,**kwargs):
         """
         Interactively view structures corresponding to positions on the 
         histogram plots. Specify the maximum principle component to display. Then,
@@ -1091,6 +1095,10 @@ class Hist():
         None.
 
         """
+        
+        
+        if isinstance('cmap_ch',str):cmap_ch=plt.get_cmap(cmap_ch).resampled(n_colors)
+        
         x,y=int(np.ceil(np.sqrt(nmax))),int(np.ceil(np.sqrt(nmax)))
         if (x-1)*y>=nmax:x-=1
         
@@ -1109,12 +1117,13 @@ class Hist():
         if ref_struct:
             self.chimera(PCamp=[0])
             mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
-            clr=plt.get_cmap('tab10')(mdls-1)
+            clr=cmap_ch((mdls-1)%n_colors)
             for k,a in enumerate(ax):
                 a.scatter(0,0,marker='x',color=clr)
         
         PCamp=[None for _ in range(nmax+1)]
         markers=['x','o','+','v','>','s','1','*']
+        mkr_hdls=[]
         def onclick(event):
             if event.inaxes:
                 ax0=event.inaxes
@@ -1145,12 +1154,15 @@ class Hist():
                             PCamp0=self.pca.PCamp[:len(PCamp)][:,i] #Set PCamp to the nearest value in trajectory
                         else:
                             PCamp0=PCamp
-                        self.chimera(PCamp=PCamp0,from_traj=from_traj)
+                        self.chimera(PCamp=PCamp0,from_traj=from_traj,cmap_ch=cmap_ch)
                         for k,a in enumerate(ax):
                             mdls=self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)
-                            clr=plt.get_cmap('tab10')((mdls-1)%10)
+                            clr=cmap_ch((mdls-1)%n_colors)
                             
-                            a.scatter(PCamp0[k],PCamp0[k+1],100,marker=markers[(mdls-1)%len(markers)],linewidth=3,color=clr)
+                            if mdls==0:
+                                while mkr_hdls:mkr_hdls.pop().remove()
+                            
+                            mkr_hdls.append(a.scatter(PCamp0[k],PCamp0[k+1],100,marker=markers[(mdls-1)%len(markers)],linewidth=3,color=clr))
                             
                         #Clear the positions in the plot
                         for k in range(len(PCamp)):PCamp[k]=None
@@ -1159,6 +1171,10 @@ class Hist():
                                 h0.set_visible(False)
                     plt.pause(0.01)
             else: #Clicking outside the axes clears out the positions
+            
+                if self.project.chimera.CMX.how_many_models(self.project.chimera.CMXid)==0:
+                    while mkr_hdls:mkr_hdls.pop().remove()
+                    
                 for k in range(len(PCamp)):PCamp[k]=None
                 for h in hdls:
                     for h0 in h:
@@ -1307,6 +1323,19 @@ class Cluster():
                           self.pca.PCamp[self.index[k+1]][self.state==-1][::skip],s=.1,color=0.8)
                 
         return ax
+    
+    def plot_t_depend(self,ax=None):
+        if ax is None:ax=plt.subplots()[1]
+        ax.scatter(self.pca.t,self.state,3,marker='o',color='black')
+        ax.set_ylim([-.5,self.n_clusters-.5])
+        if len(self.pca.traj.lengths)>1:
+            lengths=self.pca.traj.lengths
+            for k in range(len(lengths)-1):
+                ax.plot(np.sum(lengths[:k+1])*np.ones(2),ax.get_ylim(),color='grey',linestyle=':')
+                
+        return ax
+        
+        
     
     @property
     def PCavg(self):
