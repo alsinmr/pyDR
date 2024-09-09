@@ -427,7 +427,7 @@ class Trajectory():
         l=(self.mda_traj.total_times/self.mda_traj.dt).astype(int)
         l[0]-=self.t0
         l[-1]-=self.__tf-self.tf
-        return l
+        return (l/self.step).astype(int)
         
     
     @property
@@ -1083,6 +1083,8 @@ class MolSelect():
         if index is None:index=np.arange(len(self))
         
         if np.max(color)>1:color=[float(c/255) for c in color]
+        if len(color)==3:color=[*color,1.]
+        
         
         if self.project is not None and self.project.chimera.saved_commands is not None:
             for cmd in self.project.chimera.saved_commands:

@@ -359,6 +359,7 @@ class EntropyCC:
             out=[]
             for v,chi,mult in zip(self.vt,self.chi,self.mult):
                 v=copy(v)
+                vout=np.zeros(v.shape[:-1])
                 
                 for q in [2,3]:
                     for angle in [m*360/q for m in range(1,q)]:
@@ -367,9 +368,23 @@ class EntropyCC:
                         v1=-v[0,i]*np.sin(2*np.pi/q)+v[1,i]*np.cos(2*np.pi/q)
                         v[0,i]=v0
                         v[1,i]=v1
-                v=v.mean(-1)
-                v/=np.sqrt(v[0]**2+v[1]**2) #Renormalization
-                out.append(v)
+                    
+                for q in [2,3]:
+                    i=mult==q
+                    angle=np.arctan2(v[1,i],v[0,i])*q
+                    v0=np.median(np.cos(angle),axis=-1)
+                    v1=np.median(np.sin(angle),axis=-1)
+                    
+                    angle=np.arctan2(v1,v0)/q
+                    
+                    vout[0,i]=-np.cos(angle)
+                    vout[1,i]=-np.sin(angle)
+                    
+                    
+                # v=v.mean(-1)
+                # v/=np.sqrt(v[0]**2+v[1]**2) #Renormalization
+                # out.append(v)
+                out.append(vout)
             self._v_avg=out
             
         return self._v_avg
@@ -399,6 +414,7 @@ class EntropyCC:
                         overlap.append(v[0,i].T*vref[0]+v[1,i].T*vref[1])
                         
                     state[-1][i]=np.argmax(overlap,axis=0).T
+                    
             self._state0=state
         return self._state0
     
@@ -830,6 +846,52 @@ class EntropyCC:
             return label[int(value)]
         
         return plt.FuncFormatter(format_func)
+    
+    
+    def plotChi(self,index:int,ax:list=None,step:int=1):
+        """
+        Creates one or more Ramachandran histogram plots, depending on the number
+        of chi angles, i.e. 1D histogram for Valine, 1 Ramachandran plot for
+        Isoleucine, 2 plots for Glutamine, etc.
+
+        Parameters
+        ----------
+        index : int
+            DESCRIPTION.
+
+        Returns
+        -------
+        fig
+
+        """
+        index=np.array(index)
+        if index.dtype==bool:index=np.argmax(index)
+        
+        N=self.index[3:,index].sum()
+        nplots=max([1,N-1])
+        if ax is None:
+            fig,ax=plt.subplots(1,nplots)
+        ax=np.atleast_1d(ax).flatten()
+        assert len(ax)==nplots,f"Residue {self.resid[index].resname}{self.resid[index].resid} has {N} chi angles, and therefore requires {nplots} plots"
+    
+        chi=[self.chi[k][self.index[k+3,:index].sum()][::step] for k in range(N-1,-1,-1)]
+        
+        nstates=self.total_mult[index]
+        cmap=plt.get_cmap('turbo').resampled(nstates)
+        
+        for a,k in zip(ax,range(N-1)):
+            for m in range(nstates):
+                i=self.state[index][::step]==m
+                a.scatter(chi[k][i],chi[k+1][i],color=cmap(m),s=1)
+            a.set_xlim([0,360])
+            a.set_ylim([0,360])
+            a.set_xlabel(rf'$\chi_{k+1}$ / $^\circ$')
+            a.set_ylabel(rf'$\chi_{k+2}$ / $^\circ$')
+        
+        fig.tight_layout()        
+        return ax
+    
+            
     
 #%% Chimera functions
     def chimera(self,index=None,scaling:float=None,norm:bool=True,color=[1,0,0,1]):

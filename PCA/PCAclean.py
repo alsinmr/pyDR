@@ -419,7 +419,7 @@ class PCA():
         Ut=U.T
         
         R=V@Ut
-        return (R@pos.T).T
+        return (R.T@pos.T).T
         
         
     # def align(self):

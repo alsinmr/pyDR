@@ -1209,11 +1209,13 @@ class Cluster():
         
     @property
     def n_clusters(self):
+        #Changing order here because some algorithms do not take n_clusters as argument
+        if self._output is not None and hasattr(self._output,'n_clusters'):
+            return self._output.n_clusters
+        
         if 'n_clusters' in self.cluster_kwargs:
             return self.cluster_kwargs['n_clusters']
         
-        if self._output is not None and hasattr(self._output,'n_clusters'):
-            return self._output.n_clusters
         return None
     
     @n_clusters.setter
@@ -1308,11 +1310,12 @@ class Cluster():
             for q in range(self.n_clusters):
                 a.scatter(self.pca.PCamp[self.index[k]][self.state==q][::skip],
                           self.pca.PCamp[self.index[k+1]][self.state==q][::skip],s=.1,color=cmap0(q))
-                a.scatter(self.pca.PCamp[self.index[k]][self.state==q].mean(),
-                       self.pca.PCamp[self.index[k+1]][self.state==q].mean(),s=25,
-                       color='black',marker='^')
-                
                 if percent:
+                    a.scatter(self.pca.PCamp[self.index[k]][self.state==q].mean(),
+                           self.pca.PCamp[self.index[k+1]][self.state==q].mean(),s=25,
+                           color='black',marker='^')
+                
+                
                     a.text(self.pca.PCamp[self.index[k]][self.state==q].mean(),
                            self.pca.PCamp[self.index[k+1]][self.state==q].mean(),
                            f'{self.populations[q]*100:.1f}%',
