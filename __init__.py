@@ -70,6 +70,8 @@ from pyDR.Project import Project,Source
 
 from pyDR.Entropy import EntropyCC
 
+
+
 clsDict.update({'Data':Data,'Data_iRED':Data_iRED,'Source':Source,'Info':Sens.Info,
          'Sens':Sens.Sens,'Detector':Sens.Detector,'NMR':Sens.NMR,'MD':Sens.MD,'SolnNMR':Sens.SolnNMR,
          'MolSys':MolSys,'MolSelect':MolSelect,'Project':Project,
@@ -77,7 +79,7 @@ clsDict.update({'Data':Data,'Data_iRED':Data_iRED,'Source':Source,'Info':Sens.In
          'DataPlots':Plotting.DataPlots,'CMXRemote':CMXRemote,'Movies':Movies,
          'EntropyCC':EntropyCC})
 
-
+from pyDR import PCA
 
 #%% Edit matlabplot subplotspec behavior to be consistent across versions
 from matplotlib.axes import Subplot as _Subplot

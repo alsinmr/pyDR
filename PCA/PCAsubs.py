@@ -1290,7 +1290,7 @@ class Cluster():
     def populations(self):
         return np.unique(self.state,return_counts=True)[1]/self.state.size
     
-    def plot(self,ax=None,skip:int=10,maxbin:float=None,nbins:int=None,cmap='binary',percent:bool=True,**kwargs):
+    def plot(self,ax=None,skip:int=10,maxbin:float=None,nbins:int=None,cmap='binary',cmap_cl='tab10',percent:bool=True,**kwargs):
         nplots=len(self.index)-1
         if ax is not None:
             if nplots>1:
@@ -1306,7 +1306,7 @@ class Cluster():
             
         for k,a in enumerate(ax):
             self.pca.Hist.plot(self.index[k],self.index[k+1],ax=a,maxbin=maxbin,nbins=nbins,cmap=cmap,**kwargs)
-            cmap0=plt.get_cmap('tab10')
+            cmap0=plt.get_cmap(cmap_cl) if isinstance(cmap_cl,str) else cmap_cl
             for q in range(self.n_clusters):
                 a.scatter(self.pca.PCamp[self.index[k]][self.state==q][::skip],
                           self.pca.PCamp[self.index[k+1]][self.state==q][::skip],s=.1,color=cmap0(q))

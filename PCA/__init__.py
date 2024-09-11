@@ -7,3 +7,4 @@ Created on Thu Aug 18 15:15:19 2022
 """
 
 from .PCA import PCA
+from .CombinedPCA import CombinedPCA

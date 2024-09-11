@@ -561,6 +561,19 @@ def find_file(filename,directory:str='',f=None):
 
 
 
+# def write_PCA(f: typing.BinaryIO, pca: pyDR.PCA):
+#     f.write(b'OBJECT:PCA\n')
+#     write_MolSelect(pca.select)
+    
+#     pca_flds=[]
+    
+#     for k in pca_flds:
+#         f.write(bytes('{0}\n'.format(k),'utf-8'))
+#         np.save(f,getattr(pca,k),allow_pickle=False)
+    
+            
+#     f.write(b'END:OBJECT\n')
+
 
 
 

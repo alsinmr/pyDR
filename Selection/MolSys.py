@@ -637,6 +637,8 @@ class MolSelect():
         Atom group / list
 
         """
+        # if self._sel1 is None:
+        #     return self.uni.atoms[:0] if self._mdmode else np.zeros(0,dtype=object)
         return self._sel1
     
     @property
@@ -652,6 +654,8 @@ class MolSelect():
         Atom group / list
 
         """
+        # if self._sel2 is None:
+        #     return self.uni.atoms[:0] if self._mdmode else np.zeros(0,dtype=object)
         return self._sel2
             
     @property
@@ -1131,28 +1135,31 @@ class MolSelect():
         self._mdmode=False
         
         # Check for valid selection
-        ids=np.concatenate([s.indices for s in self.sel1])
-        assert np.all(np.in1d(ids,sel.indices)),\
-            'All atoms in self.sel1 must be in "sel"'
-        ids=np.concatenate([s.indices for s in self.sel2])
-        assert np.all(np.in1d(ids,sel.indices)),\
-            'All atoms in self.sel2 must be in "sel"'
+        if self.sel1 is not None:
+            ids=np.concatenate([s.indices for s in self.sel1])
+            assert np.all(np.in1d(ids,sel.indices)),\
+                'All atoms in self.sel1 must be in "sel"'
+        if self.sel2 is not None:
+            ids=np.concatenate([s.indices for s in self.sel2])
+            assert np.all(np.in1d(ids,sel.indices)),\
+                'All atoms in self.sel2 must be in "sel"'
             
         ms=self.molsys.new_molsys_from_sel(sel)
         
-        select=MolSelect(ms,project=self.project)
+        select=MolSelect(molsys=ms,project=self.project)
         
         
         for key in ['sel1','sel2','repr_sel']:
             new=np.zeros(len(self),dtype=object)
-            for k,ag in enumerate(getattr(self,key)):
-                i0=np.in1d(ag.indices,sel.indices)
-                if i0.sum():
-                    index=np.digitize(ag[i0].indices,sel.indices)-1
-                    new[k]=ms.uni.atoms[index]
-                else:
-                    new[k]=select.sel1[k]+select.sel2[k]
-            setattr(select,key,new)
+            if getattr(self,key) is not None:
+                for k,ag in enumerate(getattr(self,key)):
+                    i0=np.in1d(ag.indices,sel.indices)
+                    if i0.sum():
+                        index=np.digitize(ag[i0].indices,sel.indices)-1
+                        new[k]=ms.uni.atoms[index]
+                    else:
+                        new[k]=select.sel1[k]+select.sel2[k]
+                setattr(select,key,new)
         
         self._mdmode=_mdmode    
         return select

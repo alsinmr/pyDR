@@ -716,7 +716,9 @@ class EntropyCC:
         
         if 'color' not in kwargs:kwargs['color']='black'
         ax.plot(self.CCpca[index],**kwargs)
+        ax.xaxis.set_major_locator(plt.MaxNLocator(30,integer=True))
         ax.xaxis.set_major_formatter(self._axis_formatter(index))
+        
         ax.tick_params(axis='x', labelrotation=90)
         ax.set_ylabel('C.C')
         
@@ -786,6 +788,8 @@ class EntropyCC:
     
         ax.xaxis.set_major_formatter(self._axis_formatter(index))
         ax.yaxis.set_major_formatter(self._axis_formatter(index))
+        ax.xaxis.set_major_locator(plt.MaxNLocator(30,integer=True))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(30,integer=True))
         ax.tick_params(axis='x', labelrotation=90)
         # ax.set_aspect('auto')
         if CCsum:
