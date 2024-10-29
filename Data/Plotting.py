@@ -84,7 +84,9 @@ class DataPlots():
                 data.select.sel1=data.select.sel1[index]
                 if data.select.sel2 is not None:
                     data.select.sel2=data.select.sel2[index]
-            # index=None
+            # I just uncommented the line below (26.09.2024)
+            # The reduced data from above no longer requires an index, so we set index to None
+            index=None
         
         self.data.append(data)        
         self.rho_index.append(self.calc_rho_index() if rho_index is None else np.array(rho_index,dtype=int))
@@ -239,6 +241,8 @@ class DataPlots():
     def comparex(self,i=-1):
         d0,di=self.data[0],self.data[i]
         
+        if len(d0)==len(di):return np.arange(len(d0)),np.arange(len(d0))
+        
         if d0.select is not None and di.select is not None and len(d0.select) and len(di.select):
             out=d0.select.compare(di.select)
             if len(out[0]):
@@ -260,8 +264,11 @@ class DataPlots():
         """
         i%=len(self)
         if i<len(self.index):return self.index[i] #Index already calculated
-        if i==0:
+        if i==0:  #First data entry (plot everything)
             return np.arange(self.data[0].R.shape[0])
+        
+        if len(self.data[i])==len(self.index[0]): #Matching lengths (plot everything)
+            return np.arange(len(self.data[i]))
         
         mode=self.mode
         

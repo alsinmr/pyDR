@@ -90,6 +90,7 @@ class EntropyCC:
         self._Scc=None
         self._CC=None
         self._CCpca=None
+        self._Chi=None
         
         return self
     
@@ -341,6 +342,19 @@ class EntropyCC:
                 out.append(np.mod(np.arctan2(v[1],v[0])*180/np.pi+180,360))
             self._chi=out
         return self._chi
+    
+    @property
+    def Chi(self):
+        """
+        Index-able Chi
+
+        Returns
+        -------
+        np.array
+
+        """
+        if self._Chi is None:self._Chi=Chi(self)
+        return self._Chi
     
     @property
     def v_avg(self):
@@ -728,6 +742,7 @@ class EntropyCC:
     
     #%% Plotting
     
+    
     def plotCC(self,index=None,ax=None,CCsum:bool=True,**kwargs):
         """
         Make a CC plot for all residue pairs
@@ -748,10 +763,24 @@ class EntropyCC:
 
         """
         
+        
+            
+        
+        
         if index is None:index=np.ones(self.N,dtype=bool)
         if ax is None:
             ax=plt.subplots()[1]
 
+        index=np.array(index)
+        if index.size==1 and np.issubdtype(index.dtype,np.integer):
+            ax.plot(self.CC[index],**kwargs)
+            ax.xaxis.set_major_locator(plt.MaxNLocator(30,integer=True))
+            ax.xaxis.set_major_formatter(self._axis_formatter(np.arange(len(self.resids))))
+            
+            ax.tick_params(axis='x', labelrotation=90)
+            ax.set_ylabel('C.C')
+            return ax
+            
         
         if 'cmap' not in kwargs:
             kwargs['cmap']='binary'
@@ -852,7 +881,7 @@ class EntropyCC:
         return plt.FuncFormatter(format_func)
     
     
-    def plotChi(self,index:int,ax:list=None,step:int=1):
+    def plotChi(self,index:int,ax:list=None,step:int=1,cmap='tab10'):
         """
         Creates one or more Ramachandran histogram plots, depending on the number
         of chi angles, i.e. 1D histogram for Valine, 1 Ramachandran plot for
@@ -868,6 +897,8 @@ class EntropyCC:
         fig
 
         """
+        chi=self.Chi[index]
+        
         index=np.array(index)
         if index.dtype==bool:index=np.argmax(index)
         
@@ -878,10 +909,12 @@ class EntropyCC:
         ax=np.atleast_1d(ax).flatten()
         assert len(ax)==nplots,f"Residue {self.resid[index].resname}{self.resid[index].resid} has {N} chi angles, and therefore requires {nplots} plots"
     
-        chi=[self.chi[k][self.index[k+3,:index].sum()][::step] for k in range(N-1,-1,-1)]
+        # chi=[self.chi[k][self.index[k+3,:index].sum()][::step] for k in range(N-1,-1,-1)]
+        
+        
         
         nstates=self.total_mult[index]
-        cmap=plt.get_cmap('turbo').resampled(nstates)
+        if isinstance(cmap,str):cmap=plt.get_cmap(cmap)
         
         for a,k in zip(ax,range(N-1)):
             for m in range(nstates):
@@ -1083,9 +1116,19 @@ class EntropyCC:
         with open(filename,'wb') as f:
             write_EntropyCC(f,self)
         
+
+class Chi():
+    def __init__(self,ECC):
+        self.ECC=ECC
         
-        
-        
+    def __getitem__(self,index):
+        ECC=self.ECC
+        index=np.array(index)
+        if index.dtype==bool:index=np.argmax(index)
+         
+        N=ECC.index[3:,index].sum()
+
+        return np.array([ECC.chi[k][ECC.index[k+3,:index].sum()] for k in range(N-1,-1,-1)])
     
             
 # Tools for selecting the correct atoms to get rotamers

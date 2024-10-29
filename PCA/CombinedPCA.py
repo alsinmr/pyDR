@@ -2,7 +2,6 @@
 
 
 from . import PCA
-from ..Selection.MolSys import Trajectory
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -23,7 +22,6 @@ class CombinedPCA(PCA):
              pca._lambda=self.Lambda
             
         self.traj[0]
-        
         
     @property
     def traj(self):
@@ -54,12 +52,14 @@ class CombinedPCA(PCA):
         colors[:,-1]=np.linspace(0,1,257)[1:]**.25
         cm=ListedColormap(colors)
         
+        maxbin=np.abs(self.PCamp[:nmax+1]).max()
+        
         for q,ax0 in enumerate(ax.T):
             for ax00,n0,n1 in zip(ax0,range(nmax),range(1,nmax+1)):
-                self.Hist.plot(n0,n1,ax=ax00,cmap=cmap0,**kwargs)
+                self.Hist.plot(n0,n1,ax=ax00,cmap=cmap0,maxbin=maxbin,**kwargs)
                 index=np.zeros(len(self.traj),dtype=bool)
                 index[self.ranges[q][0]:self.ranges[q][1]]=True
-                self.Hist.plot(n0,n1,ax=ax00,cmap=cm,index=index)
+                self.Hist.plot(n0,n1,ax=ax00,cmap=cm,maxbin=maxbin,index=index)
                 
         fig.tight_layout()
                 
