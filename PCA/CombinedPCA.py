@@ -23,6 +23,7 @@ class CombinedPCA(PCA):
             
         self.traj[0]
         
+        
     @property
     def traj(self):
         return self._traj
@@ -154,6 +155,7 @@ class Traj():
         self.mda_traj=pca.traj.mda_traj
         self._traj_index=q
         self._index=i
+        self.cPCA.select=pca.select
         return pca.traj[(i%len(self))-self.lengths[:q].sum()]
     
     @property

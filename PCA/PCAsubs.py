@@ -1428,7 +1428,7 @@ class Cluster():
         frame0=self.pca.traj.frame
         if from_traj:
             self.pca.traj[self.cluster_index[state] if frame is None else frame]
-            
+            print(self.pca.traj.frame)
         else:
             pos=self.pca.mean
             for k,A in enumerate(self.PCavg[state]):
@@ -1436,6 +1436,7 @@ class Cluster():
             self.pca.atoms.positions=pos
         
         atoms=self.pca.uni.atoms.select_atoms(select_str)
+        print(atoms.universe.trajectory.frame)
         atoms.write(filename.format(state))
         
         self.pca.traj[frame0]
