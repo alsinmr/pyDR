@@ -46,7 +46,7 @@ class Detector(Sens.Sens):
         
         self.SVD=SVD(sens)
         self.T=None
-        self.opt_pars={}
+        self.opt_pars={'options':[]}
         
         "If bond-specific, initiate all for all bonds"
         if len(sens)>1:
