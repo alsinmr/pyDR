@@ -431,7 +431,7 @@ def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,inc
                 else:
                     #All parameters fixed (no operations)
                     pass
-        ProgressBar(q+1, Niter,prefix='Iterations',suffix=f' of {Niter} steps')
+        ProgressBar(q+1, Niter,prefix='Iterations',suffix=f' of {Niter} steps',length=30,decimals=0)
     #Calculate the fit
 
     Rc=np.zeros(data.R.shape)
