@@ -87,9 +87,10 @@ class MolSys():
         self._traj=Trajectory(self.uni.trajectory,t0=t0,tf=tf,step=step,dt=dt) \
             if hasattr(self.uni,'trajectory') else None
          
+        self.project=project
         self.make_pdb()
         
-        self.project=project
+        
         
         self._movie=None
         

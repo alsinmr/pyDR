@@ -602,7 +602,37 @@ def plot_fit(lbl,Rin,Rc,Rin_std=None,info=None,index=None,exp_index=None,fig=Non
                 string=r'$\nu_r$={0} kHz, $\nu_1$={1} kHz'.format(i['vr'],i['v1'])
                 a.text(np.min(lbl),a.get_ylim()[1]*0.73,string,fontsize=8)
 #    fig.show()            
-    return ax 
+    return ax
+
+def plot_fit_md(lbl,Rin,Rc,info=None,index=None,fig=None):
+    
+    if index is not None:
+        lbl=lbl[index]
+        Rin=Rin[index]
+        Rc=Rc[index]
+    
+    if fig is None:
+        fig=plt.figure(figsize=[12,9])
+    ax,*_=subplot_setup(len(lbl),fig)
+    
+    t=info['t']
+    
+    for lbl0,Rin0,Rc0,a in zip(lbl,Rin,Rc,ax):
+        a.plot(t,Rin0,color='red')
+        a.plot(t,Rc0,color='black',linestyle=':')
+        a.text(t[1],0.1,lbl0)
+        a.set_ylim([-.1,1])
+        if a.is_first_col():
+            a.set_ylabel(r'$C(t)$')
+        else:
+            a.set_yticklabels('')
+        if a.is_last_row():
+            a.set_xlabel(r'$t$ / ns')
+        else:
+            a.set_xticklabels('')
+        
+    return ax
+        
 
 def subplot_setup(nexp,fig=None):
     """

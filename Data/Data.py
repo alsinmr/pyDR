@@ -10,7 +10,7 @@ import warnings
 import numpy as np
 from pyDR import Defaults,clsDict
 from ..IO import write_file
-from .Plotting import plot_fit,DataPlots
+from .Plotting import plot_fit,DataPlots,plot_fit_md
 from ..Fitting import fit,opt2dist
 from matplotlib.figure import Figure
 from copy import copy
@@ -426,7 +426,6 @@ class Data():
             
     
     def plot_fit(self,index=None, exp_index=None, fig=None):
-        # todo maybe worth to remove the args and put them all into kwargs? -K
         assert self.src_data is not None and hasattr(self, 'Rc') and self.Rc is not None,\
             "Plotting a fit requires the source data(src_data) and Rc"
         info = self.src_data.info.copy()
@@ -437,6 +436,10 @@ class Data():
             Rin=np.concatenate((Rin,np.atleast_2d(1-self.src_data.S2).T),axis=1)
             Rc=np.concatenate((Rc,np.atleast_2d(1-self.S2c).T),axis=1)
             Rin_std=np.concatenate((Rin_std,np.atleast_2d(self.src_data.S2std).T),axis=1)
+            
+        if self.src_data.sens.__class__.__name__=='MD':
+            return plot_fit_md(lbl,Rin,Rc,index=index,info=info)
+            
         
         return plot_fit(lbl=lbl,Rin=Rin,Rc=Rc,Rin_std=Rin_std,\
                     info=info,index=index,exp_index=exp_index,fig=fig)

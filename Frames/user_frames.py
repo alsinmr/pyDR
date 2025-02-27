@@ -80,3 +80,67 @@ import numpy as np
 from pyDR.MDtools import vft
 from pyDR.Selection import select_tools as selt
 
+def bondXY(molecule,sel1=1,sel2=2,resids=None,segids=None,filter_str:str=None,sigma:float=0):
+    """
+    
+
+    Parameters
+    ----------
+    molecule : TYPE
+        Selection object.
+    sel1 : TYPE, optional
+        First atom defining the bond. The default is 1.
+    sel2 : TYPE, optional
+        Second atom defining the bond. The default is 2.
+    resids : TYPE, optional
+        List of residues for which we should return aromatic planes. 
+        The default is None.
+    segids : TYPE, optional
+        List of segments for which we should return aromatic planes.
+        The default is None.
+    filter_str : str, optional
+        string which filters the selection using MDAnalysis format. 
+        The default is None.
+    sigma : float, optional
+        Parameter to determine Gaussian moving average in post processing. 
+        The default is 0 (no post processing).
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    if not(hasattr(sel1,'__len__')):
+        sel1=(sel1+sel1)[:1]
+    if not(hasattr(sel2,'__len__')):
+        sel2=(sel2+sel2)[:1]
+    
+    sel1=selt.sel_simple(molecule,sel1,resids,segids,filter_str)
+    sel2=selt.sel_simple(molecule,sel2,resids,segids,filter_str)
+    
+    
+
+    
+    if len(sel1)==1:
+        frame_index=np.zeros(len(molecule.sel1),dtype=int)
+    elif len(sel1)==len(molecule.sel1):
+        frame_index=np.arange(len(sel1))
+    else:
+        frame_index=None
+        
+    def sub():
+        box=molecule.box
+        vXZ=sel1.positions-sel2.positions
+        vXZ[:,2]=0
+        vXZ=vft.pbc_corr(vXZ.T,box)
+        vZ=np.zeros(vXZ.shape)
+        vZ[2]=1
+        return vZ,vXZ
+    
+    return sub,frame_index,{'PPfun':'AvgGauss','sigma':sigma}
+        
+        
+    
+    
+    

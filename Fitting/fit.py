@@ -13,6 +13,7 @@ import multiprocessing as mp
 from ._fitfun import fit0,dist_opt
 from copy import copy
 from pyDR.misc.tools import linear_ex
+from ..misc import ProgressBar
 
 dtype=Defaults['dtype']
 
@@ -375,8 +376,9 @@ def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,inc
             A.append(np.array(fixA[k]) if hasattr(fixA[k],'__len__') else np.ones(nb)*fixA[k])
                 
     zswp=np.linspace(z0[0],z0[-1],nsteps);
+    ProgressBar(0, Niter,prefix='Iterations',suffix=f' of {Niter} steps',length=30,decimals=0)
     for q in range(Niter):
-        print('{0} of {1} iterations'.format(q+1,Niter))
+        # print('{0} of {1} iterations'.format(q+1,Niter))
         for k in range(nz):
             R0=np.zeros(R.shape)
             for m in range(nz):
@@ -429,6 +431,7 @@ def model_free(data,nz:int=None,fixz:list=None,fixA:list=None,Niter:int=None,inc
                 else:
                     #All parameters fixed (no operations)
                     pass
+        ProgressBar(q+1, Niter,prefix='Iterations',suffix=f' of {Niter} steps')
     #Calculate the fit
 
     Rc=np.zeros(data.R.shape)
