@@ -99,6 +99,21 @@ if hasattr(_SubplotSpec,'is_first_col'):
     _Subplot.is_last_row=_fun
 
 
+#%% Dark mode
+if 'google.colab' in sys.modules:
+    from google.colab import output
+    is_dark = output.eval_js('document.documentElement.matches("[theme=dark]")')
+    if is_dark:
+        import matplotlib.pyplot as _plt
+        x=56
+        _plt.rcParams["figure.facecolor"]=(x/256,x/256,x/256)
+        _plt.rcParams["axes.facecolor"]=(x/256,x/256,x/256)
+        _plt.rcParams["axes.edgecolor"]=(1,1,1)
+        _plt.rcParams["axes.labelcolor"]=(1,1,1)
+        _plt.rcParams["xtick.color"]=(1,1,1)
+        _plt.rcParams["ytick.color"]=(1,1,1)
+        _plt.rcParams["text.color"]=(1,1,1)
+
 #%% Warning handling
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
