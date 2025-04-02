@@ -159,6 +159,8 @@ def LabXY(molecule,sel1=None,sel2=None,Nuc=None,resids=None,segids=None,filter_s
         v=sel1.positions-sel2.positions
         v=vft.pbc_corr(v.T,box)
         v[2]=0
+        i=np.abs(v[:2]).sum(0)==0
+        v[0,i]=1
         return v
     return sub
 
