@@ -179,10 +179,13 @@ def write_Detector(f: typing.BinaryIO, detect: pyDR.Sens.Detector, src_fname=Non
         np.save(f,target,allow_pickle=False)
         f.write(b'NORM\n')
         np.save(f,detect.norm,allow_pickle=False)
-    elif detect.opt_pars.__len__()==0:
-        f.write(b'Unoptimized detector\n')
+    # I'm commenting out the check for opt_pars length 0, because sometimes
+    # opt_pars contains an empty "options" list
+    # elif detect.opt_pars.__len__()==0:
     else:
-        assert 0,'opt_pars of detector object has the wrong number of entries'
+        f.write(b'Unoptimized detector\n')
+    # else:
+    #     assert 0,'opt_pars of detector object has the wrong number of entries'
             
     f.write(b'END:OBJECT\n')
 

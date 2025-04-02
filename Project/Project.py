@@ -228,7 +228,7 @@ class DataMngr():
                 src_data=self[i].source._src_data
                 if src_data is None:
                     src_fname=None
-                elif src_data is not None and isinstance(src_data,str):
+                elif isinstance(src_data,str):
                     # Is the data already stored in the project?
                     if os.path.join(self.directory,src_data) in [os.path.join(self.directory,file) for file in self.saved_files]:
                         src_fname=os.path.join(self.directory,src_data)

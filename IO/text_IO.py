@@ -280,7 +280,8 @@ def write_PDB(sel,filename:str,x=None,overwrite:bool=False):
         dim=sel.universe.dimensions
         f.write('CRYST1'+''.join([f'{d0:9.3f}' for d0 in dim[:3]])+''.join([f'{d0:7.2f}' for d0 in dim[3:]])+' P 1           1\n')
         for k,(a,x0) in enumerate(zip(sel,x)):
-            f.write(line.format(k+1,a.name,a.resname,a.chainID,a.resid,*a.position,x0,a.segid))
+            chainID=a.chainID if hasattr(a,'chainID') else 'A'
+            f.write(line.format(k+1,a.name,a.resname,chainID,a.resid,*a.position,x0,a.segid))
         f.write('END\n')
         
 def readPDB(filename:str):
