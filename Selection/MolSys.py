@@ -535,6 +535,7 @@ class MolSelect():
         None.
 
         """
+        
         assert not(molsys is None and topo is None),'Either molsys or topo must be provided'
         
         
@@ -822,6 +823,7 @@ class MolSelect():
     
     @property
     def box(self):
+        self.traj
         return self.molsys.uni.dimensions[:3]
     
     @property
