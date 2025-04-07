@@ -401,6 +401,121 @@ def side_chain_chi(molecule,n_bonds=1,Nuc=None,resids=None,segids=None,filter_st
     
     return sub,frame_index,{'PPfun':'AvgGauss','sigma':sigma}
 
+def lipid_chain_chi(molecule,n_bonds=0,resids=None,segids=None,filter_str=None,sigma=0):
+    """
+    Returns a frame that accounts for motion around bonds in the lipid chain. This
+    will step n_bonds up the chain to take a carbon-carbon bond as the reference
+    frame. 
+    
+    Note that the initial selection (sel1) should only include carbons in the
+    chains (names that start with C2 or C3)
+    
+    
+    Parameters
+    ----------
+    molecule : TYPE
+        DESCRIPTION.
+    n_bonds : TYPE, optional
+        DESCRIPTION. The default is 1.
+    resids : TYPE, optional
+        DESCRIPTION. The default is None.
+    segids : TYPE, optional
+        DESCRIPTION. The default is None.
+    filter_str : TYPE, optional
+        DESCRIPTION. The default is None.
+    sigma : TYPE, optional
+        DESCRIPTION. The default is 0.
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    sel0=selt.sel0_filter(molecule,resids=resids,segids=segids,filter_str=filter_str)
+    
+    mdmode=molecule._mdmode
+    molecule._mdmode=True
+    
+    chain_list={**{f'C2{k}':f'C2{k-1}' for k in range(2,50)},
+                **{f'C3{k}':f'C3{k-1}' for k in range(2,50)}}
+    
+    replace={'C31':'O31','O31':'C3','C21':'O21','O21':'C1'}
+    for name,value in replace.items():
+        chain_list[name]=value
+    
+    sel1,q=np.unique(molecule.sel1,return_inverse=True)
+    for _ in range(n_bonds):
+        s1=[]
+        for k,s in enumerate(sel1):
+            if s is not None:
+                if s.name not in chain_list:
+                    s1.append(None)
+                    continue
+                
+                i=np.logical_and(s.resid==sel0.resids,sel0.names==chain_list[s.name])
+                if np.any(i):
+                    s1.append(sel0[i][0])
+                else:
+                    s1.append(None)
+            else:
+                s1.append(None)
+                
+        sel1=s1
+        
+    s0=[sel1]
+    for _ in range(2):
+        s0.append([])
+        for k,s in enumerate(s0[-2]):
+            if s is not None:
+                if s.name not in chain_list:
+                    s0[-1].append(None)
+                    continue
+                
+                i=np.logical_and(s.resid==sel0.resids,sel0.names==chain_list[s.name])
+                if np.any(i):
+                    s0[-1].append(sel0[i][0])
+                else:
+                    s0[-1].append(None)
+            else:
+                s0[-1].append(None)
+    
+    sel2,sel3=s0[1],s0[2]
+        
+    
+    fi0=np.array(sel3,dtype=bool)
+    fi=np.cumsum(fi0).astype(object)-1
+    fi[fi0==False]=np.nan
+    fi=fi.astype(float)
+    
+    frame_index=fi[q]
+    
+    
+    sel3=np.array(sel3,dtype=object)
+    sel1=np.array(sel1,dtype=object)[sel3.astype(bool)]
+    sel2=np.array(sel2,dtype=object)[sel3.astype(bool)]
+    sel3=sel3[sel3.astype(bool)]
+    
+    sel1=sel1.sum()
+    sel2=sel2.sum()
+    sel3=sel3.sum()
+    
+    def sub():
+        box=molecule.box
+        v1=sel2.positions-sel1.positions
+        v2=sel1.positions-sel3.positions
+        v1=vft.pbc_corr(v1.T,box)
+        v2=vft.pbc_corr(v2.T,box)
+        return v1,v2
+    
+    molecule._mdmode=mdmode
+    
+    return sub,frame_index,{'PPfun':'AvgGauss','sigma':sigma}
+    
+        
+    
+    
+
 def librations(molecule,sel1=None,sel2=None,Nuc=None,resids=None,segids=None,filter_str=None,full=True,sigma=0):
     """
     Defines a frame for which librations are visible. That is, for a given bond,

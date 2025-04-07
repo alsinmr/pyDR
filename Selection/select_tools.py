@@ -13,6 +13,7 @@ function calculation, frame definition, etc.
 import MDAnalysis as mda
 import numpy as np
 import numbers
+import re
 
   
 def sel0_filter(mol,resids=None,segids=None,filter_str=None):
@@ -193,6 +194,7 @@ def sel_lists(mol,sel=None,resids=None,segids=None,filter_str=None):
     return sel
 
 #%% Specific selections for proteins
+
 def protein_defaults(Nuc:str,mol,resids:list=None,segids:list=None,filter_str:str=None)->tuple:
     """
     Selects pre-defined pairs of atoms in a protein, where we use defaults based
@@ -323,11 +325,61 @@ def protein_defaults(Nuc:str,mol,resids:list=None,segids:list=None,filter_str:st
         sel2=sel0.select_atoms('name H{0}* and resname TYR PHE'.format(Nuc[-1].upper()))
         if Nuc[:4].lower()!='fy_z' and '1' in Nuc.lower():
             sel1,sel2=sel1[::2],sel2[::2]
+    elif Nuc.lower() in ['sn','sn1','sn2','lipid']:
+        return lipid_defaults(mol=mol,Nuc=Nuc,resids=resids,segids=segids,filter_str=filter_str)
     else:
         print('Unrecognized Nuc option')
         return
           
     return sel1,sel2
+
+def lipid_defaults(mol,Nuc:str,resids:list=None,segids:list=None,filter_str:str=None)->tuple:
+    """
+    Returns some defaults for lipids. Nuc options are
+    
+    'sn': 13C of both side chains
+    'sn1': 13C of sn1 chain
+    'sn2': 13C of sn2 chain
+    'lipid': All 13C
+
+    Parameters
+    ----------
+    mol : TYPE
+        DESCRIPTION.
+    mol : MolSelect object or AtomGroup
+    resids : list/array/single element, optional
+        Restrict selected residues. The default is None.
+    segids : list/array/single element, optional
+        Restrict selected segments. The default is None.
+    filter_str : str, optional
+        Restricts selection to atoms selected by the provided string. String
+        is applied to the MDAnalysis select_atoms function. The default is None.
+
+    Returns
+    -------
+    tuple
+        sel1: atom group
+        sel2: atom group
+
+    """
+    sel0=sel0_filter(mol,resids,segids,filter_str)
+    sel00=sel0_filter(mol,resids,segids)
+    
+    sel1=sel0[sel0.types=='C']
+    if Nuc.lower() in ['sn','sn1','sn2','sn_1','sn1_1','sn2_1']:
+        match={'sn':'C[2/3].','sn1':'C2.','sn2':'C3.','sn_1':'C[2/3].','sn1_1':'C2.','sn2_1':'C3.'}
+        r=re.compile(match[Nuc.lower()])
+        i=np.array([bool(r.match(name)) for name in sel1.names])
+        sel1=sel1[i]
+    
+    bond=find_bonded(sel1,sel0=sel00)
+    i=np.array([np.logical_or(b.types=='H',b.types=='O') for b in bond])
+    sel2=np.sum(np.array(bond).T[i.T])
+    sel2=sel2[np.logical_not(np.logical_or(sel2.names=='O21',sel2.names=='O31'))]
+    sel1=find_bonded(sel2,sel0=sel0,n=1)[0]
+    
+    return sel1,sel2
+    
 
 def find_methyl(mol,resids=None,segids=None,filter_str=None,select=None):
     """

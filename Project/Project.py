@@ -1812,7 +1812,7 @@ class Project():
         for d in self:
             if hasattr(d,'iRED') and 'Lambda' in d.iRED:
                 count+=1
-                d.modes2bonds(inclOverall=inclOverall)
+                d.modes2bonds(inclOverall=inclOverall,calcCC=calcCC)
                 
         # out=self[:0]
         # out._index=np.setdiff1d(self.parent._index,index0)

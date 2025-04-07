@@ -82,15 +82,15 @@ from pyDR.MDtools import vft
 from pyDR.Selection import select_tools as selt
 from copy import copy
 
-def hop_setup(uni,sel1,sel2,sel3,sel4,ntest=1000):
+def hop_setup(mol,sel1,sel2,sel3,sel4,ntest=1000):
     """
     Function that determines where the energy minima for a set of bonds can be
     found. Use for chi_hop and hop_3site.
     """
     v12,v23,v34=list(),list(),list()
-    box=uni.dimensions
-    traj=uni.trajectory
-    step=np.floor(traj.n_frames/ntest).astype(int)
+    box=mol.box
+    traj=mol.traj
+    step=np.floor(len(traj)/ntest).astype(int)
     
     for _ in traj[::step]:
         v12.append(vft.pbc_corr((sel1.positions-sel2.positions).T,box[:3]))
@@ -164,7 +164,7 @@ def chi_hop(molecule,n_bonds=1,Nuc=None,resids=None,segids=None,filter_str=None,
     "Next, we sample the trajectory to get an estimate of the energy minima of the hopping"
     #Note that we are assuming that minima are always separated by 120 degrees
     
-    vr=hop_setup(molecule.uni,sel1,sel2,sel3,sel4,ntest)
+    vr=hop_setup(molecule,sel1,sel2,sel3,sel4,ntest)
     
     box=molecule.box
     if sigma!=0:
@@ -177,6 +177,113 @@ def chi_hop(molecule,n_bonds=1,Nuc=None,resids=None,segids=None,filter_str=None,
         def sub():
             v12s,v23s,v34s=[vft.pbc_corr((s1.positions-s2.positions).T,box[:3]) \
                          for s1,s2 in zip([sel1,sel2,sel3],[sel2,sel3,sel4])]
+            v12s=vft.norm(v12s)
+            sc=vft.getFrame(v23s,v34s)
+            v12s=vft.R(v12s,*vft.pass2act(*sc))    #Into frame defined by v23,v34
+            # print((v12s*vr).sum(axis=1)[:,0])
+            i=np.argmax((v12s*vr).sum(axis=1),axis=0)   #Index of best fit to reference vectors (product is cosine, which has max at nearest value)
+            v12s=vr[i,:,np.arange(v12s.shape[1])] #Replace v12 with one of the three reference vectors
+            return vft.R(v12s.T,*sc),v23s  #Rotate back into original frame        
+            
+        return sub,frame_index
+    
+def lipid_hop(molecule,n_bonds=0,Nuc=None,resids=None,segids=None,filter_str=None,ntest=1000,sigma=0):
+    """
+    Determines contributions to motion due to 120 degree hops across three sites
+    for some bond within a side chain. Motion of the frame will be the three site
+    hoping plus any outer motion (could be removed with additional frames), and
+    motion within the frame will be all rotation around the bond excluding 
+    hopping.
+    
+    One provides the same arguments as lipid_chain_chi, where we specify the
+    nucleus of interest (ch3,ivl,ivla,ivlr,ivll, etc.), plus any other desired
+    filters. We also provide n_bonds, which will determine how many bonds away
+    from the methyl group (only methyl currently implemented) we want to observe
+    the motion (usually 1 or 2). 
+    """
+    
+    "First we get the selections, and simultaneously determine the frame_index"   
+   
+    sel0=selt.sel0_filter(molecule,resids=resids,segids=segids,filter_str=filter_str)
+    
+    mdmode=molecule._mdmode
+    molecule._mdmode=True
+    
+    chain_list={**{f'C2{k}':f'C2{k-1}' for k in range(2,50)},
+                **{f'C3{k}':f'C3{k-1}' for k in range(2,50)}}
+    replace={'C31':'O31','O31':'C3','C21':'O21','O21':'C1'}
+    for name,value in replace.items():
+        chain_list[name]=value 
+   
+    sel1,sel2=molecule.sel1,molecule.sel2
+    
+    for _ in range(n_bonds):
+        s2=sel1
+        s1=[]
+        for k,s in enumerate(sel1):
+            if s is not None:
+                if s.name not in chain_list:
+                    s1.append(None)
+                    continue
+                
+                i=np.logical_and(s.resid==sel0.resids,sel0.names==chain_list[s.name])
+                if np.any(i):
+                    s1.append(sel0[i][0])
+                else:
+                    s1.append(None)
+            else:
+                s1.append(None)
+                
+        sel1=s1
+        sel2=s2
+        
+    sel2,p,q=np.unique(sel2,return_index=True,return_inverse=True)
+    sel1=np.array(sel1)[p]
+    
+    s0=[sel2,sel1]
+    for _ in range(2):
+        s0.append([])
+        for k,s in enumerate(s0[-2]):
+            if s is not None:
+                if s.name not in chain_list:
+                    s0[-1].append(None)
+                    continue
+                
+                i=np.logical_and(s.resid==sel0.resids,sel0.names==chain_list[s.name])
+                if np.any(i):
+                    s0[-1].append(sel0[i][0])
+                else:
+                    s0[-1].append(None)
+            else:
+                s0[-1].append(None)
+    
+    
+        
+    
+    fi0=np.array(s0[-1],dtype=bool)
+    fi=np.cumsum(fi0).astype(object)-1
+    fi[fi0==False]=np.nan
+    fi=fi.astype(float)
+    
+    frame_index=fi[q]
+    
+    sel4=np.array(s0[-1])
+    i=sel4.astype(bool)
+    sel1,sel2,sel3,sel4=[np.array(s)[i].sum() for s in s0]
+    
+    vr=hop_setup(molecule,sel1,sel2,sel3,sel4,ntest)
+    
+    box=molecule.box
+    if sigma!=0:
+        def sub():
+            return [vft.pbc_corr((s1.positions-s2.positions).T,box[:3]) \
+                  for s1,s2 in zip([sel1,sel2,sel3],[sel2,sel3,sel4])]
+        return sub,frame_index,{'PPfun':'AvgHop','vr':vr,'sigma':sigma}
+    else:
+            
+        def sub():
+            v12s,v23s,v34s=[vft.pbc_corr((s1.positions-s2.positions).T,box[:3]) \
+                          for s1,s2 in zip([sel1,sel2,sel3],[sel2,sel3,sel4])]
             v12s=vft.norm(v12s)
             sc=vft.getFrame(v23s,v34s)
             v12s=vft.R(v12s,*vft.pass2act(*sc))    #Into frame defined by v23,v34
@@ -239,7 +346,7 @@ def hops_3site(molecule,sel1=None,sel2=None,sel3=None,sel4=None,\
     if not(sel4):
         sel4=selt.find_bonded(sel3,sel0,exclude=sel2,n=1,sort='cchain',d=1.65)[0]
         
-    vr=hop_setup(molecule.uni,sel1,sel2,sel3,sel4,ntest)
+    vr=hop_setup(molecule,sel1,sel2,sel3,sel4,ntest)
     
     box=molecule.box
     if sigma!=0:
