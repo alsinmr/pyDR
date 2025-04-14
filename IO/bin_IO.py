@@ -223,15 +223,15 @@ def read_Detector(f):
     
     dz=detect.z[1]-detect.z[0]
     info=detect.info
+
     for k in info.keys.copy():info.del_parameter(k)
     info.new_parameter(z0=np.array([(detect.z*rz).sum()/rz.sum() for rz in detect.rhoz]))
     info.new_parameter(zmax=np.array([detect.z[np.argmax(rz)] for rz in detect.rhoz]))
     info.new_parameter(Del_z=np.array([rz.sum()*dz/rz.max() for rz in detect.rhoz]))
     
+    
     if detect.norm.size==detect.rhoz.shape[0]:
         info.new_parameter(stdev=1/detect.norm)
-
-
     
 #    detect.r_target(target)
     detect.opt_pars=opt_pars.copy()
@@ -266,6 +266,7 @@ def read_Data(f,directory:str=''):
     line=decode(f.readline())[:-1]
     if line!='OBJECT:DETECTOR':print('Warning: First entry of data object should be the detector')
     detect=read_Detector(f)
+    
     assert decode(f.readline())[:-1]=='OBJECT:SOURCE','Source entry not initiated correctly'
     source=read_Source(f,directory=directory)
 
@@ -280,9 +281,11 @@ def read_Data(f,directory:str=''):
             kwargs[k]=np.load(f,allow_pickle=False)
     
     kwargs['sens']=detect.sens
+    
     data=clsDict['Data'](**kwargs)
     data.source=source
     data.detect=detect
+    
     return data
 
 def write_Data_iRED(f,data):

@@ -132,7 +132,15 @@ class Sens():
         If neither are found in sens.info, we normalize by
             1/max(rhoz)
         """
-        if self.__norm is None or self.info.edited:
+        #if self.__norm is None or self.info.edited
+        # I just changed the above line to the below (10.04.2025)
+        # Detectors usually deactivate tracking of info editing, since the parameters
+        # in info depend on the sensitivies (usually it's the other way around)
+        # So, self.info.edited was returning False even for updated detectors
+        # If the detector was updated more than once, then __norm was no long None
+        # and self.norm was ending up being the wrong size
+        # The below code bypasses the info deactivation
+        if self.__norm is None or self.info._Info__edited:
             self._norm()
             
         return self.__norm
