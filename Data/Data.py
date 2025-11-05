@@ -304,13 +304,17 @@ class Data():
         if not(save_src):self.src_data=src
     
     def del_data_pt(self,index:int) -> None:
+        flds = ['R', 'Rstd', 'S2', 'S2std', 'label']
         if hasattr(index,'__len__'):
-            index=[i%len(self) for i in index]
-            for i in np.sort(index)[::-1]:
-                self.del_data_pt(i)
+            index=np.array([i%len(self) for i in index])
+            for f in flds:
+                if hasattr(self,f) and getattr(self,f) is not None:
+                    setattr(self,f,np.delete(getattr(self,f),index,axis=0))
+            # for i in np.sort(index)[::-1]:
+            #     self.del_data_pt(i)
         else:
             index%=len(self)
-            flds = ['R', 'Rstd', 'S2', 'S2std', 'label']
+            
             #TODO when we also include anisotropic tumlbing (soln state) we need to delete elements of the sensitivity objects
             for f in flds:
                 if hasattr(self,f) and getattr(self,f) is not None:

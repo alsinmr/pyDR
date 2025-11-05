@@ -589,7 +589,8 @@ class Data_iRED(Data):
         out.details.append('Converted from iRED modes to iRED bond data')
         out.source.Type=self.source.Type.replace('mode','bond') #Mode analysis converted to bond analysis
         out.source.n_det=self.source.n_det
-        if self.iRED['M'].shape[0]==self.source.select.label.shape[0]:
+        if self.source.select.label is not None and \
+            self.iRED['M'].shape[0]==self.source.select.label.shape[0]:
             out.label=self.source.select.label #Use default label selections
         else:
             out.label=self.label

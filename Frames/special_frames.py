@@ -690,10 +690,31 @@ class TH():
         return copy(self.nuZ),copy(self.nuXZ)
         
         
-        
-        
-        
-        
+def RingRotation(molecule,radius,center=None,width=15,top:bool=True):
+    box=molecule.box
+    
+    if center is None:
+        center=box[:2]/2
+    sel0=molecule.uni.atoms.select_atoms('name C2')
+    sel0=sel0[sel0.positions[:,2]>box[2]/2 if top else sel0.positions[:,2]<box[2]/2]
+    
+    r2=(sel0.positions[:,0]-center[0])**2+(sel0.positions[:,1]-center[1])**2
+    
+    i=np.logical_and(r2>=(radius-width/2)**2,r2<=(radius+width/2)**2)
+    
+    sel1=sel0[i]
+    
+    vZ=sel1.positions
+    vZ[:,2]=0
+    vXZ=np.zeros(vZ.shape).T
+    vXZ[2]=1
+    
+    def sub():
+        vZ=sel1.positions.T
+        vZ[2]=0
+        return vZ,vXZ
+    
+    return sub
         
         
     

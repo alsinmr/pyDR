@@ -418,6 +418,7 @@ class CMXRemote():
             out=tr.response
             if out:
                 return out if isinstance(out,list) else []
+        print('Valid models timed out')
         return []
     
     @classmethod
