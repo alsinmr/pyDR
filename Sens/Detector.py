@@ -50,8 +50,9 @@ class Detector(Sens.Sens):
         
         "If bond-specific, initiate all for all bonds"
         if len(sens)>1:
-            for s in sens:
-                self.append(Detector(s))
+            self._len_check()
+            # for s in sens:
+            #     self.append(Detector(s))
     
     def __eq__(self,ob):
         if self is ob:return True        #If same object, then equal
@@ -254,13 +255,28 @@ class Detector(Sens.Sens):
 
         return linprog(Vt.sum(1),A_ub=-Vt.T,b_ub=-min_target,A_eq=[Vt[:,index]],b_eq=1,bounds=(-500,500),\
                   method='interior-point',options={'disp':False})['x']
+            
+    def _len_check(self):
+        """
+        Verifies that the length of this object matches the sensitity length
+
+        Returns
+        -------
+        None.
+
+        """
+        if len(self)==1 and len(self.sens)!=1:
+            for s in self.sens:
+                self.append(Detector(s))
     
     def r_zmax(self,zmax,Normalization='MP',NegAllow=False):
         """
         Re-optimize detectors based on a previous set of detectors (where the 
         maximum of the detectors has been recorded)
         """
+        
         if self._islocked:return
+        self._len_check()
         
         zmax=np.atleast_1d(zmax)
         zmax.sort()
@@ -283,6 +299,7 @@ class Detector(Sens.Sens):
         use any optimization)
         """
         if self._islocked:return
+        self._len_check()
         
         self.SVD(n)     #Run the SVD
         self.T=np.eye(n) #No optimization
@@ -309,6 +326,7 @@ class Detector(Sens.Sens):
         sensitivities to the correlation time axis used here)
         """
         if self._islocked:return
+        self._len_check()
         
         if hasattr(target,'z') and hasattr(target,'rhoz'):
             z,target=target.z,target.rhoz
@@ -354,6 +372,7 @@ class Detector(Sens.Sens):
 
         """
         if self._islocked:return
+        self._len_check()
         
         self.SVD(n)
         Vt=self.SVD.Vt

@@ -327,7 +327,7 @@ class Sens():
         return True
 
     #%% Plot rhoz
-    def plot_rhoz(self,index=None,ax=None,norm=False,**kwargs):
+    def plot_rhoz(self,index=None,ax=None,norm=False,range=True,**kwargs):
         """
         Plots the sensitivities of the data object.
         """
@@ -345,7 +345,17 @@ class Sens():
             ax=fig.add_subplot(111)
 
         hdl=ax.plot(self.z,a)
+            
+        
         set_plot_attr(hdl,**kwargs)
+        
+        if range and len(self)>1:
+            rhoz=np.array([s.rhoz[index] for s in self])
+            u=rhoz.max(axis=0)
+            l=rhoz.min(axis=0)
+            for h,u0,l0 in zip(hdl,u,l):
+                ax.fill_between(self.z,l0,u0,color=h.get_color(),alpha=.5)
+            
         
         # ax.set_xlim(self.z[[0,-1]])
         # ticks=ax.get_xticks()

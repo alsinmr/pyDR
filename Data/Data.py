@@ -96,6 +96,16 @@ class Data():
         return self._Rc
     
     @property
+    def sens(self):
+        return self._sens
+    
+    @sens.setter
+    def sens(self,sens):
+        if hasattr(sens,'data'):
+            sens.data=self
+        self._sens=sens
+    
+    @property
     def S2c(self):
         if self._S2c is None and hasattr(self.sens,'opt_pars') and\
             'n' in self.sens.opt_pars and 'inclS2' in self.sens.opt_pars['options']:
