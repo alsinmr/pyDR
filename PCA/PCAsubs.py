@@ -338,7 +338,9 @@ class PCA_S2():
         self._S20m=None
         self._S2m=None
         self._Am=None
-        
+        self._AmCC=None
+        self._S20mCC=None
+        self._S2mCC=None
     
         
     #%% Order parameter calculations
@@ -372,6 +374,8 @@ class PCA_S2():
         """
         Returns vectors between sel1 and sel2 that have been calculated for
         all principal components from 0 to m
+
+        This is <(v^{0->m})^2> in our derivation.
 
         Returns
         -------
@@ -407,7 +411,7 @@ class PCA_S2():
         
         if self._S20m is None:
             pca=self.pca
-            d20m=self.d2_0m
+            d20m=self.d2_0m   #This is already sorted!
             
             PC=pca.PCxyz[:,:,pca.Ct.tc_index]
             Lambda=pca.Lambda[pca.Ct.tc_index]
@@ -478,53 +482,119 @@ class PCA_S2():
             self._Am=S20m[:-1]-S20m[1:]
         return self._Am[self.pca.Ct.tc_rev_index]
     
-    def S20mCC(self,q):
-        """
-        Calculates the contribution to the total order parameter arising from
-        the mth principal component, noting that we number according to sorting
-        of the correlation times (so zero is the fastest PC, and -1 is the 
-        slowest PC)
+    # def S20mCC(self,q):
+    #     """
         
-        Note this is the product of all S2 up to mode m
+    #     Calculates the contribution to the total order parameter arising from
+    #     the mth principal component, noting that we number according to sorting
+    #     of the correlation times (so zero is the fastest PC, and -1 is the 
+    #     slowest PC)
+        
+    #     Note this is the product of all S2 up to mode m
+
+    #     Returns
+    #     -------
+    #     2D array (n PCs x n bonds)
+
+    #     """
+        
+
+    #     pca=self.pca
+    #     d20m=self.d2_0m
+        
+    #     PC=pca.PCxyz[:,:,pca.Ct.tc_index]
+    #     Lambda=pca.Lambda[pca.Ct.tc_index]
+        
+                
+        
+    #     X=np.zeros([pca.PC.shape[1],pca.nbonds])
+    #     for k in range(3):
+    #         for j in range(3):
+    #             P=(pca.mean[pca.sel1index[q],k]-pca.mean[pca.sel2index[q],k])*\
+    #                 (pca.mean[pca.sel1index,j]-pca.mean[pca.sel2index,j])
+                    
+                    
+    #             a=Lambda*(PC[k,pca.sel1index[q]]-PC[k,pca.sel2index[q]])*\
+    #                 (PC[j,pca.sel1index]-PC[j,pca.sel2index])
+                    
+    #             b=(P+np.cumsum(a.T,axis=0))/np.sqrt(d20m[:,q]*d20m.T).T
+                
+    #             # b=P/d20m[0]
+                
+    #             X+=(b**2)
+    #     S20m=-1/2+3/2*X
+    #     #Cleanup: make the S20m sorted
+    #     while np.any(S20m[:-1]<S20m[1:]):
+    #         i=S20m[:-1]<S20m[1:]
+    #         S20m[:-1][i]=S20m[1:][i]+1e-7
+            
+            
+    #     return S20m
+    @property
+    def S20mCC(self):
+        """
+        Calculates contributions to the cross-correlated amplitudes from all
+        motions up to mode m
 
         Returns
         -------
-        2D array (n PCs x n bonds)
+        np.array
+
+        """
+        if self._S20mCC is None:
+            pca=self.pca
+            Lambda=pca.Lambda[pca.Ct.tc_index] #Resorted Lambda
+            PC=pca.PCxyz[:,:,pca.Ct.tc_index] #Resorted PCs
+            d20m=self.d2_0m   #Mean-squared distances vs. m (already resorted)
+            
+            out=np.zeros([pca.PC.shape[1],pca.nbonds,pca.nbonds])
+            
+            for q in range(pca.nbonds):
+                X=np.zeros([pca.PC.shape[1],pca.nbonds])
+                for k in range(3):
+                    # TODO could we run from k to 3 instead of  0 to 3?
+                    for j in range(3):
+                        
+                        P=(pca.mean[pca.sel1index[q],k]-pca.mean[pca.sel2index[q],k])*\
+                            (pca.mean[pca.sel1index,j]-pca.mean[pca.sel2index,j])
+                            
+                            
+                        a=Lambda*(PC[k,pca.sel1index[q]]-PC[k,pca.sel2index[q]])*\
+                            (PC[j,pca.sel1index]-PC[j,pca.sel2index])
+                        b=(P+np.cumsum(a.T,axis=0))/np.sqrt(d20m[:,q]*d20m.T).T
+                        
+                        X+=b**2
+                        
+                out[:,:,q]=-1/2+3/2*X
+                
+            self._S20mCC=out
+            
+        return self._S20mCC
+              
+    @property
+    def S2mCC(self):
+        """
+        Calculates contributions to the cross-correlated amplitudes from mode m
+
+        Returns
+        -------
+        np.array
 
         """
         
+        if self._S2mCC is None:
+            S20mCC=self.S20mCC
+            S20mCC=np.concatenate((np.ones([1,self.pca.nbonds,self.pca.nbonds]),S20mCC),axis=0)
+            self._S2mCC=(S20mCC[1:]/S20mCC[:-1])[self.pca.Ct.tc_rev_index]
+        return self._S2mCC
+    
+    @property
+    def AmCC(self):
+        if self._AmCC is None:
+            S20mCC=np.concatenate([np.ones((1,*self.S20mCC.shape[1:])),self.S20mCC],axis=0)
+            self._AmCC=(S20mCC[:-1]-S20mCC[1:])[self.pca.Ct.tc_rev_index]
+        return self._AmCC
 
-        pca=self.pca
-        d20m=self.d2_0m
-        
-        PC=pca.PCxyz[:,:,pca.Ct.tc_index]
-        Lambda=pca.Lambda[pca.Ct.tc_index]
-        
-                
-        
-        X=np.zeros([pca.PC.shape[1],pca.nbonds])
-        for k in range(3):
-            for j in range(3):
-                P=(pca.mean[pca.sel1index[q],k]-pca.mean[pca.sel2index[q],k])*\
-                    (pca.mean[pca.sel1index,j]-pca.mean[pca.sel2index,j])
-                    
-                    
-                a=Lambda*(PC[k,pca.sel1index[q]]-PC[k,pca.sel2index[q]])*\
-                    (PC[j,pca.sel1index]-PC[j,pca.sel2index])
-                    
-                b=(P+np.cumsum(a.T,axis=0))/np.sqrt(d20m[:,q]*d20m.T).T
-                
-                # b=P/d20m[0]
-                
-                X+=(b**2)
-        S20m=-1/2+3/2*X
-        #Cleanup: make the S20m sorted
-        while np.any(S20m[:-1]<S20m[1:]):
-            i=S20m[:-1]<S20m[1:]
-            S20m[:-1][i]=S20m[1:][i]+1e-7
-            
-            
-        return S20m
     
     def plotS2_direct_v_prod(self,ax=None):
         """
@@ -833,6 +903,8 @@ class Hist():
         """
         Creates a 2D histogram of two principal components. Specify the desired
         components (n0,n1=0,1 by default)
+        
+        Can also create a 1D histogram, set n1 to None
 
         Parameters
         ----------
@@ -862,12 +934,22 @@ class Hist():
         
         if ax is None:ax=plt.figure().add_subplot(111)
         if maxbin is None:
-            maxbin=np.max([np.max(np.abs(PCamp[n0])),np.max(np.abs(PCamp[n1]))]) 
+            if n1 is None:
+                maxbin=np.max([np.max(np.abs(PCamp[n0]))])
+            else:
+                maxbin=np.max([np.max(np.abs(PCamp[n0])),np.max(np.abs(PCamp[n1]))]) 
         if nbins is None:
             nbins=min([100,PCamp.shape[1]//4])
         
         if index is None:
             index=np.ones(PCamp[n0].size,dtype=bool)
+        
+        
+        if n1 is None:
+            ax.hist(PCamp[n0][index],bins=np.linspace(-maxbin,maxbin,nbins),**kwargs)
+            ax.set_xlabel(f'PC {n0}')
+            ax.set_ylabel('Frequency')
+            return ax
         
         out=ax.hist2d(PCamp[n0][index],PCamp[n1][index],bins=np.linspace(-maxbin,maxbin,nbins),cmap=cmap,**kwargs)
         ax.set_xlabel(f'PC {n0}')
@@ -1465,10 +1547,289 @@ class Cluster():
         self.project.chimera.command_line(self.project.chimera.saved_commands)
         
         
+                     
+
+class Ramachandran():
+    def __init__(self,pca):
+        """
+        Class for creating Ramachandran plots from trajectories, including
+        selecting regions of the PCA
+
+        Parameters
+        ----------
+        pca : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        self.pca=pca
+        
+        self.resids=None
+        
+        self._phi=None
+        self._psi=None
+        
+        self._cpca="CombinedPCA" in str(pca.__class__)
+        
+        self._vCm1N=None
+        self._vNCa=None
+        self._vCaC=None
+        self._vCNp1=None
+            
+        
+    @property
+    def resids(self):
+        """
+        List of residues for which the N, Ca, and C atoms are available in 
+        pca.atoms, as well as the C from the previous residue
+        
+
+        Returns
+        -------
+        None.
+
+        """
+        if self._resids is None:
+            if self._cpca:
+                resids=self.pca.pcas[0].Ramachandran.resids
+                for pca in self.pca.pcas[1:]:
+                    resids=np.intersect1d(pca.Ramachandran.resids,resids)
+                self._resids=resids                    
+                self._icpca=[]
+                for pca in self.pca.pcas:
+                    self._icpca.append(np.isin(pca.Ramachandran.resids,self.resids))
+                return self._resids
+
+
+            iCA=self.pca.atoms.names=='CA'
+            iC=self.pca.atoms.names=='C'
+            iN=self.pca.atoms.names=='N'
+            
+            resids=np.intersect1d(self.pca.atoms.resids[iCA],self.pca.atoms.resids[iC])
+            resids=np.intersect1d(resids,self.pca.atoms.resids[iN])
+            resids=np.intersect1d(resids,self.pca.atoms.resids[iC]+1)
+            resids=np.intersect1d(resids,self.pca.atoms.resids[iN]-1)
+            
+            self._resids=resids
+            
+            self._iCA,self._iC,self._iN,self._iCm1,self._iNp1=[copy(x) for x in (iCA,iC,iN,iC,iN)]
+            
+            self._iCA[iCA]=np.isin(self.pca.atoms[iCA].resids,resids)
+            self._iC[iC]=np.isin(self.pca.atoms[iC].resids,resids)
+            self._iN[iN]=np.isin(self.pca.atoms[iN].resids,resids)
+            self._iCm1[iC]=np.isin(self.pca.atoms[iC].resids+1,resids)
+            self._iNp1[iN]=np.isin(self.pca.atoms[iN].resids-1,resids)
+            
+        return self._resids
+        
+    @resids.setter
+    def resids(self,value):
+        self._resids=value
+        
+        
+    @property
+    def CA(self):
+        return self.pca.atoms[self._iCA]
+    
+    @property
+    def C(self):
+        return self.pca.atoms[self._iC]
+    
+    @property
+    def N(self):
+        return self.pca.atoms[self._iN]
+    
+    @property
+    def Cm1(self):
+        return self.pca.atoms[self._iCm1]
+    
+    @property
+    def Np1(self):
+        return self.pca.atoms[self._iNp1]
+    
+    
+    @property
+    def vCm1N(self):
+        if self._vCm1N is None:
+            v=self.pca.pos[:,self._iCm1]-self.pca.pos[:,self._iN]
+            self._vCm1N=(v.T/np.sqrt((v**2).sum(-1).T)).T
+        return self._vCm1N
+    
+
+    @property
+    def vNCa(self):
+        if self._vNCa is None:
+            v=self.pca.pos[:,self._iN]-self.pca.pos[:,self._iCA]
+            self._vNCa=(v.T/np.sqrt((v**2).sum(-1).T)).T
+        return self._vNCa
+        
+    @property
+    def vCaC(self):
+        if self._vCaC is None:
+            v=self.pca.pos[:,self._iCA]-self.pca.pos[:,self._iC]
+            self._vCaC=(v.T/np.sqrt((v**2).sum(-1).T)).T
+        return self._vCaC
+    
+    @property
+    def vCNp1(self):
+        if self._vCNp1 is None:
+            v=self.pca.pos[:,self._iC]-self.pca.pos[:,self._iNp1]
+            self._vCNp1=(v.T/np.sqrt((v**2).sum(-1).T)).T
+        return self._vCNp1
+    
+    def _PhiPsi(self):
+        self.resids #Properly initialize
+        
+        if self._cpca:
+            self._phi=np.concatenate([pca.Ramachandran.phi[i] for i,pca in zip(self._icpca,self.pca.pcas)],axis=1)
+            self._psi=np.concatenate([pca.Ramachandran.psi[i] for i,pca in zip(self._icpca,self.pca.pcas)],axis=1)
+            return self._phi,self._psi
+                
+        
+        # First calculate phi
+        vz=self.vNCa.T
+        vxz=self.vCm1N.T
+        v0=self.vCaC.T
+        # Use function out of the frames tool box to apply a reference frame
+        v=vft.applyFrame(v0,nuZ_F=vz,nuXZ_F=vxz)
+        self._phi=np.arctan2(v[1],-v[0])
+        
+        # Second, calculate psi, recycle some vectors
+        vz=self.vCaC.T
+        vxz=self.vNCa.T
+        v0=self.vCNp1.T
+        
+        v=vft.applyFrame(v0,nuZ_F=vz,nuXZ_F=vxz)
+        self._psi=np.arctan2(v[1],-v[0])
+        
+        return self._phi,self._psi
+    
+    @property
+    def phi(self):
+        if self._phi is None:
+            self._PhiPsi()
+        return self._phi
+    
+    @property
+    def psi(self):
+        if self._psi is None:
+            self._PhiPsi()
+        return self._psi
+    
+    def plot(self,resid=None,ax=None,index=None,bins=72,cmap='cool',what='phipsi',**kwargs):
+        """
+        
+
+        Parameters
+        ----------
+        resid : TYPE, optional
+            DESCRIPTION. The default is None.
+        ax : TYPE, optional
+            DESCRIPTION. The default is None.
+        index : TYPE, optional
+            DESCRIPTION. The default is None.
+
+        Returns
+        -------
+        None.
+
+        """
+        if ax is None:ax=plt.subplots()[1]
+        
+        phi,psi=self.phi,self.psi
+        
+        if index is not None:
+            phi,psi=phi[:,index],psi[:,index]
+            
+        if resid is not None:
+            i=resid==self.resids
+            phi,psi=phi[i].flatten(),psi[i].flatten()
+        else:
+            phi,psi=phi.flatten(),psi.flatten()
+        
+        if what.lower() in ['phi','psi']:
+            q=phi if what.lower()=='phi' else psi
+            y,x=np.histogram(q*180/np.pi,range=(-180,180),bins=bins)
+            y=y/phi.__len__()
+            x=x[:-1]+(x[1]-x[0])/2
+            ax.plot(x,y,**kwargs)
+            ax.set_xlabel((r'$\phi$' if what.lower()=='phi' else r'$\psi$')+r' / $^\circ$')
+            ax.set_ylabel('frequency')
+            if resid is not None:
+                ax.set_title(f'Residue {resid}')
+            return ax
             
             
+        range=[[-np.pi,np.pi],[-np.pi,np.pi]]
+        out=np.histogram2d(phi,psi,bins=bins,range=range)
+        
+        x=out[1][:-1]+(out[1][1]-out[1][0])/2
+        y=out[2][:-1]+(out[2][1]-out[2][0])/2
+        z=np.log10(out[0])
+        z[out[0]==0]=-1
+        ax.contourf(x*180/np.pi,y*180/np.pi,z.T,cmap=cmap,**kwargs)
+        ax.set_xlabel(r'$\phi$ / $^\circ$')
+        ax.set_ylabel(r'$\psi$ / $^\circ$')
+        
+        return ax
+    
+    def pca_plot(self,resid=None,ax0=None,ax=None,bins=72,cmap='cool',what='phipsi'):
+        
+        if ax0 is not None:ax0.cla()
+        ax0=self.pca.Hist.plot(ax=ax0)
+        
+        if hasattr(resid,'__len__'):
+            sz=[np.sqrt(len(resid)).astype(int),np.sqrt(len(resid)).astype(int)]
+            if np.prod(sz)<len(resid):
+                sz[1]+=1
+            if ax is None:
+                fig=plt.figure()
+                ax=[fig.add_subplot(*sz,k+1) for k in range(len(resid))]
+        else:
+            if ax is None:ax=plt.subplots()[1]
+            ax=[ax]
+            resid=[resid]
             
+        
+        for resi,a in zip(resid,ax):
+            self.plot(resid=resi,ax=a,bins=bins,cmap=cmap,what=what)
+        
+        
+        
+        def callback(*args,**kwargs):
+            pc0=ax0.get_xlim()
+            pc1=ax0.get_ylim()
             
+            index=np.logical_and(np.logical_and(self.pca.PCamp[0]>=pc0[0],self.pca.PCamp[0]<=pc0[1]),
+                                 np.logical_and(self.pca.PCamp[1]>=pc1[0],self.pca.PCamp[1]<=pc1[1]))
+
+            for resi,a in zip(resid,ax):
+                a.cla()
+                self.plot(resid=resi,ax=a,bins=bins,cmap=cmap,what=what,color='black',linestyle=':')
+                self.plot(resid=resi,ax=a,bins=bins,cmap=cmap,index=index,what=what,**kwargs)
+            plt.show()
+            return None
+        
+        ax0.callbacks.connect('xlim_changed',callback)
+        ax0.callbacks.connect('ylim_changed',callback)
+        ax[0].figure.set_size_inches([10.6,7.1])
+        ax[0].figure.tight_layout()
+        
+        return ax
+               
+            
+        
+    
+    
+    
+        
+        
+    
+        
         
         
     
@@ -1729,6 +2090,7 @@ class PCA2Data():
         out=DataObj(R=Ct,
                      Rstd=np.repeat(np.array([sens.info['stdev']],dtype=dtype),Ct.shape[0],axis=0),
                      sens=sens,Type=Type)
+        out._pca=self.pca
         out.source.filename=self.pca.select.traj.files
         out.source.status='raw'
         out.details=self.pca.select.details
@@ -1867,21 +2229,102 @@ class PCA2Data():
     
 
 
-Data=clsDict['Data']
+Data=clsDict['Data_iRED']
 class Data_PCA(Data):
     def __init__(self, R=None, Rstd=None, label=None, sens=None, select=None, 
                  src_data=None, Type=None,S2=None, S2std=None, Rc=None):
         
         super().__init__(R=R,Rstd=Rstd,label=label,sens=sens,select=select,
                          src_data=src_data,Type=Type,S2=S2,S2std=S2std,Rc=Rc)
-        self._PCA=None
+        self._pca=None
         if self.src_data is not None:
-            self._PCA=self.src_data.PCA
+            self._pca=self.src_data.pca
+        
+        self._CC=None
+        self._CCnorm=None
     
+
+        
+    
+    def opt2dist(self,rhoz=None,rhoz_cleanup:bool=False,parallel:bool=False):
+        """
+        Forces a set of detector responses to be consistent with some given distribution
+        of motion. Achieved by performing a linear-least squares fit of the set
+        of detector responses to a distribution of motion, and then back-calculating
+        the detectors from that fit. Set rhoz_cleanup to True to obtain monotonic
+        detector sensitivities: this option eliminates unusual detector due to 
+        oscilation and negative values in the detector sensitivities. However, the
+        detectors are no longer considered "DIstortion Free".
+                                
+    
+        Parameters
+        ----------
+        data : TYPE
+            DESCRIPTION.
+        rhoz_cleanup : TYPE, optional
+            DESCRIPTION. The default is False. If true, we use a threshold for cleanup
+            of 0.1, although rhoz_cleanup can be set to a value between 0 and 1 to
+            assign the threshold manually
+    
+        Returns
+        -------
+        data object
+    
+        """
+        # print('checkpoint')
+        out=super().opt2dist(rhoz=rhoz,rhoz_cleanup=rhoz_cleanup,parallel=parallel)
+        out._pca=self.pca
+       
+        
+        return out
     
     @property
-    def PCA(self):
-        return self._PCA
+    def CC(self):
+        if self.source.Type!='PCAbond':
+            return None
+        
+        if self._CC is None:
+            self._CC=np.zeros([self.R.shape[1],self.R.shape[0],self.R.shape[0]],dtype=dtype)
+            for k in range(self._CC.shape[0]):
+                self._CC[k]=self.pca.S2.AmCC.T@self.src_data.R[:,k]
+        
+        return self._CC
+        
+        #     out.CC=np.zeros([out.R.shape[1],out.R.shape[0],out.R.shape[0]],dtype=dtype)
+        #     for k in range(out.CC.shape[-1]):
+        #         A=self.pca.S2.Am
+        #         A[A<0]=0
+        #         A0=self.R.T*np.sqrt(A[:,k])
+        #         out.CC[:,:,k]=A0@np.sqrt(A)
+        #     out.CC[out.CC<0]=0
+    
+    # @property
+    # def CCnorm(self) -> np.ndarray:
+    #     """
+    #     Calculates and returns the normalized cross-correlation matrices for
+    #     each detector
+
+    #     Returns
+    #     -------
+    #     np.ndarray
+
+    #     """
+    #     if self.CC is None:
+    #         print('Warning: Cross-correlation not calculated for this data object')
+    #         return
+
+    #     if self._CCnorm is None:
+    #         self._CCnorm=np.zeros(self.CC.shape,dtype=dtype)
+    #         for k,CC in enumerate(self.CC):
+    #             dg=np.sqrt([np.diag(CC)])
+    #             self._CCnorm[k]=CC/(dg.T@dg)
+    #         # self._CCnorm[np.isnan(self._CCnorm)]=0
+    #         # self._CCnorm[np.isinf(self._CCnorm)]=0
+    #     return self._CCnorm
+    
+    @property
+    def pca(self):
+        return self._pca
         
     @property
     def select(self):
@@ -1897,3 +2340,120 @@ class Data_PCA(Data):
         if 'PCAmode'==self.source.Type:
             return None
         return self.source.select
+    
+    
+    def modes2bonds(self) -> Data:
+        """
+        Converts PCA mode detector responses into bond-specific detector 
+        responses, including calculation of cross-correlation matrices for each 
+        detector. These are stored in CC and CCnorm, where CC is the unnormalized
+        correlation and CCnorm is the correlation coefficient, i.e. Pearson's r
+
+        Returns
+        -------
+        data_PCA
+
+        """
+        
+        out=self.__class__(sens=self.sens,src_data=self)
+        out.details.extend(self.details)
+        out.details.append('Converted from PCA modes to PCA bond data')
+        out.R=self.pca.S2.Am.T@self.R
+        S2=1-self.pca.S2.Am.sum(0)
+        out.R+=np.array([rhoz[-1]*S2 for rhoz in self.sens.rhoz]).T
+        out.Rstd=np.sqrt(self.pca.S2.Am.T@self.Rstd**2)
+        
+        out.source.Type='PCAbond'
+        out.source.n_det=self.source.n_det
+        out.label=self.pca.select.label
+        
+        if self.source.project is not None:self.source.project.append_data(out)
+        
+        return out
+    
+    # def CCchimera(self,index=None,rho_index:int=None,indexCC:int=None,scaling:float=None,norm:bool=True) -> None:
+    #     """
+    #     Plots the cross correlation of motion for a given detector window in 
+    #     chimera. 
+
+    #     Parameters
+    #     ----------
+    #     index : list-like, optional
+    #         Select which residues to plot. The default is None.
+    #     rho_index : int, optional
+    #         Select which detector to initially show. The default is None.
+    #     indexCC : int,optional
+    #         Select which row of the CC matrix to show. Must be used in combination
+    #         with rho_index. Note that if index is also used, indexCC is applied
+    #         AFTER index.
+    #     scaling : float, optional
+    #         Scale the display size of the detectors. If not provided, a scaling
+    #         will be automatically selected based on the size of the detectors.
+    #         The default is None.
+    #     norm : bool, optional
+    #         Normalizes the data to the amplitude of the corresponding detector
+    #         responses (makes diagonal of CC matrix equal to 1).
+    #         The default is True
+
+    #     Returns
+    #     -------
+    #     None
+
+    #     """
+        
+    #     CMXRemote=clsDict['CMXRemote']
+
+    #     index=np.arange(self.R.shape[0]) if index is None else np.array(index)
+
+    #     if rho_index is None:rho_index=np.arange(self.R.shape[1])
+    #     if not(hasattr(rho_index, '__len__')):
+    #         rho_index = np.array([rho_index], dtype=int)
+    #     # R = self.CCnorm[:,index,bond_index].T
+    #     #TODO add some options for including the sign of the correlation (??)
+    #     R=np.abs(getattr(self,'CCnorm' if norm else 'CC')[:,index][:,:,index].T)
+    #     R *= 1/R.T[rho_index].max() if scaling is None else scaling
+    #     # R[R < 0] = 0 
+
+    #     if self.source.project is not None:
+    #         ID=self.source.project.chimera.CMXid
+    #         if ID is None:
+    #             self.source.project.chimera.current=0
+    #             ID=self.source.project.chimera.CMXid
+    #             print(ID)
+    #     else: #Hmm....how should this work?
+    #         ID=CMXRemote.launch()
+    #         cmds=[]
+
+
+    #     ids=np.array([s.indices for s in self.select.repr_sel[index]],dtype=object)
+
+
+    #     if len(rho_index)==1 and indexCC is not None:
+    #         x=R[indexCC].squeeze()[:,rho_index].squeeze()
+    #         self.select.chimera(color=plt.get_cmap('tab10')(rho_index[0]),x=x,index=index)
+    #         sel0=self.select.repr_sel[index][indexCC]
+    #         if hasattr(sel0,'size'):sel0=sel0[0] #sel0 may still be a np.array
+    #         mn=CMXRemote.valid_models(ID)[-1]
+    #         CMXRemote.send_command(ID,'color '+'|'.join(['#{0}/{1}:{2}@{3}'.format(mn,s.segid,s.resid,s.name) for s in sel0])+' black')
+    #         # print('color '+'|'.join(['#{0}/{1}:{2}@{3}'.format(mn,s.segid,s.resid,s.name) for s in sel0])+' black')
+    #         return sel0
+    #     else:
+
+    #         self.select.chimera()
+    #         mn=CMXRemote.valid_models(ID)[-1]
+    #         CMXRemote.send_command(ID,f'color #{mn} tan')
+                
+            
+    #         out=dict(R=R,rho_index=rho_index,ids=ids)
+    #         CMXRemote.add_event(ID,'DetCC',out)
+        
+    #         if self.source.project is not None:
+    #             self.source.project.chimera.command_line(self.source.project.chimera.saved_commands)
+        
+                
+        
+        
+        
+        
+        
+        

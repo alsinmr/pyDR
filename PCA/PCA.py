@@ -18,7 +18,7 @@ from .. import clsDict
 from copy import copy,deepcopy
 from ..misc.tools import linear_ex
 from .PCAmovies import PCAmovies
-from .PCAsubs import PCA_Ct,PCA_S2,PCAvecs,PCA2Data,Weighting,Impulse,Hist,Cluster
+from .PCAsubs import PCA_Ct,PCA_S2,PCAvecs,PCA2Data,Weighting,Impulse,Hist,Cluster,Ramachandran
 
 
 
@@ -101,6 +101,12 @@ class PCA():
             self._Cluster=Cluster(self)
         return self._Cluster
     
+    @property
+    def Ramachandran(self):
+        if self._Ramachandran is None:
+            self._Ramachandran=Ramachandran(self)
+        return self._Ramachandran
+    
     #%% Misc.
     def clear(self):
         """
@@ -112,7 +118,8 @@ class PCA():
 
         """
         keys=['_pos','_covar','_sel1index','_sel2index','_lambda','_PC','_pcamp','_mean',
-              '_S2','_Ct','_Vecs','_Data','_Movie','_Weighting','_Impulse','_Hist','_Cluster']
+              '_S2','_Ct','_Vecs','_Data','_Movie','_Weighting','_Impulse','_Hist','_Cluster',
+              '_Ramachandran']
         for k in keys:setattr(self,k,None)
         return self
     

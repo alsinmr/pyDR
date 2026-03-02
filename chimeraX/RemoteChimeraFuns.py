@@ -8,6 +8,7 @@ Created on Wed Mar 23 12:25:34 2022
 
 import numpy as np
 from time import sleep
+from copy import copy
 from matplotlib.pyplot import get_cmap
 
 
@@ -196,11 +197,12 @@ class DetFader():
         clr0=[210,180,140,255] #Tan
         cmap=(np.array([get_cmap("tab10")(i%10) for i in range(rhoz.shape[0])])*255).astype(int).T #default color cycle
         
-        
+        xc=copy(x)
+        xc[xc>1]=1  #Color shouldn't saturate
         for t in tau:
             itc=np.argmin(np.abs(tc*1e9-t))  #Index for sensitivity
             r.append(0.8+(x@rhoz[:,itc])*sc)
-            clr.append([(c*(x*rhoz[:,itc])).sum(-1)+c0*(1-(x*rhoz[:,itc]).sum(-1)) for c,c0 in zip(cmap,clr0)])
+            clr.append([(c*(xc*rhoz[:,itc])).sum(-1)+c0*(1-(xc*rhoz[:,itc]).sum(-1)) for c,c0 in zip(cmap,clr0)])
         
         self.r=np.array(r)    
         self.clr=np.array(clr,dtype=int).swapaxes(1,2)

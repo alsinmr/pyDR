@@ -785,20 +785,22 @@ class Options():
         return self
     
     
-    def DetFader(self,tau=None,index=None,rho_index=None,remove:bool=False):
+    def DetFader(self,tau=None,index=None,rho_index=None,remove:bool=False,sc=3):
         """
         Add a Detector Fader to the trajectory
 
         Parameters
         ----------
         tau : TYPE, optional
-            DESCRIPTION. The default is None.
+            Timescales to sweep through. The default is None.
         index : TYPE, optional
-            DESCRIPTION. The default is None.
+            Index for what bonds to show. The default is None.
         rho_index : TYPE, optional
-            DESCRIPTION. The default is None.
+            Index for what detectors to show. The default is None.
         remove : bool, optional
-            DESCRIPTION. The default is False.
+            Removes existing detector faders. The default is False.
+        sc : float, optional
+            Scaling factor for displaying the detectors.
 
         Returns
         -------
@@ -834,8 +836,7 @@ class Options():
         
             
         
-        x/=x.max()
-        
+        x*=sc/x.max()
         
         def fun(x=x,ids=ids,tau=tau,rhoz=rhoz):
             mn0,mn=self.pca_movie.molsys.movie.mdlnums

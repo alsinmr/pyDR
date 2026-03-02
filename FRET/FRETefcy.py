@@ -244,11 +244,13 @@ then we use the isotropic average, kappa=2/3""")
     @property
     def E(self):
         return self.Et.T[self._bi].mean(0) #Average over time 
+    
     @property
     def tauDAt(self):
         if self.__tauDAt is None or not(self._up2date):
             self.__tauDAt=(1-self.Et)*self.tauD
         return self.__tauDAt
+    
     @property
     def sigma_c2(self):
         kD=1/self.tauD
@@ -323,9 +325,12 @@ then we use the isotropic average, kappa=2/3""")
         nbins=len(self.t)//step
 
         tauDA=np.zeros([self.Et.shape[0],nbins],dtype=self.Et.dtype)
+        w=np.zeros([self.Et.shape[0],nbins],dtype=self.Et.dtype)
         for k in range(step):
-            tauDA+=self.tauDAt[:,k:nbins*step:step]
-        tauDA/=step
+            tauDA+=(self.tauDAt*(1-self.Et))[:,k:nbins*step:step]
+            w+=(1-self.Et)[:,k:nbins*step:step]
+        # tauDA/=step
+        tauDA/=w
         self._tauDAbin=tauDA
         self.Dt_tauDA=Dt
         return tauDA
@@ -430,9 +435,11 @@ then we use the isotropic average, kappa=2/3""")
             DESCRIPTION.
 
         """
+        if Dt is None:Dt=self.Dt if self.Dt is not None else self.Dt_tauDA
+        
         if index is None:index=np.ones(self.E.shape[0],dtype=bool)
         E=self.Ebin(Dt=Dt)[index]
-        if Dt is None:Dt=self.Dt if self.Dt is not None else self.Dt_tauDA
+        
         tauDA=self.tauDAbin(Dt=Dt)[index]
         
         if tau_range is None:tau_range=tauDA.min(),tauDA.max()
@@ -499,6 +506,7 @@ then we use the isotropic average, kappa=2/3""")
         if self.__g['gAD'] is None or not(self._up2date):
             self.__g['gAD']=self._g(self.Et,self.ThetaD*(1-self.Et))
         return self.__g['gAD']
+
         
     
     #%% Plotting functions
@@ -639,7 +647,7 @@ then we use the isotropic average, kappa=2/3""")
         """
         if index is None:index=np.arange(len(self.E))
         index=np.atleast_1d(index)
-        x,y,H=self.E_tauDA_hist(index=index,Dt=Dt,nbins=nbins,tau_range=tau_range,E_range=E_range)
+        x,y,H=self.E_tauDA_hist(index=index,Dt=Dt,nbins=nbins,tau_range=tau_range*self.tauD,E_range=E_range)
         
         if ax is None:
             nfp=self.E[index].shape[0]
@@ -650,7 +658,9 @@ then we use the isotropic average, kappa=2/3""")
             
         hdl=list()
         for a,c0,lbl in zip(ax,H,self.label[index]):
-            hdl.append(a.contourf(y/self.tauD,x,c0.T,cmap='jet'))
+            c0[c0>0]=np.log10(c0[c0>0])+1
+            
+            hdl.append(a.contourf(y,x/self.tauD,c0,cmap='jet'))
             if a.is_last_row() or len(index)==1:
                 a.set_xlabel('E')
             else:
@@ -660,10 +670,51 @@ then we use the isotropic average, kappa=2/3""")
                 a.set_ylabel(r'$\tau/\tau_{D}$')
             else:
                 a.set_yticklabels('')
-            a.set_title(lbl)
+            a.set_title(f'{lbl}, Dt={Dt} ns')
+            
+            xlim=a.get_xlim()
+            a.set_ylim(a.get_ylim())
+            a.plot(xlim,1-np.array(xlim),color='black')
                 
         return hdl
+    
+    def plot_v_t(self,what:str='Et',index=None,ax=None,**kwargs):
+        """
+        Plots the time dependent of various parameters (Et, tauDA, gDD, gAA, 
+        gAD, gDA)
+
+        Parameters
+        ----------
+        what : str, optional
+            DESCRIPTION. The default is 'E'.
+        index : list-like, optional
+            List of FRET pairs to display. The default is None.
+        ax : TYPE, optional
+            Axis or list of axes on which to plot histogram(s)
+
+        Returns
+        -------
+        list
+            Handles for the axes
+
+        """
+        
+        if index is None:index=np.arange(len(self.E))
+        
+        if ax is None:
+            nfp=self.E[index].shape[0]
+            sz=(np.ceil(np.sqrt(nfp))*np.ones(2)).astype(int)
+            if (sz[0]-1)*sz[1]>=nfp:sz[0]-=1
+            fig=plt.figure()
+            ax=[fig.add_subplot(sz[0],sz[1],k+1) for k in range(len(self.E))]
+        ax=np.atleast_1d(np.array(ax).flatten())
+        
+        for k,a in enumerate(ax):
+            a.plot(self.t,getattr(self,what)[k],**kwargs)
+            a.set_xlabel('t / ns')
+            a.set_ylabel(rf'$\langle {what}\rangle$')
             
+        return ax
         
 
     

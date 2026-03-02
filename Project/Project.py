@@ -1175,7 +1175,8 @@ class Project():
             step = 1 if index.step is None else index.step
             stop = self.size if index.stop is None else min(index.stop, self.size)
             start %= self.size
-            stop = (stop-1) % self.size+1
+            stop = 0 if stop==0 else (stop-1) % self.size+1   #Changing this so that [:0] returns an empty project
+            # stop = stop % self.size
             if step<0:start,stop=stop-1,start-1
             proj._index = self._index[np.arange(start,stop,step)]
             if len(proj._index):

@@ -398,8 +398,7 @@ class Data():
             
     
     def plot(self, errorbars=False, style='canvas', fig=None, index=None, 
-             rho_index=None, plot_sens=True, split=True,**kwargs):
-        # todo maybe worth to remove the args and put them all into kwargs? -K
+             rho_index=None, plot_sens=True, split=True,plot_ct=None,**kwargs):
         """
         Plots the detector responses for a given data object. Options are:
         
@@ -412,11 +411,21 @@ class Data():
         index:      Index to specify which residues to canvas (None or logical/integer indx)
         rho_index:  Index to specify which detectors to canvas (None or logical/integer index)
         plot_sens:  Plot the sensitivity as the first canvas (True/False)
-        split:      Break the plots where discontinuities in data.label exist (True/False)  
+        split:      Break the plots where discontinuities in data.label exist (True/False)
+        plot_ct:    Plot correlation functions as time traces instead of in the standard
+                    plots. Will not create the plot object. Default is None, which
+                    will check if the data consists of correlation functions. Set to
+                    "linear" to force linear plot (default is log). Set to False
+                    to use the usual plotting mode
         
         By default, if the data has an associated project, this will create a canvas within the
         project, unless a figure
         """
+        
+        if self.sens.__class__ in [clsDict['FRET'],clsDict['MD']] and plot_ct is not False:
+            log=not(isinstance(plot_ct,str) and plot_ct.lower()=='linear')
+            return plot_fit_md(lbl=self.label,Rin=self.R,Rc=None,info=self.info,index=index,fig=fig,log=log)
+        
         if self.source.project is None or fig.__class__ is Figure:
             "Don't append the canvas to the project"
             return DataPlots(data=self, style=style, errorbars=errorbars, index=index,
@@ -429,7 +438,9 @@ class Data():
             
             
     
-    def plot_fit(self,index=None, exp_index=None, fig=None):
+    def plot_fit(self,index=None, exp_index=None, fig=None,**kwargs):
+        if 'log' not in kwargs and self.sens.sens.__class__ is clsDict['FRET']:
+            kwargs['log']=True
         assert self.src_data is not None and hasattr(self, 'Rc') and self.Rc is not None,\
             "Plotting a fit requires the source data(src_data) and Rc"
         info = self.src_data.info.copy()
@@ -441,8 +452,8 @@ class Data():
             Rc=np.concatenate((Rc,np.atleast_2d(1-self.S2c).T),axis=1)
             Rin_std=np.concatenate((Rin_std,np.atleast_2d(self.src_data.S2std).T),axis=1)
             
-        if self.src_data.sens.__class__.__name__=='MD':
-            return plot_fit_md(lbl,Rin,Rc,index=index,info=info)
+        if self.src_data.sens.__class__.__name__ in ['MD','FRET']:
+            return plot_fit_md(lbl,Rin,Rc,index=index,info=info,**kwargs)
             
         
         return plot_fit(lbl=lbl,Rin=Rin,Rc=Rc,Rin_std=Rin_std,\

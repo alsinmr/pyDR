@@ -73,7 +73,8 @@ from pyDR.Entropy import EntropyCC
 
 
 clsDict.update({'Data':Data,'Data_iRED':Data_iRED,'Source':Source,'Info':Sens.Info,
-         'Sens':Sens.Sens,'Detector':Sens.Detector,'NMR':Sens.NMR,'MD':Sens.MD,'SolnNMR':Sens.SolnNMR,
+         'Sens':Sens.Sens,'Detector':Sens.Detector,'NMR':Sens.NMR,'MD':Sens.MD,
+         'SolnNMR':Sens.SolnNMR,'FRET':Sens.FRET,
          'MolSys':MolSys,'MolSelect':MolSelect,'Project':Project,
          'FrameObj':Frames.FrameObj,'Ctcalc':MDtools.Ctcalc,
          'DataPlots':Plotting.DataPlots,'CMXRemote':CMXRemote,'Movies':Movies,

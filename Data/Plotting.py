@@ -604,7 +604,7 @@ def plot_fit(lbl,Rin,Rc,Rin_std=None,info=None,index=None,exp_index=None,fig=Non
 #    fig.show()            
     return ax
 
-def plot_fit_md(lbl,Rin,Rc,info=None,index=None,fig=None):
+def plot_fit_md(lbl,Rin,Rc=None,info=None,index=None,fig=None,log=False):
     
     if index is not None:
         lbl=lbl[index]
@@ -617,9 +617,19 @@ def plot_fit_md(lbl,Rin,Rc,info=None,index=None,fig=None):
     
     t=info['t']
     
+    if Rc is None:
+        print(Rin)
+        Rc=[None for _ in range(len(Rin))]
+    
     for lbl0,Rin0,Rc0,a in zip(lbl,Rin,Rc,ax):
-        a.plot(t,Rin0,color='red')
-        a.plot(t,Rc0,color='black',linestyle=':')
+        if log:
+            a.semilogx(t,Rin0,color='red')
+            if Rc0 is not None:
+                a.semilogx(t,Rc0,color='black',linestyle=':')
+        else:
+            a.plot(t,Rin0,color='red')
+            if Rc0 is not None:
+                a.plot(t,Rc0,color='black',linestyle=':')
         a.text(t[1],0.1,lbl0)
         a.set_ylim([-.1,1])
         if a.is_first_col():
@@ -664,3 +674,4 @@ def subplot_setup(nexp,fig=None):
     yax[0]=True
   
     return ax,xax,yax
+

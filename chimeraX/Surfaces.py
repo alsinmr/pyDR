@@ -212,9 +212,13 @@ def load_cart_surface(session,x,y,z,colors:list=(.3,.3,.3,1)):
     from scipy.spatial import Delaunay
     from chimerax.core.models import Surface
     from chimerax.surface import calculate_vertex_normals
-    
+
     x,y=[a.flatten() for a in np.meshgrid(x,y)]
-    tri=Delaunay(np.array([x,y]).T).vertices
+    tri=Delaunay(np.array([x,y]).T)
+    if hasattr(tri,'vertices'):
+        tri=tri.vertices
+    else:
+        tri=tri.simplices
     
     
     

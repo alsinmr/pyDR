@@ -11,6 +11,7 @@ from pyDR.Sens.Sens import Sens
 from pyDR.Sens.NMR import NMR
 from pyDR.Sens.SolnNMR import SolnNMR
 from pyDR.Sens.MD import MD
+from pyDR.Sens.FRET import FRET
 from pyDR.Sens.Detector import Detector
 import pyDR.Sens.NMRexper as NMRexper
 

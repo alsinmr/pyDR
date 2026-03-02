@@ -8,7 +8,7 @@ Created on Wed Jan 24 09:05:22 2024
 
 import pyDR
 import numpy as np
-from pyDR.PCA.PCAclean import PCA
+from pyDR.PCA.PCA import PCA
 
 # select=pyDR.MolSelect(topo='/Users/albertsmith/Documents/Dynamics/MDsims/HETs/backboneB.pdb',
 #                       traj_files='/Users/albertsmith/Documents/Dynamics/MDsims/HETs/backboneB.xtc',step=1,tf=10000)
@@ -20,11 +20,11 @@ select=pyDR.MolSelect(topo='/Users/albertsmith/Documents/Dynamics/MDsims.nosync/
 
 select=pyDR.MolSelect(topo='/Volumes/My Book/Y1/apo/prot.pdb',
                       traj_files='/Volumes/My Book/Y1/apo/apo1.xtc',
-                      step=1,t0=5900,tf=19150)
+                      step=10,t0=5900,tf=19150)
 
 select=pyDR.MolSelect(topo='/Volumes/My Book/GHSR/WT_apo.pdb',
                       traj_files='/Volumes/My Book/GHSR/WT-apo_run1_0.1ns_just_protein.xtc',
-                      step=1,tf=100000)
+                      step=10,tf=100000)
 
 
 pca=PCA(select)

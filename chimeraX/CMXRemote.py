@@ -63,6 +63,15 @@ class CMXRemote():
 
         with File(ID) as f:
             py_line(f,'import sys')
+            
+            # These lines to clear the ChimeraX python cache            
+            py_line(f,'import pathlib')
+            py_line(f,'for p in pathlib.Path(".").rglob("__pycache__"):')
+            py_line(f,'for f in p.glob("*.pyc"):',1)
+            py_line(f,'f.unlink()',2)
+            py_line(f,'p.rmdir()',1)
+            # Cache clear ends here
+            
             py_line(f,run_command())
             WrCC(f,'remotecontrol rest start port {0}'.format(ID+cls.rc_port0))
             py_line(f,'sys.path.append("{}")'.format(cls.path))

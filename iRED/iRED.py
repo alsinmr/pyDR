@@ -460,7 +460,7 @@ class Data_iRED(Data):
     def __init__(self,CC=None,totalCC=None,*args,**kwargs):
         super().__init__(*args,**kwargs)
         self.iRED={}
-        self.CC=CC
+        self._CC=CC
         self.totalCC=totalCC
         self._CCnorm=None
         self._totalCCnorm=None
@@ -469,6 +469,11 @@ class Data_iRED(Data):
         out=super().fit(bounds=bounds,parallel=parallel)
         out.iRED=self.iRED
         return out
+    
+    @property
+    def CC(self):
+        return self._CC
+    
     
     def opt2dist(self,rhoz=None,rhoz_cleanup:bool=False,parallel:bool=False):
         """
