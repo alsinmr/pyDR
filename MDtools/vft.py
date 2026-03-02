@@ -59,6 +59,7 @@ def pbc_corr(v0,box):
     """
     
     "Copy input, take tranpose for easier calculation"
+    if box is None:return v0
     v=v0.copy()
     if v.shape[0]==3:
         v=v.T

@@ -10,6 +10,7 @@ from pyDR.Sens import NMR
 from pyDR.Sens.NMR import defaults
 import numpy as np
 from pyDR.misc.tools import linear_ex
+from copy import deepcopy
 
 class SolnNMR(NMR):
     def __init__(self,tc=None,z=None,info=None,**kwargs):
@@ -72,7 +73,7 @@ class SolnNMR(NMR):
         #bonds will store bond-specific sensitivities (if existing)
         self._bonds={'iso':None,'bonds':list()}
         self._bondsCSA={'iso':None,'bonds':list()}
-        self._data=None
+        self._select=None
         
     @property
     def vecs(self):
@@ -92,12 +93,29 @@ class SolnNMR(NMR):
         
         
     @property
-    def data(self):
-        return self._data
+    def select(self):
+        return self._select
     
-    @data.setter
-    def data(self,data):
-        self._data=data
+    @select.setter
+    def select(self,select):
+        self._select=select
+        
+    # def copy(self):
+    #     """
+    #     Returns a deepcopy of  the object
+
+    #     Returns
+    #     -------
+    #     SolnNMR
+
+    #     """
+    #     data=self._data
+    #     self._data=None
+    #     out=deepcopy(self)
+    #     self._data=data
+    #     out._data=data
+    #     return out
+        
     
     def new_exper(self,info=None,**kwargs):
         """
@@ -167,11 +185,10 @@ class SolnNMR(NMR):
         """
         
         if self.vecs is None:
-            if self.data is None or not(hasattr(self.data,'source')) or self.data.select is None or len(self.data.select)==0:
+            if self.select is None or len(self.select)==0:
                 return
         
-        if self.vecs is None and self.data is not None and self.data.select is not None and len(self.data.select)==len(self.data):
-            self.vecs=self.data.select.v
+        self.vecs=self.data.select.v
             
         if self.index is None:
             return self.vecs

@@ -824,6 +824,7 @@ class MolSelect():
     @property
     def box(self):
         self.traj
+        if self.molsys.uni.dimensions is None:return
         return self.molsys.uni.dimensions[:3]
     
     @property

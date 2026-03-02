@@ -284,7 +284,8 @@ class Sens():
         assert index<self._bonds,"index must be less than the number of stored sensitivity objects ({})".format(len(self._bonds))
         assert isinstance(value,self.__class__),"Bond-specific sensitivities must have the same class as their parent sensitivity"
         self._bonds[index]=value
-        self._bonds[index]._parent=self
+        # TODO what was the purpose of the line below? It causes an infinite reference, preventing copy 
+        # self._bonds[index]._parent=self
         
     def append(self,value):
         """
@@ -292,7 +293,8 @@ class Sens():
         """
         assert isinstance(value,self.__class__),"Bond-specific sensitivities must have the same class as their parent sensitivity"
         self._bonds.append(value)
-        self._bonds[-1]._parent=self
+        # TODO what was the purpose of the line below? It causes an infinite reference, preventing copy 
+        # self._bonds[-1]._parent=self
 
     def __next__(self):
         """
