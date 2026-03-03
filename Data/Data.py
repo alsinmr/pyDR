@@ -124,7 +124,8 @@ class Data():
             
         if name == 'sens' and hasattr(value,'select'):
             # The sensitivity uses the selection object
-            value.select=self.select
+            value.data=self
+            
 
         if name == 'sens' and hasattr(self,'detect'):
             if hasattr(value,'opt_pars'):

@@ -16,7 +16,7 @@ from scipy.sparse.linalg import eigs
 from scipy.optimize import lsq_linear as lsqlin
 from scipy.optimize import linprog
 from pyDR.misc.tools import linear_ex
-from copy import copy
+from copy import copy,deepcopy
 
 import warnings
 from scipy.linalg import LinAlgWarning
@@ -96,10 +96,15 @@ class Detector(Sens.Sens):
         the original sensitivity object
         """
         sens=self.sens  #Hold on to the old sensitivity object
+        svd=self.SVD
         self.sens=None
+        self.SVD=None
         out=super().copy()
+        
         out.sens=sens  #Put back old sensitivity object
+        out.SVD=svd
         self.sens=sens
+        self.SVD=svd
         return out
     
     def lock(self,locked=True):
@@ -137,6 +142,7 @@ class Detector(Sens.Sens):
         """
         If detector loaded from file, we may need to re-calculate some parameters
         """
+        if self._parent is not None:return
         if self.__r is None and self._Sens__rho is not None:
             opt_pars=copy(self.opt_pars)
             inclS2='inclS2' in opt_pars['options']
@@ -162,11 +168,12 @@ class Detector(Sens.Sens):
 
         """
         if self._parent is None:return
+        if self.opt_pars==self._parent.opt_pars:return
         
-        self.opt_pars=opts=self._parent.opt_pars
+        self.opt_pars=opts=deepcopy(self._parent.opt_pars)
         
         inclS2='inclS2' in opts['options']
-        R2ex='R2ex' in opts
+        R2ex='R2ex' in opts['options']
         
         Type=opts['Type']
         if Type in ['auto','target','zmax']:
@@ -525,9 +532,7 @@ class Detector(Sens.Sens):
         self.update_det()
 
 
-        if NegAllow:self.allowNeg()
         if Normalization:self.ApplyNorm(Normalization)
-        
         return self
         
     def allowNeg(self):
@@ -656,7 +661,7 @@ class Detector(Sens.Sens):
         rhoz=np.zeros(self.tc.size)
         rhoz[-1]=1e6
         
-        self.__r=np.concatenate([self.r,np.transpose([r_ex_vec])],axis=1)
+        self.__r=np.concatenate([self.__r,np.transpose([r_ex_vec])],axis=1)
         self._Sens__rho=np.concatenate([self._Sens__rho,[rhoz]],axis=0)
         self._Sens__rhoCSA=np.concatenate([self._Sens__rhoCSA,[np.zeros(self.tc.size)]],axis=0)
         
@@ -683,7 +688,7 @@ class Detector(Sens.Sens):
         if self._islocked:return
         
         if 'R2ex' not in self.opt_pars['options']:
-            print('S2 not included')
+            print('R2ex not included')
             return self
         
         self._Sens__rho=self.rhoz[:-1]
@@ -692,6 +697,11 @@ class Detector(Sens.Sens):
         self.opt_pars['options'].remove('R2ex')
         self.opt_pars.pop('R2ex_vref')
         self.info.del_exp(-1)
+        
+        if len(self)>1:
+            for b in self:
+                b.removeR2ex()
+        
         
         return self
         
@@ -748,6 +758,12 @@ class Detector(Sens.Sens):
         if 'R2ex' in self.opt_pars['options'] and self.info.N-1 in index:
             hdl[-1].set_alpha(0)
             hdl[-1].axes.set_ylim([self.rhoz[index][:-1].min(),self.rhoz[index][:-1].max()])
+            
+            fb=None
+            for h0 in hdl[-1].axes.get_children():
+                if 'FillBetween' in str(h0.__class__):
+                    fb=h0
+            if fb is not None:fb.set_alpha(0)
             
         return hdl
             

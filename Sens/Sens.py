@@ -89,6 +89,14 @@ class Sens():
         """
         Returns a deep copy of the sensitivity object. 
         """
+        if len(self)>1:
+            bonds=self._bonds
+            self._bonds=None
+            out=deepcopy(self)
+            out._bonds=bonds
+            self._bonds=bonds
+            return out
+        
         return deepcopy(self)
     
     def __copy__(self):
@@ -284,8 +292,8 @@ class Sens():
         assert index<self._bonds,"index must be less than the number of stored sensitivity objects ({})".format(len(self._bonds))
         assert isinstance(value,self.__class__),"Bond-specific sensitivities must have the same class as their parent sensitivity"
         self._bonds[index]=value
-        # TODO what was the purpose of the line below? It causes an infinite reference, preventing copy 
-        # self._bonds[index]._parent=self
+        # This allows the match_parent function in Detector
+        self._bonds[index]._parent=self
         
     def append(self,value):
         """
@@ -293,8 +301,8 @@ class Sens():
         """
         assert isinstance(value,self.__class__),"Bond-specific sensitivities must have the same class as their parent sensitivity"
         self._bonds.append(value)
-        # TODO what was the purpose of the line below? It causes an infinite reference, preventing copy 
-        # self._bonds[-1]._parent=self
+        # This allows the match_parent function in Detector
+        self._bonds[-1]._parent=self
 
     def __next__(self):
         """

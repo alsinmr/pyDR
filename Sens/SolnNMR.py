@@ -7,10 +7,12 @@ Created on Tue Dec 20 11:23:01 2022
 """
 
 from pyDR.Sens import NMR
-from pyDR.Sens.NMR import defaults
+# from pyDR.Sens.NMR import defaults
 import numpy as np
 from pyDR.misc.tools import linear_ex
 from copy import deepcopy
+from pyDR.MDtools import vft
+from warnings import warn
 
 class SolnNMR(NMR):
     def __init__(self,tc=None,z=None,info=None,**kwargs):
@@ -73,7 +75,7 @@ class SolnNMR(NMR):
         #bonds will store bond-specific sensitivities (if existing)
         self._bonds={'iso':None,'bonds':list()}
         self._bondsCSA={'iso':None,'bonds':list()}
-        self._select=None
+        self._data=None
         
     @property
     def vecs(self):
@@ -82,7 +84,18 @@ class SolnNMR(NMR):
     def vecs(self,vecs):
         self._vecs=vecs
         if self.data is not None:
-            self.data.detect=self.Detector()
+            # Adding vectors to the sensitivity object changes its behavior. The
+            # detector thus needs updating. However, we don't want to just replace it.
+            # Because, often detect.r_auto is the first access to the bond-specific
+            # sensitivities, and so replacing it here will end up that the optimized
+            # detectors are no long attached to the data object.
+            #
+            # Replacing the dictionary, on the other hand, keeps the detector
+            # reference intact while updating the detectors mid-optimization
+            
+            # self.data.detect=self.Detector() #NO! Detaches detector from data...
+            # Instead:
+            self.data.detect.__dict__=self.Detector().__dict__
             
     @property
     def vecsCSA(self):
@@ -91,30 +104,36 @@ class SolnNMR(NMR):
     def vecsCSA(self,v):
         self._vecsCSA=v
         
+
+    @property
+    def data(self):
+        return self._data
+    
+    @data.setter
+    def data(self,data):
+        self._data=data
         
     @property
     def select(self):
-        return self._select
+        if self.data is None:return 
+        return self.data.select
     
-    @select.setter
-    def select(self,select):
-        self._select=select
+
         
-    # def copy(self):
-    #     """
-    #     Returns a deepcopy of  the object
+    def copy(self):
+        """
+        Returns a deepcopy of  the object
 
-    #     Returns
-    #     -------
-    #     SolnNMR
+        Returns
+        -------
+        SolnNMR
 
-    #     """
-    #     data=self._data
-    #     self._data=None
-    #     out=deepcopy(self)
-    #     self._data=data
-    #     out._data=data
-    #     return out
+        """
+        data=self._data
+        self._data=None
+        out=deepcopy(self)
+        self._data=data
+        return out
         
     
     def new_exper(self,info=None,**kwargs):
@@ -180,15 +199,14 @@ class SolnNMR(NMR):
 
         Returns
         -------
-        None.
+        np.array
 
         """
         
         if self.vecs is None:
             if self.select is None or len(self.select)==0:
                 return
-        
-        self.vecs=self.data.select.v
+            self.vecs=vft.norm(self.select.v.T).T
             
         if self.index is None:
             return self.vecs
@@ -202,10 +220,35 @@ class SolnNMR(NMR):
 
         Returns
         -------
-        None.
+        np.array
 
         """
-        if self.vecsCSA is None:return self.v
+        # https://pubs.acs.org/doi/pdf/10.1021/ja910186u?ref=article_openPDF
+        
+        
+        if self.vecsCSA is None:
+            if np.all(self.info['Nuc']=='15N') and self.select is not None and len(self.select):
+                vZ=self.vecs.T
+                if self.select.sel1[0][0].name=='N':
+                    N=np.sum(self.select.sel1)
+                else:
+                    N=np.sum(self.select.sel2)
+                CA=N.residues.atoms.select_atoms('name CA')
+                
+                if len(CA)!=len(N):
+                    warn("Not enough CA atoms were found for defining vCSA: returning v")
+                    return self.v
+                vXZ=vft.norm((CA.positions-N.positions).T)
+                euler=vft.getFrame(vZ,vXZ)
+                theta=self.info[0]['theta']*np.pi/180
+                vCSA=vft.R([0,-np.sin(theta),np.cos(theta)],*euler)
+                self.vecsCSA=vCSA.T
+                
+                
+            else:
+                return self.v
+        if self.index is None:
+            return self.vecsCSA
         
         return self.vecsCSA[self.index]
     
@@ -241,7 +284,7 @@ class SolnNMR(NMR):
             self._bonds={'iso':None,'bonds':list() if self.vecs is None else \
                          [None for _ in range(self.vecs.shape[0])]}
         
-        rhoz=super().rhoz-super()._rhozCSA
+        rhoz=super().rhoz-super()._rhozCSA   #Just analyze the non-CSA contribution here
         
         if self.index is None:
             if self._bonds['iso'] is None:
@@ -251,7 +294,7 @@ class SolnNMR(NMR):
                     R0[k]=linear_ex(self.z,rhoz0,np.log10(tM))
                     Reff[k]=linear_ex(self.z,rhoz0,self.zeff(np.log10(tM)))-R0[k]
                 self._bonds['iso']=Reff,R0
-            return self._bonds['iso'][0]
+            return self._bonds['iso'][0]+self._rhozCSA   #Add back the CSA contribution
         else:
             if len(self._bonds['bonds'])!=self.vecs.shape[0]:self._bonds['bonds']=[None for _ in range(self.vecs.shape[0])]
             
@@ -267,7 +310,7 @@ class SolnNMR(NMR):
                     Reff[k]-=R0[k]
                     
                 self._bonds['bonds'][self.index]=Reff,R0
-            return self._bonds['bonds'][self.index][0]+self._rhozCSA
+            return self._bonds['bonds'][self.index][0]+self._rhozCSA   #Add back the CSA contribution
         
          
     @property
@@ -297,6 +340,7 @@ class SolnNMR(NMR):
                 R0=np.zeros(rhoz.shape[0])
                 Reff=np.zeros(rhoz.shape)
                 # print('Warning: Bond-specific relaxation not fully tested')
+                _=self.vCSA
                 for k,(rhoz0,tM,zeta,eta,euler) in enumerate(zip(rhoz,
                             *[self.info[key] for key in ['tM','zeta_rot','eta_rot','euler']])):
                     for tM0,A0 in zip(*AnisoDif(tM,zeta,eta,euler,self.vCSA)):
@@ -314,7 +358,7 @@ class SolnNMR(NMR):
         change depending on the subclass.
         """
         if self.index is None:
-            return self.rhoz,self._bonds['iso'][1]
+            return self.rhoz,self._bonds['iso'][1]+self._rho_effCSA[1]
         else:
             return self.rhoz,self._bonds['bonds'][self.index][1]+self._rho_effCSA[1]
     

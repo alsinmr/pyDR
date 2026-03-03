@@ -185,6 +185,11 @@ def read_Data(f):
     if key is not None:
         keys[key]=np.array(values,dtype=None if isstr else dtype)
         
+    if keys['label'] is not None:
+        if np.all(keys['label'].astype(int)==keys['label']):
+            keys['label']=keys['label'].astype(int)
+        
+        
     return keys
                 
             
