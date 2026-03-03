@@ -272,7 +272,7 @@ class Detector(Sens.Sens):
         None.
 
         """
-        if len(self)==1 and len(self.sens)!=1:
+        if len(self.sens)!=1 and len(self)==1:
             for s in self.sens:
                 self.append(Detector(s))
     
@@ -761,7 +761,7 @@ class Detector(Sens.Sens):
             
             fb=None
             for h0 in hdl[-1].axes.get_children():
-                if 'FillBetween' in str(h0.__class__):
+                if 'FillBetween' in str(h0.__class__) or 'PolyCollection' in str(h0.__class__):
                     fb=h0
             if fb is not None:fb.set_alpha(0)
             
