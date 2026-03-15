@@ -10,7 +10,9 @@ import numpy as np
 from pyDR import clsDict
 from pyDR.FRET import FRETdipole
 from pyDR.MDtools import Ctcalc as Ct_calc
+from .LoadFRET import loadFRET
 import matplotlib.pyplot as plt
+from copy import copy
 
 class FRETefcy():
     """
@@ -35,7 +37,7 @@ class FRETefcy():
     """
     
     
-    def __init__(self,molsys=None,R0=None,**kwargs):
+    def __init__(self,molsys=None,R0=None,project=None,**kwargs):
         self.f_rD=None  #Function defining the center of the Donor dipole
         self.f_rA=None  #Function defining the center of the Acceptor dipole
         self.f_vD=None  #Function defining the direction of the Donor dipole
@@ -52,7 +54,7 @@ class FRETefcy():
         but not the relative efficiency, such that they do not influence the correlation functions)
         """
         self.ThetaD=1   #Donor quantum yield
-        self.n=1.4      #Refractive index
+        self.n=1.333      #Refractive index (589 nm and 20 deg C)
         self.R0iso=R0 if R0 else 5      #Forster radius (in nm, for kappa2=2/3, i.e. isotropic donor/acceptor reorientation)
         self.tauD=1     #Fluoresent lifetime of the donor / ns
         
@@ -76,31 +78,54 @@ class FRETefcy():
         self._ctnorm=True
         self._label=None
         
+        self._data=None
+        self._project=project
+        self.select=None
+        
         self.molsys=molsys if molsys else clsDict['MolSys']() #molsys object
+        
+
     
     def __setattr__(self,name,value):
-        if name in ['R0iso','tauD','n','ThetaD','isotropic_avg']:
+        if name in ['R0iso','tauD','n','ThetaD','isotropic_avg','tauD']:
             self.__up2date=False
         if name=='label':name,value='_label',np.array(value)
         super().__setattr__(name,value)
         
+    @property
+    def kD(self):
+        return 1/self.tauD
         
     
     def set_dipole(self,Type,**kwargs):
         assert hasattr(FRETdipole,Type),'Dipole definition ({}) not found in FRETdipole.py'.format(Type)
         out=getattr(FRETdipole,Type)(self.molsys,**kwargs)
-        assert len(out)==4 or len(out)==2,'Dipole definition should return two or four arguments'
-        for o in out:
+
+        for k,o in out.items():
+            if k=='select':continue
             try:
                 result=o()
             except:
                 assert False,'Dipole function does not run'
             assert result.ndim==2 and result.shape[1]==3,'Dipole function returns incorrect sizes'
-        if len(out)==4:
-            self.f_rD,self.f_rA,self.f_vD,self.f_vA=out
-        else:
-            self.f_rD,self.f_rA=out
+            
+        self.f_rD=out['rD']
+        self.f_rA=out['rA']
+        if 'vA' in out:
+            self.f_vA=out['vA']
+            self.f_vD=out['vD']
+        if 'select' in out:
+            self.select=out['select']
+
         self.__vecs_up2date=False
+        
+    @property
+    def project(self):
+        return self._project
+    
+    @project.setter
+    def project(self,proj):
+        self._project=proj
     
     def load(self,t0=0,tf=-1,n=10,nr=10,dt=None,index=None):
         """
@@ -246,16 +271,24 @@ then we use the isotropic average, kappa=2/3""")
         return self.Et.T[self._bi].mean(0) #Average over time 
     
     @property
+    def sigmaE(self):
+        return np.std(self.Et,axis=-1)
+    
+    @property
     def tauDAt(self):
         if self.__tauDAt is None or not(self._up2date):
             self.__tauDAt=(1-self.Et)*self.tauD
         return self.__tauDAt
     
     @property
-    def sigma_c2(self):
-        kD=1/self.tauD
-        kET=1/self.tauDAt.T[self._bi]
-        return (kET**2/(kD+kET)**2).mean(0)-(kET/(kD+kET)).mean(0)**2
+    def kET(self):
+        return 1/self.tauDAt-1/self.tauD
+    
+    # @property
+    # def sigma_c2(self):
+    #     kD=1/self.tauD
+    #     kET=1/self.tauDAt.T[self._bi]
+    #     return (kET**2/(kD+kET)**2).mean(0)-(kET/(kD+kET)).mean(0)**2
     @property
     def tauDA(self):
         return self.tauDAt.mean(-1)
@@ -316,7 +349,7 @@ then we use the isotropic average, kappa=2/3""")
 
         """
         # step=np.floor(self.index[-1]/nbins).astype(int)
-        if (Dt is None or Dt==self.Dt_tauDA) and self.Dt_tauDA:
+        if (Dt is None or Dt==self.Dt_tauDA) and self.Dt_tauDA and False:
             return self._tauDAbin  #Just take the stored value
         
         if Dt is None:Dt=(self.t[1]-self.t[0])*100
@@ -334,6 +367,65 @@ then we use the isotropic average, kappa=2/3""")
         self._tauDAbin=tauDA
         self.Dt_tauDA=Dt
         return tauDA
+    
+    def sigma_c2_bin(self,Dt:float=None):
+        # step=np.floor(self.index[-1]/nbins).astype(int)
+        
+        if Dt is None:Dt=(self.t[1]-self.t[0])*100
+        
+        step=int(Dt/(self.t[1]-self.t[0]))
+        nbins=len(self.t)//step
+        
+        a=np.zeros([self.Et.shape[0],nbins],dtype=self.Et.dtype)
+        # b=np.zeros([self.Et.shape[0],nbins],dtype=self.Et.dtype)
+        for k in range(step):
+            # a+=self.kET[:,k:nbins*step:step]**2/(self.kD+self.kET[:,k:nbins*step:step])**2
+            a+=self.Et[:,k:nbins*step:step]**2
+            # b+=self.kET[:,k:nbins*step:step]/(self.kD+self.kET[:,k:nbins*step:step])    
+            # b+=self.Et[:,k:nbins*step:step]
+         
+        # print(b/step)
+        
+        # return a/step-(b/step)**2
+        return a/step-self.Ebin(Dt=Dt)**2
+        
+        
+    
+    def tauDAbin1(self,Dt:float=None):
+        if (Dt is None or Dt==self.Dt_tauDA) and self.Dt_tauDA and False:
+            return self._tauDAbin  #Just take the stored value
+        
+        if Dt is None:Dt=(self.t[1]-self.t[0])*100
+        
+        E=self.Ebin(Dt=Dt)
+        sigma2=self.sigma_c2_bin(Dt=Dt)
+        
+        tauDA=(1-E+sigma2/(1-E))*self.tauD
+        self._tauDAbin=tauDA
+        self.Dt_tauDA=Dt
+        return tauDA 
+        
+        
+        # step=int(Dt/(self.t[1]-self.t[0]))
+        # nbins=len(self.t)//step
+
+        # E=np.zeros([self.Et.shape[0],nbins],dtype=self.Et.dtype)
+        # a=np.zeros([self.Et.shape[0],nbins],dtype=self.Et.dtype)
+        # b=np.zeros([self.Et.shape[0],nbins],dtype=self.Et.dtype)
+        # for k in range(step):
+        #     E+=self.Et[:,k:nbins*step:step]
+        #     a+=self.kET[:,k:nbins*step:step]**2/(self.kD+self.kET[:,k:nbins*step:step])**2
+        #     b+=self.kET[:,k:nbins*step:step]/(self.kD+self.kET[:,k:nbins*step:step])    
+        #     # w+=(1-self.Et)[:,k:nbins*step:step]
+            
+        # sigma2=a/step-(b/step)**2
+        # E=E/step
+        # tauDA=(1-E+sigma2/(1-E))*self.tauD
+        # self._tauDAbin=tauDA
+        # self.Dt_tauDA=Dt
+        # return tauDA 
+        
+        
     
     def Ehist(self,Dt:float=None,nbins:int=None,bin_range:tuple=None,index=None):
         """
@@ -477,13 +569,13 @@ then we use the isotropic average, kappa=2/3""")
 
         """
         ctcalc=Ct_calc(sym='p0' if y is None else 'p0')
-        ctcalc.a=x
-        if y is not None:ctcalc.b=y
+        ctcalc.a=x-x.mean(axis=-1)
+        if y is not None:ctcalc.b=y-y.mean(axis=-1)
         ctcalc.add()
         ct=ctcalc.Return()[0].T
         if self._ctnorm:
             norm=x.mean(axis=-1)**2 if y is None else x.mean(axis=-1)*y.mean(axis=-1)
-            ct-=norm
+            # ct-=norm
             ct/=norm
         return ct.T
     @property
@@ -504,8 +596,16 @@ then we use the isotropic average, kappa=2/3""")
     @property
     def gAD(self):
         if self.__g['gAD'] is None or not(self._up2date):
-            self.__g['gAD']=self._g(self.Et,self.ThetaD*(1-self.Et))
+            self.__g['gAD']=-self._g(self.Et,self.ThetaD*(1-self.Et))
         return self.__g['gAD']
+    
+    @property
+    def data(self):
+        if self._data is None or not(self._up2date):
+            Ct=np.concatenate((self.gDD, self.gAA, self.gAD),axis=0)
+            self._data=loadFRET(t=self.t,gDD=self.gDD,gAA=self.gAA,gAD=self.gAD,label=self.label,sens=clsDict['MD'](t=self.t))
+            self._data.project=self.project
+        return self._data
 
         
     
@@ -647,7 +747,10 @@ then we use the isotropic average, kappa=2/3""")
         """
         if index is None:index=np.arange(len(self.E))
         index=np.atleast_1d(index)
-        x,y,H=self.E_tauDA_hist(index=index,Dt=Dt,nbins=nbins,tau_range=tau_range*self.tauD,E_range=E_range)
+        x,y,H=self.E_tauDA_hist(index=index,Dt=Dt,nbins=nbins,tau_range=np.array(tau_range)*self.tauD,E_range=E_range)
+        
+        E=self.Ebin(Dt=Dt)
+        tau=self.tauDAbin(Dt)
         
         if ax is None:
             nfp=self.E[index].shape[0]
@@ -660,7 +763,10 @@ then we use the isotropic average, kappa=2/3""")
         for a,c0,lbl in zip(ax,H,self.label[index]):
             c0[c0>0]=np.log10(c0[c0>0])+1
             
+
+            c0[c0==0]=np.nan
             hdl.append(a.contourf(y,x/self.tauD,c0,cmap='jet'))
+            # a.scatter(E,tau/self.tauD,.1,color='black')
             if a.is_last_row() or len(index)==1:
                 a.set_xlabel('E')
             else:
@@ -678,7 +784,7 @@ then we use the isotropic average, kappa=2/3""")
                 
         return hdl
     
-    def plot_v_t(self,what:str='Et',index=None,ax=None,**kwargs):
+    def plot_v_t(self,what:str='Et',index=None,ax=None,log=False,**kwargs):
         """
         Plots the time dependent of various parameters (Et, tauDA, gDD, gAA, 
         gAD, gDA)
@@ -710,7 +816,10 @@ then we use the isotropic average, kappa=2/3""")
         ax=np.atleast_1d(np.array(ax).flatten())
         
         for k,a in enumerate(ax):
-            a.plot(self.t,getattr(self,what)[k],**kwargs)
+            if log:
+                a.semilogx(self.t,getattr(self,what)[k],**kwargs)
+            else:
+                a.plot(self.t,getattr(self,what)[k],**kwargs)
             a.set_xlabel('t / ns')
             a.set_ylabel(rf'$\langle {what}\rangle$')
             

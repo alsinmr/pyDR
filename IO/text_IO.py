@@ -77,59 +77,6 @@ def readNMR(filename):
                           '{0} resonances, {1} experiments'.format(*data.R.shape)+\
                               (' + S2' if data.S2 is not None else '')]
             return data
-        
-        
-def loadFRET(t,Ct,Ct_std=None,tD:float=None,S:float=1,label=None):
-    """
-    Loads FRET time-correlation functions into a data object, including 
-    estimation of the error, via a moving variance. tD and S (diffusion 
-    parameters) may be provide here, or later via the sensitivity object.
-    
-    Currently, pyDR does not support loading FRET from a file.
-
-    Parameters
-    ----------
-    t : np.array
-        Time axis of the correlation function, given in ns.
-    Ct : np.array
-        Correlation functions. Set to np.nan where the correlation function is
-        not defined for the given time axis. Should by mxn where m is the 
-        number of correlation functions, and n is the length of the correlation
-        functions.
-    Ct_std : np.array
-        User-defined standard deviation. Will be calculated from a moving 
-        variance if not provided.
-    tD : float, optional
-        Correlation time. The default is None.
-    S : float, optional
-        Ratio of the x/y width vs. z depth of the confocal volume.
-        The default is 1.
-    label : list-like, optional
-        Labels for the correlation functions. The default is None.
-
-    Returns
-    -------
-    data
-
-    """
-    
-    if Ct_std is None:
-        var=np.ones([11,Ct.shape[0],Ct.shape[1]+10])*np.nan
-        for k in range(10):
-            var[k,:,k:-10+k]=Ct
-        var[10,:,10:]=Ct
-        var=var[:,:,5:-5]
-        n=np.logical_not(np.isnan(var)).sum(0)
-        var[np.isnan(var)]=0
-        var-=var.sum(0)/n
-        Ct_std=np.sqrt((var**2).sum(0)/(n-1))
-        
-    Ct_std[np.isnan(Ct)]=10000 #Knock out np.nan data
-    Ct[np.isnan(Ct)]=0
-        
-    sens=clsDict['FRET'](t=t,stdev=Ct_std,tD=tD,S=S)
-    data=clsDict['Data'](sens=sens,R=Ct,Rstd=Ct_std,label=label)
-    return data
     
         
 #%% Info read and write (intended only for NMR sensitivities)

@@ -630,8 +630,8 @@ def plot_fit_md(lbl,Rin,Rc=None,info=None,index=None,fig=None,log=False):
             a.plot(t,Rin0,color='red')
             if Rc0 is not None:
                 a.plot(t,Rc0,color='black',linestyle=':')
-        a.text(t[1],0.1,lbl0)
-        a.set_ylim([-.1,1])
+        a.set_ylim([-.1,1.05*Rin.max()])
+        a.text(t[1],a.get_ylim()[0]+np.mean(a.get_ylim())*.2,lbl0)
         if a.is_first_col():
             a.set_ylabel(r'$C(t)$')
         else:

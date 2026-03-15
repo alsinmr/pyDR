@@ -33,16 +33,20 @@ class FRET(MD):
         Note that FRET sensitivity object is not set up to be edited except
         for diffusion parameters (tD, S)
         
+        tD is the diffusion time
+        S is the ratio w/k
+        
         """
         
         if tc is None and z is None:
-            z=[np.log10(np.mean(t[:2]))-10,np.log10(t[-1])-8]
-        super().__init__(t=t,tc=tc,z=z)
+            z=[np.log10(np.mean(t[:2]))-10,np.log10(t[-1])-7]
+        super().__init__(t=t,tc=tc,z=z,**kwargs)
         
         self.tD=tD
         self.S=S
-        self.zt=np.log10(t)-9 # in seconds
+        # self.zt=np.log10(t)-9 # in seconds
         self._rhoz=None
+        self.t=t
     
     def clear(self):
         self._Gdiff=None
@@ -78,6 +82,18 @@ class FRET(MD):
         self.clear()
     
     @property
+    def t(self):
+        return self._t
+    @t.setter
+    def t(self,t):
+        self._t=t
+        if t[0]==0:
+            self.zt=np.concatenate([[-15],np.log10(t[1:])-9],axis=0)
+        else:
+            self.zt=np.log10(t)-9
+        self.clear()
+    
+    @property
     def Gdiff(self):
         if self.tD is None:return np.ones(self.zt.shape)
         return Gdiff(zt=self.zt,tD=self.tD,S=self.S)
@@ -102,6 +118,7 @@ class FRET(MD):
         M=np.exp(-np.atleast_2d(10**self.zt).T@np.atleast_2d(10**-self.z))
         ax.plot(self.zt,M@self.Gdiff_dist,color='black',linestyle=':')
         ax.set_xlabel(r'$\log_{10}(t$ / s)')
+        ax.legend(('Input','Fit'))
         return ax
     
     def zeff(self,zM:float):
@@ -147,6 +164,7 @@ class FRET(MD):
 
 
 def Gdiff(zt,tD,S=1):
+    # Correlation function for diffusion
     return 1/(1+10**zt/tD)/np.sqrt(1+10**zt/(S**2*tD))
 
 
