@@ -82,6 +82,9 @@ class Sens():
 
         """
         self.info.del_exp(index)
+        self.__rho=np.zeros([0,self.__z.size])      #Store sensitivity calculations
+        self.__rhoCSA=np.zeros([0,self.__z.size])   #Store sensitivity calculations
+        self._bonds=list() #Store different sensitivities for different bonds
         return self
         
     

@@ -63,7 +63,7 @@ class Detector(Sens.Sens):
         elif 'n' not in self.opt_pars and 'n' not in ob.opt_pars:
             return self.sens==ob.sens
         else:
-            return super().__eq__(ob)
+            return super().__eq__(ob) and np.all(self.r==ob.r)
     
     def del_exp(self,index):
         """
