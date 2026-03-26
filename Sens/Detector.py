@@ -16,7 +16,7 @@ from scipy.sparse.linalg import eigs
 from scipy.optimize import lsq_linear as lsqlin
 from scipy.optimize import linprog
 from pyDR.misc.tools import linear_ex
-from copy import copy
+from copy import copy,deepcopy
 
 import warnings
 from scipy.linalg import LinAlgWarning
@@ -50,8 +50,9 @@ class Detector(Sens.Sens):
         
         "If bond-specific, initiate all for all bonds"
         if len(sens)>1:
-            for s in sens:
-                self.append(Detector(s))
+            self._len_check()
+            # for s in sens:
+            #     self.append(Detector(s))
     
     def __eq__(self,ob):
         if self is ob:return True        #If same object, then equal
@@ -62,7 +63,7 @@ class Detector(Sens.Sens):
         elif 'n' not in self.opt_pars and 'n' not in ob.opt_pars:
             return self.sens==ob.sens
         else:
-            return super().__eq__(ob)
+            return super().__eq__(ob) and np.all(self.r==ob.r)
     
     def del_exp(self,index):
         """
@@ -95,10 +96,15 @@ class Detector(Sens.Sens):
         the original sensitivity object
         """
         sens=self.sens  #Hold on to the old sensitivity object
+        svd=self.SVD
         self.sens=None
+        self.SVD=None
         out=super().copy()
+        
         out.sens=sens  #Put back old sensitivity object
+        out.SVD=svd
         self.sens=sens
+        self.SVD=svd
         return out
     
     def lock(self,locked=True):
@@ -136,6 +142,7 @@ class Detector(Sens.Sens):
         """
         If detector loaded from file, we may need to re-calculate some parameters
         """
+        if self._parent is not None:return
         if self.__r is None and self._Sens__rho is not None:
             opt_pars=copy(self.opt_pars)
             inclS2='inclS2' in opt_pars['options']
@@ -161,11 +168,12 @@ class Detector(Sens.Sens):
 
         """
         if self._parent is None:return
+        if self.opt_pars==self._parent.opt_pars:return
         
-        self.opt_pars=opts=self._parent.opt_pars
+        self.opt_pars=opts=deepcopy(self._parent.opt_pars)
         
         inclS2='inclS2' in opts['options']
-        R2ex='R2ex' in opts
+        R2ex='R2ex' in opts['options']
         
         Type=opts['Type']
         if Type in ['auto','target','zmax']:
@@ -254,13 +262,28 @@ class Detector(Sens.Sens):
 
         return linprog(Vt.sum(1),A_ub=-Vt.T,b_ub=-min_target,A_eq=[Vt[:,index]],b_eq=1,bounds=(-500,500),\
                   method='interior-point',options={'disp':False})['x']
+            
+    def _len_check(self):
+        """
+        Verifies that the length of this object matches the sensitity length
+
+        Returns
+        -------
+        None.
+
+        """
+        if len(self.sens)!=1 and len(self)==1:
+            for s in self.sens:
+                self.append(Detector(s))
     
     def r_zmax(self,zmax,Normalization='MP',NegAllow=False):
         """
         Re-optimize detectors based on a previous set of detectors (where the 
         maximum of the detectors has been recorded)
         """
+        
         if self._islocked:return
+        self._len_check()
         
         zmax=np.atleast_1d(zmax)
         zmax.sort()
@@ -283,6 +306,7 @@ class Detector(Sens.Sens):
         use any optimization)
         """
         if self._islocked:return
+        self._len_check()
         
         self.SVD(n)     #Run the SVD
         self.T=np.eye(n) #No optimization
@@ -309,6 +333,7 @@ class Detector(Sens.Sens):
         sensitivities to the correlation time axis used here)
         """
         if self._islocked:return
+        self._len_check()
         
         if hasattr(target,'z') and hasattr(target,'rhoz'):
             z,target=target.z,target.rhoz
@@ -354,6 +379,7 @@ class Detector(Sens.Sens):
 
         """
         if self._islocked:return
+        self._len_check()
         
         self.SVD(n)
         Vt=self.SVD.Vt
@@ -506,9 +532,7 @@ class Detector(Sens.Sens):
         self.update_det()
 
 
-        if NegAllow:self.allowNeg()
         if Normalization:self.ApplyNorm(Normalization)
-        
         return self
         
     def allowNeg(self):
@@ -637,7 +661,7 @@ class Detector(Sens.Sens):
         rhoz=np.zeros(self.tc.size)
         rhoz[-1]=1e6
         
-        self.__r=np.concatenate([self.r,np.transpose([r_ex_vec])],axis=1)
+        self.__r=np.concatenate([self.__r,np.transpose([r_ex_vec])],axis=1)
         self._Sens__rho=np.concatenate([self._Sens__rho,[rhoz]],axis=0)
         self._Sens__rhoCSA=np.concatenate([self._Sens__rhoCSA,[np.zeros(self.tc.size)]],axis=0)
         
@@ -664,7 +688,7 @@ class Detector(Sens.Sens):
         if self._islocked:return
         
         if 'R2ex' not in self.opt_pars['options']:
-            print('S2 not included')
+            print('R2ex not included')
             return self
         
         self._Sens__rho=self.rhoz[:-1]
@@ -673,6 +697,11 @@ class Detector(Sens.Sens):
         self.opt_pars['options'].remove('R2ex')
         self.opt_pars.pop('R2ex_vref')
         self.info.del_exp(-1)
+        
+        if len(self)>1:
+            for b in self:
+                b.removeR2ex()
+        
         
         return self
         
@@ -729,6 +758,12 @@ class Detector(Sens.Sens):
         if 'R2ex' in self.opt_pars['options'] and self.info.N-1 in index:
             hdl[-1].set_alpha(0)
             hdl[-1].axes.set_ylim([self.rhoz[index][:-1].min(),self.rhoz[index][:-1].max()])
+            
+            fb=None
+            for h0 in hdl[-1].axes.get_children():
+                if 'FillBetween' in str(h0.__class__) or 'PolyCollection' in str(h0.__class__):
+                    fb=h0
+            if fb is not None:fb.set_alpha(0)
             
         return hdl
             

@@ -7,9 +7,12 @@ Created on Tue Dec 20 11:23:01 2022
 """
 
 from pyDR.Sens import NMR
-from pyDR.Sens.NMR import defaults
+# from pyDR.Sens.NMR import defaults
 import numpy as np
 from pyDR.misc.tools import linear_ex
+from copy import deepcopy
+from pyDR.MDtools import vft
+from warnings import warn
 
 class SolnNMR(NMR):
     def __init__(self,tc=None,z=None,info=None,**kwargs):
@@ -65,12 +68,73 @@ class SolnNMR(NMR):
         
         
         self.index=None
-        self.vecs=None
-        self.vecsCSA=None
+        self._vecs=None
+        self._vecsCSA=None
         
         #iso will store the sensitivities corresponding to isotropic tumbling
         #bonds will store bond-specific sensitivities (if existing)
         self._bonds={'iso':None,'bonds':list()}
+        self._bondsCSA={'iso':None,'bonds':list()}
+        self._data=None
+        
+    @property
+    def vecs(self):
+        return self._vecs
+    @vecs.setter
+    def vecs(self,vecs):
+        self._vecs=vecs
+        if self.data is not None:
+            # Adding vectors to the sensitivity object changes its behavior. The
+            # detector thus needs updating. However, we don't want to just replace it.
+            # Because, often detect.r_auto is the first access to the bond-specific
+            # sensitivities, and so replacing it here will end up that the optimized
+            # detectors are no long attached to the data object.
+            #
+            # Replacing the dictionary, on the other hand, keeps the detector
+            # reference intact while updating the detectors mid-optimization
+            
+            # self.data.detect=self.Detector() #NO! Detaches detector from data...
+            # Instead:
+            self.data.detect.__dict__=self.Detector().__dict__
+            
+    @property
+    def vecsCSA(self):
+        return self._vecsCSA
+    @vecsCSA.setter
+    def vecsCSA(self,v):
+        self._vecsCSA=v
+        
+
+    @property
+    def data(self):
+        return self._data
+    
+    @data.setter
+    def data(self,data):
+        self._data=data
+        
+    @property
+    def select(self):
+        if self.data is None:return 
+        return self.data.select
+    
+
+        
+    def copy(self):
+        """
+        Returns a deepcopy of  the object
+
+        Returns
+        -------
+        SolnNMR
+
+        """
+        data=self._data
+        self._data=None
+        out=deepcopy(self)
+        self._data=data
+        return out
+        
     
     def new_exper(self,info=None,**kwargs):
         """
@@ -121,7 +185,7 @@ class SolnNMR(NMR):
             DESCRIPTION.
 
         """
-        if self.vecs is None:return self
+        if len(self)==1:return self
         cls = self.__class__
         out = cls.__new__(cls)
         out.__dict__.update(self.__dict__)
@@ -129,17 +193,24 @@ class SolnNMR(NMR):
         return out
     
     @property
-    def vXY(self):
+    def v(self):
         """
         Mean direction of the dipole between spins X and Y for the current index.
 
         Returns
         -------
-        None.
+        np.array
 
         """
         
-        if self.index is None:return
+        if self.vecs is None:
+            if self.select is None or len(self.select)==0:
+                return
+            self.vecs=vft.norm(self.select.v.T).T
+            
+        if self.index is None:
+            return self.vecs
+                  
         return self.vecs[self.index]
 
     @property
@@ -147,19 +218,43 @@ class SolnNMR(NMR):
         """
         Mean direction of the CSA on spin X for the current index
 
-        NOT CURRENTLY IMPLEMENTED!! Returns a vector along z
-
         Returns
         -------
-        None.
+        np.array
 
         """
-        if self.vecsCSA is None:return self.vXY
+        # https://pubs.acs.org/doi/pdf/10.1021/ja910186u?ref=article_openPDF
+        
+        
+        if self.vecsCSA is None:
+            if np.all(self.info['Nuc']=='15N') and self.select is not None and len(self.select):
+                vZ=self.vecs.T
+                if self.select.sel1[0][0].name=='N':
+                    N=np.sum(self.select.sel1)
+                else:
+                    N=np.sum(self.select.sel2)
+                CA=N.residues.atoms.select_atoms('name CA')
+                
+                if len(CA)!=len(N):
+                    warn("Not enough CA atoms were found for defining vCSA: returning v")
+                    return self.v
+                vXZ=vft.norm((CA.positions-N.positions).T)
+                euler=vft.getFrame(vZ,vXZ)
+                theta=self.info[0]['theta']*np.pi/180
+                vCSA=vft.R([0,-np.sin(theta),np.cos(theta)],*euler)
+                self.vecsCSA=vCSA.T
+                
+                
+            else:
+                return self.v
+        if self.index is None:
+            return self.vecsCSA
         
         return self.vecsCSA[self.index]
     
     def __len__(self):
-        if self.vecs is None or self.index is not None:return 1
+        if np.all(self.info['zeta_rot']==1):return 1
+        if self.v is None or self.index is not None:return 1
         return self.vecs.shape[0]
     
     
@@ -189,7 +284,7 @@ class SolnNMR(NMR):
             self._bonds={'iso':None,'bonds':list() if self.vecs is None else \
                          [None for _ in range(self.vecs.shape[0])]}
         
-        rhoz=super().rhoz
+        rhoz=super().rhoz-super()._rhozCSA   #Just analyze the non-CSA contribution here
         
         if self.index is None:
             if self._bonds['iso'] is None:
@@ -199,23 +294,23 @@ class SolnNMR(NMR):
                     R0[k]=linear_ex(self.z,rhoz0,np.log10(tM))
                     Reff[k]=linear_ex(self.z,rhoz0,self.zeff(np.log10(tM)))-R0[k]
                 self._bonds['iso']=Reff,R0
-            return self._bonds['iso'][0]
+            return self._bonds['iso'][0]+self._rhozCSA   #Add back the CSA contribution
         else:
             if len(self._bonds['bonds'])!=self.vecs.shape[0]:self._bonds['bonds']=[None for _ in range(self.vecs.shape[0])]
             
             if self._bonds['bonds'][self.index] is None:
                 R0=np.zeros(rhoz.shape[0])
                 Reff=np.zeros(rhoz.shape)
-                print('Warning: Bond-specific relaxation not fully tested')
+                # print('Warning: Bond-specific relaxation not fully tested')
                 for k,(rhoz0,tM,zeta,eta,euler) in enumerate(zip(rhoz,
                             *[self.info[key] for key in ['tM','zeta_rot','eta_rot','euler']])):
-                    for tM0,A0 in zip(*AnisoDif(tM,zeta,eta,euler,self.vXY)):
+                    for tM0,A0 in zip(*AnisoDif(tM,zeta,eta,euler,self.v)):
                         R0[k]+=A0*linear_ex(self.z,rhoz0,np.log10(tM0))        
                         Reff[k]+=A0*linear_ex(self.z,rhoz0,self.zeff(np.log10(tM0)))
                     Reff[k]-=R0[k]
                     
                 self._bonds['bonds'][self.index]=Reff,R0
-            return self._bonds['bonds'][self.index][0]
+            return self._bonds['bonds'][self.index][0]+self._rhozCSA   #Add back the CSA contribution
         
          
     @property
@@ -223,9 +318,38 @@ class SolnNMR(NMR):
         """
         Return the sensitivities due to CSA relaxation in this sensitivity object
         """
-        # self._update_rho()
-        # return self.__rhoCSA.copy()
-        return np.zeros([len(self.info),len(self.z)])
+        if self.info.edited:
+            self._bondsCSA={'iso':None,'bonds':list() if self.vecs is None else \
+                         [None for _ in range(self.vecs.shape[0])]}
+        
+        rhoz=super()._rhozCSA
+        
+        if self.index is None:
+            if self._bondsCSA['iso'] is None:
+                R0=np.zeros(rhoz.shape[0])
+                Reff=np.zeros(rhoz.shape)
+                for k,(rhoz0,tM) in enumerate(zip(rhoz,self.info['tM'])):
+                    R0[k]=linear_ex(self.z,rhoz0,np.log10(tM))
+                    Reff[k]=linear_ex(self.z,rhoz0,self.zeff(np.log10(tM)))-R0[k]
+                self._bondsCSA['iso']=Reff,R0
+            return self._bondsCSA['iso'][0]
+        else:
+            if len(self._bondsCSA['bonds'])!=self.vecs.shape[0]:self._bondsCSA['bonds']=[None for _ in range(self.vecs.shape[0])]
+            
+            if self._bondsCSA['bonds'][self.index] is None:
+                R0=np.zeros(rhoz.shape[0])
+                Reff=np.zeros(rhoz.shape)
+                # print('Warning: Bond-specific relaxation not fully tested')
+                _=self.vCSA
+                for k,(rhoz0,tM,zeta,eta,euler) in enumerate(zip(rhoz,
+                            *[self.info[key] for key in ['tM','zeta_rot','eta_rot','euler']])):
+                    for tM0,A0 in zip(*AnisoDif(tM,zeta,eta,euler,self.vCSA)):
+                        R0[k]+=A0*linear_ex(self.z,rhoz0,np.log10(tM0))        
+                        Reff[k]+=A0*linear_ex(self.z,rhoz0,self.zeff(np.log10(tM0)))
+                    Reff[k]-=R0[k]
+                    
+                self._bondsCSA['bonds'][self.index]=Reff,R0
+            return self._bondsCSA['bonds'][self.index][0]
     @property
     def _rho_eff(self):
         """
@@ -234,9 +358,9 @@ class SolnNMR(NMR):
         change depending on the subclass.
         """
         if self.index is None:
-            return self.rhoz,self._bonds['iso'][1]
+            return self.rhoz,self._bonds['iso'][1]+self._rho_effCSA[1]
         else:
-            return self.rhoz,self._bonds['bonds'][self.index][1]
+            return self.rhoz,self._bonds['bonds'][self.index][1]+self._rho_effCSA[1]
     
     @property
     def _rho_effCSA(self):
@@ -244,7 +368,9 @@ class SolnNMR(NMR):
         This will be used generally to obtain the sensitivity of the object due
         to CSA
         """
-        return self._rhozCSA,np.zeros(self._rhozCSA.shape[0])
+        if self.index is None:
+            return self._rhozCSA,self._bondsCSA['iso'][1]
+        return self._rhozCSA,self._bondsCSA['bonds'][self.index][1]
     
 
 #%% Function to calculate amplitudes for anisotropic diffusion
@@ -283,7 +409,7 @@ def AnisoDif(tM,zeta=1,eta=0,euler=[0,0,0],v=[0,0,1]):
     
     "We rotate the vectors in structure"
     vec=R(np.array(v),*euler)
-    print('Warning: Check rotation directions')
+    # print('Warning: Check rotation directions')
     #TODO 
     """There is a difference in rotation between my previous implementation of
     this and the current implementation (sign on Ry/Rz switched). I am not

@@ -64,9 +64,9 @@ class Data():
                 self.label=select.label
             else:
                 self.label=np.arange(self.R.shape[0],dtype=object)
+        self.source=clsDict['Source'](src_data=src_data,select=select,Type=Type)
         self.sens=sens
         self.detect=clsDict['Detector'](sens) if sens is not None else None
-        self.source=clsDict['Source'](src_data=src_data,select=select,Type=Type)
 #        self.select=select #Stores the molecule selection for this data object
         self.vars=dict() #Storage for miscellaneous variable
         self._movies=None
@@ -96,6 +96,16 @@ class Data():
         return self._Rc
     
     @property
+    def sens(self):
+        return self._sens
+    
+    @sens.setter
+    def sens(self,sens):
+        if hasattr(sens,'data'):
+            sens.data=self
+        self._sens=sens
+    
+    @property
     def S2c(self):
         if self._S2c is None and hasattr(self.sens,'opt_pars') and\
             'n' in self.sens.opt_pars and 'inclS2' in self.sens.opt_pars['options']:
@@ -111,6 +121,11 @@ class Data():
 
         if name=='chimera':
             assert False,'Do no do that'
+            
+        if name == 'sens' and hasattr(value,'select'):
+            # The sensitivity uses the selection object
+            value.data=self
+            
 
         if name == 'sens' and hasattr(self,'detect'):
             if hasattr(value,'opt_pars'):

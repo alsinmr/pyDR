@@ -82,6 +82,9 @@ class Sens():
 
         """
         self.info.del_exp(index)
+        self.__rho=np.zeros([0,self.__z.size])      #Store sensitivity calculations
+        self.__rhoCSA=np.zeros([0,self.__z.size])   #Store sensitivity calculations
+        self._bonds=list() #Store different sensitivities for different bonds
         return self
         
     
@@ -89,6 +92,14 @@ class Sens():
         """
         Returns a deep copy of the sensitivity object. 
         """
+        if len(self)>1:
+            bonds=self._bonds
+            self._bonds=None
+            out=deepcopy(self)
+            out._bonds=bonds
+            self._bonds=bonds
+            return out
+        
         return deepcopy(self)
     
     def __copy__(self):
@@ -286,6 +297,7 @@ class Sens():
         assert index<self._bonds,"index must be less than the number of stored sensitivity objects ({})".format(len(self._bonds))
         assert isinstance(value,self.__class__),"Bond-specific sensitivities must have the same class as their parent sensitivity"
         self._bonds[index]=value
+        # This allows the match_parent function in Detector
         self._bonds[index]._parent=self
         
     def append(self,value):
@@ -294,6 +306,7 @@ class Sens():
         """
         assert isinstance(value,self.__class__),"Bond-specific sensitivities must have the same class as their parent sensitivity"
         self._bonds.append(value)
+        # This allows the match_parent function in Detector
         self._bonds[-1]._parent=self
 
     def __next__(self):
@@ -329,7 +342,7 @@ class Sens():
         return True
 
     #%% Plot rhoz
-    def plot_rhoz(self,index=None,ax=None,norm=False,**kwargs):
+    def plot_rhoz(self,index=None,ax=None,norm=False,range=True,**kwargs):
         """
         Plots the sensitivities of the data object.
         """
@@ -347,7 +360,17 @@ class Sens():
             ax=fig.add_subplot(111)
 
         hdl=ax.plot(self.z,a)
+            
+        
         set_plot_attr(hdl,**kwargs)
+        
+        if range and len(self)>1:
+            rhoz=np.array([s.rhoz[index] for s in self])
+            u=rhoz.max(axis=0)
+            l=rhoz.min(axis=0)
+            for h,u0,l0 in zip(hdl,u,l):
+                ax.fill_between(self.z,l0,u0,color=h.get_color(),alpha=.5)
+            
         
         # ax.set_xlim(self.z[[0,-1]])
         # ticks=ax.get_xticks()

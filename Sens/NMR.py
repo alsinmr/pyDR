@@ -138,6 +138,25 @@ class NMR(Sens):
                 assert 0,f"Loading experiment #{m} failed. Check parameters"
         return np.array(out)
         
+    def _rhoCSA(self):
+        """
+        Calculates and returns the sensitivities of all experiments stored in
+        self.info, due to CSA alone
+        """
+        out=list()
+        for m,(exp,rhoz) in enumerate(zip(self.info,self._rho())):
+            assert exp['Type'] in dir(NMRexper) and getattr(NMRexper,exp['Type']).__code__.co_varnames[0]=='tc',\
+                "Experiment {0} was not found in NMRexper.py".format(exp('Type'))
+            f=getattr(NMRexper,exp.pop('Type'))
+            exp['CSA']=0
+            for k in [k for k in exp.keys()]:
+                if k not in f.__code__.co_varnames[:f.__code__.co_argcount]:
+                    exp.pop(k)
+            try:
+                out.append(rhoz-f(self.tc,**exp))
+            except:
+                assert 0,f"Loading experiment #{m} failed. Check parameters"
+        return np.array(out)
         
 def defaults(info,**kwargs):
     """
