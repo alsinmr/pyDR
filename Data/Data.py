@@ -84,8 +84,11 @@ class Data():
             R=self.R.T
             # if 'R2ex' in self.sens.opt_pars['options']:
             #     R=np.concatenate([R,[self.R2]],axis=0)
-                
-            Rc=(self.sens.r@R).T
+             
+            if len(self.sens)>1:
+                Rc=np.array([s.r@R for s,R in zip(self.sens,self.R)])
+            else:
+                Rc=(self.sens.r@R).T
             inclS2='inclS2' in self.sens.opt_pars['options']
             for k,Rc0 in enumerate(Rc):
                 Rc0+=np.concatenate((self.sens.sens[k].R0,[0])) if inclS2 else self.sens.sens[k].R0
@@ -336,6 +339,10 @@ class Data():
                     setattr(self,f,np.delete(getattr(self,f),index,axis=0))
             if self.select is not None:
                 self.select.del_sel(index)
+            if len(self.sens)>1:
+                self.sens._bonds.pop(index)
+                self.detect=self.sens.Detector()
+                
                 
     def del_exp(self,index:int) -> None:
         """

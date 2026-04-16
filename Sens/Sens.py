@@ -162,15 +162,16 @@ class Sens():
         """
         Calculate and store the normalization.
         """
-        
+        self.__norm=np.ones(self.rhoz.shape[0])
         if 'stdev' in self.info.keys and np.all(self.info['stdev']): 
             if 'med_val' in self.info.keys and np.all(self.info['med_val']):
-                
-                self.__norm=(self.info['med_val'].astype(float)/self.info['stdev'].astype(float)/np.abs(self.rhoz).max(axis=1))
+                i=self.rhoz.max(axis=1)!=0
+                self.__norm[i]=(self.info['med_val'][i].astype(float)/self.info['stdev'][i].astype(float)/np.abs(self.rhoz[i]).max(axis=1))
             else:
                 self.__norm=1/(self.info['stdev']).astype(float)
         else:
-            self.__norm=1/self.rhoz.max(axis=1)
+            i=self.rhoz.max(axis=1)!=0
+            self.__norm[i]=1/self.rhoz[i].max(axis=1)
             
     @property
     def tc(self):
@@ -294,7 +295,9 @@ class Sens():
         """
         Set bond-specific sensitivities for a given index
         """
-        assert index<self._bonds,"index must be less than the number of stored sensitivity objects ({})".format(len(self._bonds))
+        # assert index<self._bonds,"index must be less than the number of stored sensitivity objects ({})".format(len(self._bonds))
+        while index>=len(self._bonds):
+            self._bonds.append(None)
         assert isinstance(value,self.__class__),"Bond-specific sensitivities must have the same class as their parent sensitivity"
         self._bonds[index]=value
         # This allows the match_parent function in Detector
@@ -340,6 +343,31 @@ class Sens():
             if s.rhoz.shape!=o.rhoz.shape:return False #Different sizes, then not equal
             if np.max(np.abs(s.rhoz-o.rhoz))>1e-6:return False #Different sensitivities
         return True
+    
+    def get_unique(self):
+        """
+        If the sensitivity object has a length, i.e. it is composed of multiple
+        sensitivity objects, then this function will return a list of unique
+        sensitivity objects (i.e. being the same object), as well as an index
+        with the length of this object
+
+        Returns
+        -------
+        None.
+
+        """
+        if len(self)==1:
+            return [self],np.arange(1,dtype=int)
+        
+        out=[]
+        index=[]
+        for s in self:
+            if s in out:
+                index.append(out.index(s))
+            else:
+                index.append(len(out))
+                out.append(s)
+        return out,np.array(index,dtype=int)
 
     #%% Plot rhoz
     def plot_rhoz(self,index=None,ax=None,norm=False,range=True,**kwargs):
@@ -353,7 +381,8 @@ class Sens():
         assert np.issubdtype(index.dtype,int) or np.issubdtype(index.dtype,bool),"index must be integer or boolean"
     
         a=self.rhoz[index].T #Get sensitivities
-        a/=np.abs(a).max(0) if norm else 1 
+        nm=np.abs(a).max(axis=0) if norm else np.ones(a.shape[1])
+        a/=nm
                 
         if ax is None:
             fig=plt.figure()
@@ -365,7 +394,7 @@ class Sens():
         set_plot_attr(hdl,**kwargs)
         
         if range and len(self)>1:
-            rhoz=np.array([s.rhoz[index] for s in self])
+            rhoz=np.array([(s.rhoz[index].T/nm).T for s in self])
             u=rhoz.max(axis=0)
             l=rhoz.min(axis=0)
             for h,u0,l0 in zip(hdl,u,l):

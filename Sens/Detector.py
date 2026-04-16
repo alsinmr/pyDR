@@ -47,6 +47,7 @@ class Detector(Sens.Sens):
         self.SVD=SVD(sens)
         self.T=None
         self.opt_pars={'options':[]}
+        self.match_mode='target'
         
         "If bond-specific, initiate all for all bonds"
         if len(sens)>1:
@@ -64,6 +65,16 @@ class Detector(Sens.Sens):
             return self.sens==ob.sens
         else:
             return super().__eq__(ob) and np.all(self.r==ob.r)
+        
+    @property
+    def match_mode(self):
+        return self._match_mode
+    @match_mode.setter
+    def match_mode(self,mm):
+        self._match_mode=mm
+        if len(self)>1:
+            for s in self:
+                s._match_mode=mm
     
     def del_exp(self,index):
         """
@@ -177,8 +188,14 @@ class Detector(Sens.Sens):
         
         Type=opts['Type']
         if Type in ['auto','target','zmax']:
-            target=self._parent.rhoz[inclS2:-1] if R2ex else self._parent.rhoz[inclS2:]
-            self.r_target(target)
+            
+            if self.match_mode[0].lower()=='a': #Use auto
+                self.r_auto(n=self._parent.opt_pars['n'])
+            elif self.match_mode[0].lower()=='z': #use zmax
+                self.r_zmax(zmax=self._parent.info['zmax'])
+            else:
+                target=self._parent.rhoz[inclS2:-1] if R2ex else self._parent.rhoz[inclS2:]
+                self.r_target(target)
         else:
             self.r_no_opt(opts['n'])
         
@@ -273,8 +290,12 @@ class Detector(Sens.Sens):
 
         """
         if len(self.sens)!=1 and len(self)==1:
-            for s in self.sens:
-                self.append(Detector(s))
+            sens,index=self.sens.get_unique()
+            r=[s.Detector() for s in sens]
+            for i in index:
+                self.append(r[i])
+            # for s in self.sens:
+            #     self.append(Detector(s))
     
     def r_zmax(self,zmax,Normalization='MP',NegAllow=False):
         """
@@ -752,7 +773,7 @@ class Detector(Sens.Sens):
             index=np.arange(self.info.N)
         else:
             index=np.array(index)
-
+        _=self.rhoz
         hdl=super().plot_rhoz(index=index,ax=ax,norm=norm,**kwargs)
         
         if 'R2ex' in self.opt_pars['options'] and self.info.N-1 in index:
