@@ -124,12 +124,12 @@ def read_INFO(f):
 #%% Data read and write
 def write_Data(f,data):
     f.write('DATA\n')
-    keys=['R','Rstd','S2','S2std','label']
+    keys=['R','Rstd','Rc','S2','S2std','S2c','label']
     for k in keys:
         if hasattr(data,k) and getattr(data,k) is not None:
             f.write(k+'\n')
             for v in getattr(data,k):
-                if v.size>1:
+                if v.ndim>0:
                     for v0 in v:
                         f.write(('{}\t' if isinstance(v0,(str,int)) else '{:.6e}\t').format(v0))
                 else:

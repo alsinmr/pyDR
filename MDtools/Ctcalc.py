@@ -101,22 +101,24 @@ Created on Thu Feb  3 11:24:10 2022
 #%% Imports
 import numpy as np
 import multiprocessing as mp
-import pkg_resources
+# import pkg_resources
 from pyDR import Defaults
 
-installed = [pkg.key for pkg in pkg_resources.working_set]
-if 'pyfftw' in installed:
+# installed = [pkg.key for pkg in pkg_resources.working_set]
+# if 'pyfftw' in installed:
+try:
     import pyfftw.interfaces.scipy_fft as fft
     from pyfftw.interfaces import cache
     cache.enable()
     cache.set_keepalive_time(60)
-else:
+except:
     print('Warning: pyfftw not installed, reverting to scipy')
     from scipy import fft
 
-if 'numba' in installed:
+# if 'numba' in installed:
+try:
     from numba import njit
-else:
+except:
     def njit(fun,*args,**kwargs):
         return fun
     print('Warning: numba not installed. Consider installing for faster calculation of correlation functions')
