@@ -139,6 +139,7 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):
     v0*=1e6 #Input in MHz
     v1*=1e3 #Input in kHz
     vr*=1e3 #Input in kHz
+    offset*=1e3 #Input in kHz
     v1Y=0
     v1Y*=1e3
     vX=NucInfo(Nuc)/NucInfo('1H')*v0

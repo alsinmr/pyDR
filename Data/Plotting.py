@@ -334,10 +334,11 @@ class DataPlots():
             
         self.ax[-1].set_xticklabels([],rotation=90)
         def fun(i,pos):
-            i=int(i)
+            # i=int(i)
             if i>=len(xlabel):return ''
             if i<0:return ''
-            return xlabel[i]
+            
+            return xlabel[int(i)] if i%1==0 else ''
         self.ax[-1].xaxis.set_major_locator(plt.MaxNLocator(30,integer=True))
         self.ax[-1].xaxis.set_major_formatter(plt.FuncFormatter(fun))
             
@@ -483,10 +484,19 @@ def plot_rho(lbl,R,R_std=None,style='plot',color=None,ax=None,split=True,**kwarg
             hdls.append(ax.bar(lbl,R,color=color,**kw))
         if color is None:
             color=ax.get_children()[0].get_color()
-    
+
     if lbl0 is not None:
         ax.set_xticks(lbl)
         ax.set_xticklabels(lbl0,rotation=90)
+        
+        # def format_func(value,tick_number):
+        #     return lbl0[int(value)] if value%1==0 else ''
+
+        # def format_func(value,tick_number):
+        #     return str(value)
+        # print('updated')
+        
+        # ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
 
                 
     return ax,hdls
@@ -565,8 +575,19 @@ def plot_fit(lbl,Rin,Rc,Rin_std=None,info=None,index=None,exp_index=None,fig=Non
         a.plot(lbl[i0],Rc[i0,k],linestyle='',marker='o',color='black',markersize=3)
         if xax[k]:
             if lbl0 is not None:
-                a.set_xticks(ii)
-                a.set_xticklabels(lbl0[ii],rotation=90)
+                # a.set_xticks(ii)
+                # a.set_xticklabels(lbl0[ii],rotation=90)
+                a.set_xticklabels([],rotation=90)
+                
+                def fun(i,pos):
+                    # i=int(i)
+                    if i>=len(lbl0):return ''
+                    if i<0:return ''
+                    
+                    return lbl0[int(i)] if i%1==0 else ''
+                a.xaxis.set_major_locator(plt.MaxNLocator(15,integer=True))
+                a.xaxis.set_major_formatter(plt.FuncFormatter(fun))
+                    
         else:
             plt.setp(a.get_xticklabels(),visible=False)
             if lbl0 is not None:
