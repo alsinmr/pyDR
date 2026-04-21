@@ -174,7 +174,6 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):
             S=NucInfo(Nuc1[k],'spin')
             sc=S*(S+1)*4/3 #Scaling depending on spin of second nucleus
             if vX==vY:
-                print('homonuclear')
                 R1del+=sc*(np.pi*dXY[k]/2)**2*(1/24*(1+3*np.cos(2*theta)**2)*J(tc,vr)+
                                               1/48*(1+3*np.cos(2*theta)**2)*J(tc,2*vr)+
                                               3/4*np.sin(theta)**4*(J(tc,2*ve+vr)+0.5*J(tc,2*ve+2*vr)+
