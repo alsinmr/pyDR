@@ -8,7 +8,10 @@ Created on Mon Jan 22 12:57:46 2024
 
 import numpy as np
 from ..chimeraX.MovieTools import lin_axis,log_axis,timescale_swp
-from MDAnalysis import Writer
+try:
+    from MDAnalysis import Writer
+except:
+    Writer=None
 from copy import copy
 import os
 

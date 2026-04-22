@@ -7,7 +7,10 @@ Created on Tue Mar 22 16:01:18 2022
 """
 
 import numpy as np
-import MDAnalysis as mda
+try:
+    import MDAnalysis as mda
+except:
+    mda=None
 import os
 from pyDR import clsDict
 from pyDR.IO import write_file,read_file
@@ -157,7 +160,7 @@ class Movies():
     
 
     #%% Functions for making selections to show in movie
-    def get_sel(self,select=None) -> mda.AtomGroup:
+    def get_sel(self,select=None):
         """
         Returns the default selection for writing a trajectory. User may provide
         a string to filter for the desired selection (MDAnalysis formatting) or 
@@ -546,7 +549,7 @@ def log_axis(nt0:int,nt:int=450,nss0:float=0.005,nssf:float=500,dt:float=0.005,f
     return np.array([np.argmin(np.abs(t1-t0)) for t1 in t],dtype=int)
     
 
-def write_traj(atoms:mda.AtomGroup,traj,filename:str,index:list=None) -> None:
+def write_traj(atoms,traj,filename:str,index:list=None) -> None:
     """
     Writes out an xtc file from an MDanalysis universe (usually for playback in
     chimeraX). Provide the atom group, trajectory, filename, and index of the 

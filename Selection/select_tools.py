@@ -10,7 +10,10 @@ Created on Fri Nov 29 13:06:44 2019
 Library of selection tools, to help define the selections for correlation
 function calculation, frame definition, etc.
 """
-import MDAnalysis as mda
+try:
+    import MDAnalysis as mda
+except:
+    mda=None
 import numpy as np
 import numbers
 import re
@@ -51,7 +54,7 @@ def sel0_filter(mol,resids=None,segids=None,filter_str=None):
 
 #%% Simple selection 
 
-def sel_simple(mol=None,sel:mda.AtomGroup=None,resids=None,segids=None,filter_str:str=None) -> mda.AtomGroup:
+def sel_simple(mol=None,sel=None,resids=None,segids=None,filter_str:str=None):
     """
     Produces a selection extracted from an MDAnalysis atom group. The initial
     atom group may be given directly by setting sel to an mda.AtomGroup, or via

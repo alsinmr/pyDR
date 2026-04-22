@@ -56,6 +56,8 @@ import sys as _sys
 if 'MDAnalysis' in _sys.modules:
     from pyDR import Frames
 else:
+    class Frames:    
+        FrameObj=None
     print('MDAnalysis not available, MD processing will not be possible')
     
 from pyDR import IO
@@ -63,6 +65,7 @@ from pyDR.iRED.iRED import iRED, Data_iRED
 
 if 'MDAnalysis' in _sys.modules:
     from pyDR.Frames.eval_fr import md2data,md2iRED
+    
 from pyDR.chimeraX.CMXRemote import CMXRemote
 from pyDR.chimeraX.Movies import Movies
 
