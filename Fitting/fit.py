@@ -39,6 +39,7 @@ def fit(data,bounds='auto',parallel=False):
     
     # out=clsDict['Data'](sens=detect,src_data=data) #Create output data with sensitivity as input detectors
     out=data.__class__(sens=detect,src_data=data) #Use same class as input (usually Data, can be Data_iRED)
+    out.sens.lock()
     out.label=data.label
 #    out.sens.lock() #Lock the detectors in sens since these shouldn't be edited after fitting
     out.source.select=data.source.select
@@ -76,7 +77,7 @@ def fit(data,bounds='auto',parallel=False):
                 Rstd=np.concatenate((Rstd,[data.S2std[k]]))
             R/=Rstd     #Normalize data by its standard deviation
             r=(r0.r.T/Rstd).T   #Also normalize R matrix
-        
+
             X.append((r,R,(LB,UB) if bounds else None,Rstd))
         
         "Perform fitting"
@@ -238,9 +239,14 @@ def opt2dist(data,rhoz=None,rhoz_cleanup=False,parallel=False):
                     rhoz/=rhoz.sum()*data.sens.dz
                 rhoz_clean.append(rhoz)
             
-        out.sens=copy(out.sens)
+        out.sens=out.sens.copy()
+        out.sens.lock()
         rhoz_clean=np.array(rhoz_clean)
         out.sens._Sens__rho=rhoz_clean
+        
+        if len(out.sens._bonds)>1:
+            for b in out.sens._bonds:
+                b._Sens__rho=rhoz_clean
         out.R=np.array(dist)@rhoz_clean.T
         
         # in0,in1=np.argwhere(rhoz<threshold*rhoz.max())[[0,-1],0]

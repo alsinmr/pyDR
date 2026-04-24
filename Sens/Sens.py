@@ -69,7 +69,7 @@ class Sens():
 
     def del_exp(self,index:int):
         """
-        Deletes an experiment or experiment (provide a list)
+        Deletes an experiment or experiments (provide a list)
 
         Parameters
         ----------
@@ -84,15 +84,22 @@ class Sens():
         self.info.del_exp(index)
         self.__rho=np.zeros([0,self.__z.size])      #Store sensitivity calculations
         self.__rhoCSA=np.zeros([0,self.__z.size])   #Store sensitivity calculations
-        self._bonds=list() #Store different sensitivities for different bonds
+        if self._bonds is not None:
+            bonds=self._bonds
+            self._bonds=[]
+            for b in bonds:
+                b.del_exp(index)
+                self._bonds.append(b)
+        else:
+            self._bonds=list() #Store different sensitivities for different bonds
         return self
         
     
-    def copy(self):
+    def copy(self,copy_bonds=True):
         """
         Returns a deep copy of the sensitivity object. 
         """
-        if len(self)>1:
+        if len(self)>1 and not(copy_bonds):
             bonds=self._bonds
             self._bonds=None
             out=deepcopy(self)

@@ -126,11 +126,13 @@ class Detector(Sens.Sens):
         does not make sense to edit the sensitivities of the results of fitting
         """
         self.__locked=locked
+        if len(self._bonds)>1:
+            for b in self._bonds:b.lock()
     
     @property
     def _islocked(self):
         if self.__locked:
-            print('Detector object is locked. Re-optimization is not allowed')
+            # print('Detector object is locked. Re-optimization is not allowed')
             return True
         return False
     
@@ -228,6 +230,11 @@ class Detector(Sens.Sens):
             self.info.new_parameter(stdev=((np.linalg.pinv((self.__r.T/self.sens.info['stdev'].astype(float)).T)**2).sum(1))**0.5)
         else:
             self.info.new_parameter(stdev=np.zeros(self.rhoz.shape[0]))
+            
+        for r in self._bonds:
+            r._Sens__rho=np.zeros([0,len(self.z)])
+            
+        
         
     #%% Detector optimization
     def _rho(self):
