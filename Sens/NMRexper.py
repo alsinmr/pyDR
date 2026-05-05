@@ -176,22 +176,27 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):
             if vX==vY:
                 R1del+=sc*(np.pi*dXY[k]/2)**2*(1/24*(1+3*np.cos(2*theta)**2)*J(tc,vr)+
                                               1/48*(1+3*np.cos(2*theta)**2)*J(tc,2*vr)+
-                                              3/4*np.sin(theta)**4*(J(tc,2*ve+vr)+0.5*J(tc,2*ve+2*vr)+
+                                              3/4*np.sin(theta)**4*(J(tc,2*ve+vr)+1/2*J(tc,2*ve+2*vr)+
                                                         1/2*J(tc,2*ve-2*vr)+J(tc,2*ve-vr))+
                                               3/8*np.sin(2*theta)**2*(J(tc,ve+vr)+1/2*J(tc,ve+2*vr)+
                                                         1/2*J(tc,ve-2*vr)+J(tc,ve-vr)))
-                # TODO We should double check that the T1 contribution is correct  
+                mu=sc*(np.pi*dXY[k]/2)**2*((1+3*np.cos(2*theta)**2)*(-1/24*J(tc,vr)-1/48*J(tc,2*vr))+
+                                           np.sin(theta)**4*(3/8*J(tc,2*ve-2*vr)+3/4*J(tc,2*ve-vr))+
+                                           3/4*J(tc,2*ve+vr)+3/8*J(tc,2*ve+2*vr)+
+                                           3*np.sin(theta)**2*J(tc,v0)+6*np.cos(theta)**2*J(tc,2*v0))
+                # R1del+=mu
             else:
-                R1del+=sc*(np.pi*dXY[k]/2)**2*(3*J(tc,vY)+
+                R1del+=sc*np.sin(theta)**2*(np.pi*dXY[k]/2)**2*(3*J(tc,vY)+
                           1/6*J(tc,2*vr-ve+v1Y)+2/6*J(tc,vr-ve+v1Y)+2/6*J(tc,vr+ve+v1Y)+1/6*J(tc,2*vr+ve+v1Y)+
                           1/6*J(tc,2*vr-ve-v1Y)+2/6*J(tc,vr-ve-v1Y)+2/6*J(tc,vr+ve-v1Y)+1/6*J(tc,2*vr+ve-v1Y))
+                          
                 
     "CSA contributions"
-    R1del+=1/6*(2*np.pi*CSA)**2*(1/2*J(tc,2*vr-ve)+J(tc,vr-ve)+J(tc,vr+ve)+1/2*J(tc,2*vr+ve))
+    R1del+=1/6*(2*np.pi*CSA)**2*np.sin(theta)**2*(1/2*J(tc,2*vr-ve)+J(tc,vr-ve)+J(tc,vr+ve)+1/2*J(tc,2*vr+ve))
     "Here should follow the quadrupole treatment!!!"    
     
     "Add together R1 and R1p contributions, depending on the offset"
-    R+=R10+np.sin(theta)**2*(R1del-R10/2) #Add together the transverse and longitudinal contributions   
+    R+=R10*(1-0.5*np.sin(theta)**2)+R1del #Add together the transverse and longitudinal contributions   
     return R
 
 def R2(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):    
