@@ -134,7 +134,7 @@ def R1Q(tc,Nuc,v0,QC=0,etaQ=0):
 
 def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):
     #Calc R1 contributions before scaling input values
-    R10=R1(tc,Nuc,v0,Nuc1=Nuc1,CSA=CSA,dXY=dXY,eta=eta,vr=vr,CSoff=0,QC=QC,etaQ=etaQ)    #We do this first, because it includes all R1 contributions
+    # R10=R1(tc,Nuc,v0,Nuc1=Nuc1,CSA=CSA,dXY=dXY,eta=eta,vr=vr,CSoff=0,QC=QC,etaQ=etaQ)    #We do this first, because it includes all R1 contributions
     
     v0*=1e6 #Input in MHz
     v1*=1e3 #Input in kHz
@@ -156,7 +156,7 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):
     
 
     "Start here with the dipole contributions"
-    R1del=np.zeros(np.shape(tc))
+    R=np.zeros(np.shape(tc))
     if Nuc1 is not None:
         dXY=np.atleast_1d(dXY)
         Nuc1=np.atleast_1d(Nuc1)
@@ -174,29 +174,32 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):
             S=NucInfo(Nuc1[k],'spin')
             sc=S*(S+1)*4/3 #Scaling depending on spin of second nucleus
             if vX==vY:
-                R1del+=sc*(np.pi*dXY[k]/2)**2*(1/24*(1+3*np.cos(2*theta)**2)*J(tc,vr)+
+                R+=sc*(np.pi*dXY[k]/2)**2*(1/24*(1+3*np.cos(2*theta)**2)*J(tc,vr)+
                                               1/48*(1+3*np.cos(2*theta)**2)*J(tc,2*vr)+
                                               3/4*np.sin(theta)**4*(J(tc,2*ve+vr)+1/2*J(tc,2*ve+2*vr)+
                                                         1/2*J(tc,2*ve-2*vr)+J(tc,2*ve-vr))+
                                               3/8*np.sin(2*theta)**2*(J(tc,ve+vr)+1/2*J(tc,ve+2*vr)+
                                                         1/2*J(tc,ve-2*vr)+J(tc,ve-vr)))
+                
                 mu=sc*(np.pi*dXY[k]/2)**2*((1+3*np.cos(2*theta)**2)*(-1/24*J(tc,vr)-1/48*J(tc,2*vr))+
                                            np.sin(theta)**4*(3/8*J(tc,2*ve-2*vr)+3/4*J(tc,2*ve-vr))+
                                            3/4*J(tc,2*ve+vr)+3/8*J(tc,2*ve+2*vr)+
                                            3*np.sin(theta)**2*J(tc,v0)+6*np.cos(theta)**2*J(tc,2*v0))
-                R1del+=mu
+                R+=mu
             else:
-                R1del+=sc*np.sin(theta)**2*(np.pi*dXY[k]/2)**2*(3*J(tc,vY)+
+                R+=sc*np.sin(theta)**2*(np.pi*dXY[k]/2)**2*(3*J(tc,vY)+
                           1/6*J(tc,2*vr-ve+v1Y)+2/6*J(tc,vr-ve+v1Y)+2/6*J(tc,vr+ve+v1Y)+1/6*J(tc,2*vr+ve+v1Y)+
-                          1/6*J(tc,2*vr-ve-v1Y)+2/6*J(tc,vr-ve-v1Y)+2/6*J(tc,vr+ve-v1Y)+1/6*J(tc,2*vr+ve-v1Y))
+                          1/6*J(tc,2*vr-ve-v1Y)+2/6*J(tc,vr-ve-v1Y)+2/6*J(tc,vr+ve-v1Y)+1/6*J(tc,2*vr+ve-v1Y))+\
+                          (1-0.5*np.sin(theta)**2)*R1(tc,Nuc,v0,Nuc1=Nuc1[k],dXY=dXY[k])
                           
                 
     "CSA contributions"
-    R1del+=1/6*(2*np.pi*CSA)**2*np.sin(theta)**2*(1/2*J(tc,2*vr-ve)+J(tc,vr-ve)+J(tc,vr+ve)+1/2*J(tc,2*vr+ve))
+    R+=1/6*(2*np.pi*CSA)**2*np.sin(theta)**2*(1/2*J(tc,2*vr-ve)+J(tc,vr-ve)+J(tc,vr+ve)+1/2*J(tc,2*vr+ve))+\
+        (1-0.5*np.sin(theta)**2)*R1(tc,Nuc,v0,CSA=CSA,eta=eta)
     "Here should follow the quadrupole treatment!!!"    
     
     "Add together R1 and R1p contributions, depending on the offset"
-    R+=R10*(1-0.5*np.sin(theta)**2)+R1del #Add together the transverse and longitudinal contributions   
+    # R+=R10*(1-0.5*np.sin(theta)**2)+R1del #Add together the transverse and longitudinal contributions   
     return R
 
 def R2(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):    
