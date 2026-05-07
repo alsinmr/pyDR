@@ -154,7 +154,6 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):
     else:
         theta=np.arccos(offset/ve)
     
-
     "Start here with the dipole contributions"
     R=np.zeros(np.shape(tc))
     if Nuc1 is not None:
@@ -173,19 +172,31 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):
             vY=NucInfo(Nuc1[k])/NucInfo('1H')*v0
             S=NucInfo(Nuc1[k],'spin')
             sc=S*(S+1)*4/3 #Scaling depending on spin of second nucleus
-            if vX==vY:
-                R+=sc*(np.pi*dXY[k]/2)**2*(1/24*(1+3*np.cos(2*theta)**2)*J(tc,vr)+
-                                              1/48*(1+3*np.cos(2*theta)**2)*J(tc,2*vr)+
-                                              3/4*np.sin(theta)**4*(J(tc,2*ve+vr)+1/2*J(tc,2*ve+2*vr)+
-                                                        1/2*J(tc,2*ve-2*vr)+J(tc,2*ve-vr))+
-                                              3/8*np.sin(2*theta)**2*(J(tc,ve+vr)+1/2*J(tc,ve+2*vr)+
-                                                        1/2*J(tc,ve-2*vr)+J(tc,ve-vr)))
+            if Nuc==Nuc1[k]:
+                # R+=sc*(np.pi*dXY[k]/2)**2*(1/24*(1+3*np.cos(2*theta)**2)*J(tc,vr)*0+
+                #                               1/48*(1+3*np.cos(2*theta)**2)*J(tc,2*vr)*0+
+                #                               3/4*np.sin(theta)**4*(J(tc,2*ve+vr)+1/2*J(tc,2*ve+2*vr)+
+                #                                         1/2*J(tc,2*ve-2*vr)+J(tc,2*ve-vr))+
+                #                               3/8*np.sin(2*theta)**2*(J(tc,ve+vr)+1/2*J(tc,ve+2*vr)+
+                #                                         1/2*J(tc,ve-2*vr)+J(tc,ve-vr))+
+                #                               3/4*(5-np.cos(2*theta))*J(tc,vX)*0+
+                #                               3/2*(3+np.cos(2*theta))*J(tc,2*vX)*0)
                 
-                mu=sc*(np.pi*dXY[k]/2)**2*((1+3*np.cos(2*theta)**2)*(-1/24*J(tc,vr)-1/48*J(tc,2*vr))+
-                                           np.sin(theta)**4*(3/8*J(tc,2*ve-2*vr)+3/4*J(tc,2*ve-vr))+
-                                           3/4*J(tc,2*ve+vr)+3/8*J(tc,2*ve+2*vr)+
-                                           3*np.sin(theta)**2*J(tc,v0)+6*np.cos(theta)**2*J(tc,2*v0))
-                R+=mu
+                # mu=sc*(np.pi*dXY[k]/2)**2*((1+3*np.cos(2*theta)**2)*(-1/24*J(tc,vr)-1/48*J(tc,2*vr))*0+
+                #                            np.sin(theta)**4*(3/8*J(tc,2*ve-2*vr)+3/4*J(tc,2*ve-vr))+
+                #                            3/4*J(tc,2*ve+vr)+3/8*J(tc,2*ve+2*vr)+
+                #                            3*np.sin(theta)**2*J(tc,v0)+6*np.cos(theta)**2*J(tc,2*v0))
+                
+                
+                R+=3/4*(np.pi*dXY[k])**2*(1/8*np.sin(2*theta)**2*(0.5*J(tc,2*vr-ve)+J(tc,vr-ve)+
+                                                                   J(tc,vr+ve)+0.5*J(tc,2*vr+ve))+
+                                           1/2*np.sin(theta)**4*(0.5*J(tc,2*vr-2*ve)+J(tc,vr-2*ve)+
+                                                                 J(tc,vr+2*ve)+0.5*J(tc,2*vr+2*ve))+
+                                           1/4*(7-3*np.cos(2*theta))*J(tc,vX)+
+                                           1/2*(5+3*np.cos(2*theta))*J(tc,2*vX))
+                
+                
+                # R+=mu
             else:
                 R+=sc*np.sin(theta)**2*(np.pi*dXY[k]/2)**2*(3*J(tc,vY)+
                           1/6*J(tc,2*vr-ve+v1Y)+2/6*J(tc,vr-ve+v1Y)+2/6*J(tc,vr+ve+v1Y)+1/6*J(tc,2*vr+ve+v1Y)+
