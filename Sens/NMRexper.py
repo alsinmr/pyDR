@@ -136,6 +136,8 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):
     #Calc R1 contributions before scaling input values
     # R10=R1(tc,Nuc,v0,Nuc1=Nuc1,CSA=CSA,dXY=dXY,eta=eta,vr=vr,CSoff=0,QC=QC,etaQ=etaQ)    #We do this first, because it includes all R1 contributions
     
+    R1CSA=R1(tc,Nuc,v0,CSA=CSA,eta=eta)
+    
     v0*=1e6 #Input in MHz
     v1*=1e3 #Input in kHz
     vr*=1e3 #Input in kHz
@@ -188,7 +190,7 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):
                 #                            3*np.sin(theta)**2*J(tc,v0)+6*np.cos(theta)**2*J(tc,2*v0))
                 
                 
-                R+=3/4*(np.pi*dXY[k])**2*(1/8*np.sin(2*theta)**2*(0.5*J(tc,2*vr-ve)+J(tc,vr-ve)+
+                R+=3/4*(np.pi*dXY[k])**2*(0*1/8*np.sin(2*theta)**2*(0.5*J(tc,2*vr-ve)+J(tc,vr-ve)+
                                                                    J(tc,vr+ve)+0.5*J(tc,2*vr+ve))+
                                            1/2*np.sin(theta)**4*(0.5*J(tc,2*vr-2*ve)+J(tc,vr-2*ve)+
                                                                  J(tc,vr+2*ve)+0.5*J(tc,2*vr+2*ve))+
@@ -201,12 +203,12 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):
                 R+=sc*np.sin(theta)**2*(np.pi*dXY[k]/2)**2*(3*J(tc,vY)+
                           1/6*J(tc,2*vr-ve+v1Y)+2/6*J(tc,vr-ve+v1Y)+2/6*J(tc,vr+ve+v1Y)+1/6*J(tc,2*vr+ve+v1Y)+
                           1/6*J(tc,2*vr-ve-v1Y)+2/6*J(tc,vr-ve-v1Y)+2/6*J(tc,vr+ve-v1Y)+1/6*J(tc,2*vr+ve-v1Y))+\
-                          (1-0.5*np.sin(theta)**2)*R1(tc,Nuc,v0,Nuc1=Nuc1[k],dXY=dXY[k])
+                          (1-0.5*np.sin(theta)**2)*R1(tc,Nuc,v0/1e6,Nuc1=Nuc1[k],dXY=dXY[k])
                           
                 
     "CSA contributions"
     R+=1/6*(2*np.pi*CSA)**2*np.sin(theta)**2*(1/2*J(tc,2*vr-ve)+J(tc,vr-ve)+J(tc,vr+ve)+1/2*J(tc,2*vr+ve))+\
-        (1-0.5*np.sin(theta)**2)*R1(tc,Nuc,v0,CSA=CSA,eta=eta)
+        (1-0.5*np.sin(theta)**2)*R1CSA
     "Here should follow the quadrupole treatment!!!"    
     
     "Add together R1 and R1p contributions, depending on the offset"
