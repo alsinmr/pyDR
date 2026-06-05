@@ -268,4 +268,4 @@ class tools():
     NucInfo=NucInfo
     dipole_coupling=dipole_coupling
     linear_ex=linear_ex  
-    AA=AA()
+    AA=AA

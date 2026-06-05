@@ -207,7 +207,7 @@ def R1p(tc,Nuc,v0,Nuc1=None,CSA=0,dXY=0,eta=0,vr=0,v1=0,offset=0,QC=0,etaQ=0):
                           
                 
     "CSA contributions"
-    R+=1/6*(2*np.pi*CSA)**2*np.sin(theta)**2*(1/2*J(tc,2*vr-ve)+J(tc,vr-ve)+J(tc,vr+ve)+1/2*J(tc,2*vr+ve))+\
+    R+=1/6*(1+eta**2/3)*(2*np.pi*CSA)**2*np.sin(theta)**2*(1/2*J(tc,2*vr-ve)+J(tc,vr-ve)+J(tc,vr+ve)+1/2*J(tc,2*vr+ve))+\
         (1-0.5*np.sin(theta)**2)*R1CSA
     "Here should follow the quadrupole treatment!!!"    
     
