@@ -328,6 +328,10 @@ class Data():
             for f in flds:
                 if hasattr(self,f) and getattr(self,f) is not None:
                     setattr(self,f,np.delete(getattr(self,f),index,axis=0))
+                    
+            if self.select is not None:
+                self.select.del_sel(index)
+                
             # for i in np.sort(index)[::-1]:
             #     self.del_data_pt(i)
         else:

@@ -818,11 +818,13 @@ class MolSelect():
             for i in index:self.del_sel(i)
             return
         
+        _mdmode=self._mdmode
+        self._mdmode=False
         for f in ['sel1','sel2','_repr_sel','_label']:
             v=getattr(self,f)
             if v is not None and len(v):
                 setattr(self,f,np.delete(v,index))
-                    
+        self._mdmode=_mdmode
     
     @property
     def box(self):

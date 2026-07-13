@@ -626,7 +626,7 @@ class Data_iRED(Data):
         
         if calcCC:
             out.totalCC=np.zeros([out.R.shape[0],out.R.shape[0]],dtype=dtype)
-            out.CC=np.zeros([out.R.shape[1],out.R.shape[0],out.R.shape[0]],dtype=dtype)
+            out._CC=np.zeros([out.R.shape[1],out.R.shape[0],out.R.shape[0]],dtype=dtype)
             for m0,l0,rho_m in zip(m.T,Lambda,self.R): #Loop over all eigenmodes
                 mat=(np.array([m0]).T@np.array([m0]))*l0
                 out.totalCC+=mat
