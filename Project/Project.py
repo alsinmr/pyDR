@@ -1749,7 +1749,8 @@ class Project():
         # out._index=np.setdiff1d(self.parent._index,index0)
 
         out=self._projDelta()
-        print('Fitted {0} data objects'.format(count))
+        if Defaults['verbose']:
+            print('Fitted {0} data objects'.format(count))
         return out
     
     def _projDelta(self,initialize=False):
