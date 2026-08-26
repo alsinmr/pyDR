@@ -78,6 +78,7 @@ for proteins, because it is relatively simple)
 
 
 import numpy as np
+import matplotlib.pyplot as plt
 from pyDR.MDtools import vft
 from pyDR.Selection import select_tools as selt
 from copy import copy
@@ -531,6 +532,269 @@ def hop(molecule,angle=np.arccos(np.sqrt(1/3)),sel1=None,sel2=None,sel3='auto',N
 #%% Lipid frames
 #The following frames are specifically intended for separating dynamics in lipid
 # These are introduced now 
+
+from scipy.linalg import svd
+from scipy.optimize import linear_sum_assignment
+def MOIgrid(molecule,lipids:list=None,protein:list=None):
+    return MOIgridClass(molecule,lipids=lipids,protein=protein)
+
+class MOIgridClass():
+    def __init__(self,molecule,lipids:list,protein:list):
+        """
+        Creates a frame that returns the moment of inertia for lipid chains and
+        optionally also the protein helices. This differs from MOIz in that
+        as the lipids diffuse, the lipids will be reassigned depending on their
+        location in comparison to the initial lipid configuration
+
+        If a protein selection is provided, the reference position will 
+        diffuse with the protein. Otherwise the reference position will remain
+        in the middle of the box.
+
+        Parameters
+        ----------
+        molecule : TYPE
+            Selection/molecule object.
+        lipid : list
+            List of lipid selections.
+        protein : list
+            List of protein selections (usually helices of the protein)
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        molecule.traj[0] #Make sure we set up with reference to the first frame
+        self.molecule=molecule
+        self.lipids=lipids
+        self.protein=protein
+        self.get_ini_pos()
+        
+        
+        l=len(self.lipids)
+        if self.protein is not None:l+=len(self.protein)
+        vXZ=np.zeros((3,l))
+        vXZ[0]=1
+        self.vXZ=vXZ
+        
+    def pbc_corr(self,v):
+        """
+        Periodic boundary correction for *vectors*. Be warned that this will 
+        not handle breaks of molecules across the PDB, so average positions
+        will be distorted. Use pbc_avg
+
+        """
+        
+        ndim=v.ndim
+        v=np.atleast_2d(v)
+        
+        box=self.box[:v.shape[1]]
+        i=v>box/2
+        ib=np.argwhere(i).T[1]
+        v[i]=v[i]-box[ib]
+        
+        i=v<-box/2
+        ib=np.argwhere(i).T[1]
+        v[i]=v[i]+box[ib]
+        
+        if ndim==1:
+            return v[0]
+        
+        return v
+    
+    def whole(self,pos):
+        """
+        Takes a list of positions and corrects them such that they do not
+        break across the box
+        """
+        
+        pos0=pos[0]
+        v=pos[1:]-pos[:-1]
+        v=self.pbc_corr(v)
+        return pos0+np.cumsum(v,axis=0)
+    
+    def pbc_avg(self,pos):
+        """
+        Takes a list of positions, groups them on one side of the box, takes
+        their average, and then returns the pbc corrected average position
+
+        """
+        
+        pos=self.whole(pos)
+        return self.pbc_corr(pos.mean(0))
+        
+        
+    @property
+    def box(self):
+        return self.molecule.box[:3]
+        
+    @property
+    def lipid_pos(self):
+        """
+        x,y positions of the lipids
+
+        Returns
+        -------
+        None.
+
+        """
+        return np.array([self.pbc_avg(lipid.positions[:,:2]) for lipid in self.lipids])
+    
+    @property
+    def lipid_pos_corr(self):
+        pos0=self.lipid_pos
+        if self.protein is not None:
+            pos0=self.pbc_corr(pos0-self.ref_pos)
+            # pos0=(self.RMSalign@pos0.T).T
+        
+        
+        return self.pbc_corr(pos0)
+        
+    @property
+    def lipid_top(self):
+        "Returns a boolean for each lipid specifying if it is on the top or bottom"
+        return self._lipid_top
+    
+    @property
+    def index(self):
+        """
+        Index to sort the lipid positions to best match their initial positions
+
+        Returns
+        -------
+        np.array
+        Sorting index
+
+        """
+        # Start sorting the lipids on top
+        i=self.lipid_top
+        il=self.ini_lipid
+        lpc=self.lipid_pos_corr
+        
+        out=np.zeros(lpc.shape[0],dtype=int)
+        
+        x0,y0=il[i].T
+        x1,y1=lpc[i].T
+        
+        dx=x0[:,None]-x1[None,:]
+        dy=y0[:,None]-y1[None,:]
+        cost=dx**2+dy**2
+        
+        idx0, idx1 = linear_sum_assignment(cost)
+        out[i]=idx1+np.cumsum(np.logical_not(i))[i]
+
+        i=np.logical_not(i)
+        
+        x0,y0=il[i].T
+        x1,y1=lpc[i].T
+        
+        dx=x0[:,None]-x1[None,:]
+        dy=y0[:,None]-y1[None,:]
+        cost=dx**2+dy**2
+        
+        idx0, idx1 = linear_sum_assignment(cost)
+        out[i]=idx1+np.cumsum(np.logical_not(i))[i]
+        
+        return out
+        
+    def get_ini_pos(self):
+        """
+        Store the initial x,y positions of the protein and lipid
+
+        Returns
+        -------
+        None.
+
+        """
+        self.ini_protein=self.protein_rot
+        self.ini_lipid=self.lipid_pos_corr
+        self._lipid_top=np.array([lipid.positions[:,2].mean() for lipid in self.lipids])>=self.box[2]/2
+    
+    @property
+    def ref_pos(self):
+        if self.protein is None:
+            return
+        pos=[]
+        for protein in self.protein:
+            pos.append(self.pbc_avg(protein.positions[:,:2]))
+        return self.pbc_avg(np.array(pos))+self.box[:2]
+    
+    @property
+    def protein_rot(self):
+        if self.protein is None:
+            return
+        pos=np.array([self.pbc_avg(protein.positions[:,:2]-self.ref_pos) for protein in self.protein])
+        return pos
+    
+    @property
+    def protein_pos(self):
+        pos=[]
+        for protein in self.protein:
+            pos.extend(protein.positions[:,:2])
+        return np.array(pos)
+        
+    @property
+    def RMSalign(self):
+        vref=self.ini_protein
+        vref=vref-vref.mean(0)
+        v0=self.protein_rot
+        v0=v0-v0.mean(0)
+        
+        H=np.dot(v0.T,vref)
+        U,S,Vt=svd(H)
+        V=Vt.T
+        Ut=U.T
+        
+        d=np.linalg.det(np.dot(V,Ut))
+        m=np.eye(2)
+        m[1,1]=d
+        return np.dot(V,np.dot(m,Ut))
+    
+    def scatter_protein(self,ax=None):
+        if not(self.protein):return
+        if ax is None:
+            ax=plt.figure().add_subplot(1,1,1)
+        cmap=plt.get_cmap('tab10')
+        i=0
+        for k in range(len(self.protein)): 
+            ax.scatter(*self.protein_pos[i:i+len(self.protein[k])].T,color=cmap(k%10))
+            i+=len(self.protein[k])
+        lim=np.array((ax.get_xlim(),ax.get_ylim()))
+        m=lim[:,0].min()
+        M=lim[:,1].max()
+        ax.set_xlim((m,M))
+        ax.set_ylim((m,M))
+        ax.set_aspect('equal')
+        
+        return ax
+    
+    @property
+    def vZ0(self):
+        out=[vft.principle_axis_MOI(self.whole(lipid.positions).T)[:,0] 
+             for lipid in self.lipids]
+        if self.protein is not None:
+            out.extend([vft.principle_axis_MOI(self.whole(protein.positions).T)[:,0] 
+                        for protein in self.protein])
+            
+        return np.array(out)
+    
+    @property
+    def vZ(self):
+        vZ0=self.vZ0
+        if self.protein is None:
+            return vZ0[self.index,:].T
+        vZ=np.concatenate((self.vZ0[self.index,:],self.vZ0[len(self.index):,:]),axis=0)
+        return vZ.T
+
+    def __call__(self):
+        return self.vZ,self.vXZ
+    
+    
+        
+        
+        
+        
     
 def TetraHop(molecule,sel1=None,sel2=None,resids=None,segids=None,filter_str=None):
     return TH(molecule,sel1=sel1,sel2=sel2,resids=resids,segids=segids,filter_str=filter_str)

@@ -969,17 +969,25 @@ class Project():
         #         and not(os.path.exists(self.data[i].source._src_data)):
         #             self.data[i].src_data=None
         
-        self.data=DataMngr(self)
+        
+        # I think we need to re-read the project to account for re-ordering of data
+        # after it has been saved
+        
+        # self.data=DataMngr(self)
+        self.read_proj()
         gc.collect() #Garbage collect (get rid of the old data object)
         
         
         
     #%% Read/write project file
     def read_proj(self):
+        self.data=DataMngr(self)
+        
         info=clsDict['Info']()
         flds=['Type','status','short_file','title','additional_info','filename']
         for f in flds:info.new_parameter(f)
         
+        # This reads in the project file
         if self.directory and os.path.exists(os.path.join(self.directory,'project.txt')):
             dct={}
             with open(os.path.join(self.directory,'project.txt'),'r') as f:
@@ -994,7 +1002,8 @@ class Project():
                                 k,v=[l0.strip() for l0 in l.strip().split(':\t')]
                                 if k in flds:dct[k]=v #Add this field to dct
                 if len(dct):info.new_exper(**dct)    #Store the current entry
-                
+        
+        # This checks for data missing from the project file
         for k,file in enumerate(self.data.saved_files):
             if file not in info['filename']:   #Also include data that might be missing from the project file
                 # print(file)    
@@ -1003,6 +1012,7 @@ class Project():
                 dct['filename']=file
                 info.new_exper(**dct)
         
+        # This figures out the index to put data into the same order as the project file
         _index=list()
         for file in info['filename']:
             if file in self.data.saved_files:
@@ -1011,13 +1021,16 @@ class Project():
                 _index.append(None)
                 print('File:\n{0}\n was missing from project'.format(file))
         
+        # This deletes data that couldn't be found
         while None in _index: #Delete all missing data
             i=_index.index(None)
             _index.pop(i)
 
+        # This creates the final Info class
         self.pinfo=clsDict['Info']()
         for f in flds:self.pinfo.new_parameter(f)
         
+        # This puts it in the same order as the data file
         for k in range(len(_index)):
             self.pinfo.new_exper(**info[_index.index(k)])
         self._index=np.array(_index,dtype=int)
