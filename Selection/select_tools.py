@@ -259,6 +259,9 @@ def protein_defaults(Nuc:str,mol,resids:list=None,segids:list=None,filter_str:st
     if Nuc.lower()=='15n' or Nuc.lower()=='n' or Nuc.lower()=='n15':       
         sel1=sel0.select_atoms('name N and around 1.1 (name H or name HN)')                 
         sel2=sel0.select_atoms('(name H or name HN) and around 1.1 name N')        
+    elif Nuc.lower()=='npro':
+        sel1=sel0.select_atoms('name N and (around 1.1 (name H or name HN) or around 1.55 (name CD and resname PRO))')                 
+        sel2=sel0.select_atoms('((name H or name HN) and around 1.1 name N) or ((CD and resname PRO) and around 1.55 name N)')   
     elif Nuc.lower()=='co' or Nuc.lower()=='13co' or Nuc.lower()=='co13' or Nuc.lower()=='c':
         sel1=sel0.select_atoms('name C and around 1.4 name O')
         sel2=sel0.select_atoms('name O and around 1.4 name C')
