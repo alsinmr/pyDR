@@ -192,7 +192,7 @@ class Detector(Sens.Sens):
         if Type in ['auto','target','zmax']:
             
             if self.match_mode[0].lower()=='a': #Use auto
-                self.r_auto(n=self._parent.opt_pars['n'])
+                self.r_auto(n=self._parent.opt_pars['n'],Smin=self._parent.opt_pars['Smin'])
             elif self.match_mode[0].lower()=='z': #use zmax
                 self.r_zmax(zmax=self._parent.info['zmax'])
             else:
@@ -381,7 +381,7 @@ class Detector(Sens.Sens):
         
         return self
     
-    def r_auto(self,n:int,Normalization:str='MP',NegAllow:bool=False):
+    def r_auto(self,n:int=None,Smin:float=20,Normalization:str='MP',NegAllow:bool=False):
         """
         Generate n detectors that are automatically selected based on the results
         of SVD
@@ -390,6 +390,9 @@ class Detector(Sens.Sens):
         ----------
         n : int
             Number of detectors.
+        S : float
+            Minimum singular value used. May result in varying number of detectors
+            for mixed data sets. Only used if n is None
         Normalization : str, optional
             Normalization mode. 'I' yields integral-normalized detectors, 'M'
             yields maximum-normalized detectors that sum to one if S2 is include,
@@ -409,6 +412,10 @@ class Detector(Sens.Sens):
         if self._islocked:return
         self._len_check()
         
+        n0=n
+        if n is None:
+            self.SVD(min(15,self.sens.info.N))
+            n=(self.SVD.S>Smin).sum()
         self.SVD(n)
         Vt=self.SVD.Vt
         #todo add alternative for linux, because the scipy linalg is to slow -K
@@ -556,7 +563,7 @@ class Detector(Sens.Sens):
         # rhoz=np.array(rhoz)[i]
         self.T=np.array(X)[i]    
         # TODO previously, Normalization and NegAllow were not set to the input values. Why??
-        self.opt_pars={'n':n,'Type':'auto','Normalization':Normalization,'NegAllow':NegAllow,'options':[]}
+        self.opt_pars={'n':n0,'Smin':Smin,'Type':'auto','Normalization':Normalization,'NegAllow':NegAllow,'options':[]}
         self.update_det()
 
 
