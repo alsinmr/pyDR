@@ -7,7 +7,7 @@ Created on Mon Feb 21 20:59:53 2022
 """
 
 from numpy.linalg import pinv as PINV
-from numpy import sqrt,atleast_1d,atleast_2d,concatenate,repeat,ones,abs,sum
+from numpy import sqrt,atleast_1d,atleast_2d,concatenate,repeat,ones,abs,sum,zeros
 from scipy.optimize import lsq_linear as lsq
 
 def fit0(X):
@@ -45,11 +45,13 @@ def dist_opt(X):
         atleast_2d(ones(ntc))),axis=0)
     Rin=concatenate((R/R_std,total))
     
-    dist=0
+    dist=zeros(rhoz.shape[1])
     while abs(sum(dist)-total)>1e-3:  #This is a check to see that the sum condition has been satisfied
         dist=lsq(rhoz,Rin,bounds=(0,1))['x']
         Rin[-1]=Rin[-1]*10 #Increase the weighting of the total if sum condition not satisfied
-        rhoz[-1]=rhoz[-1]*10 
+        rhoz[-1]=rhoz[-1]*10
+    
+    
     Ropt=(rhoz[:-1]@dist)*R_std
     
     return Ropt,dist
