@@ -192,7 +192,7 @@ class Detector(Sens.Sens):
         if Type in ['auto','target','zmax']:
             
             if self.match_mode[0].lower()=='a': #Use auto
-                self.r_auto(n=self._parent.opt_pars['n'],Smin=self._parent.opt_pars['Smin'])
+                self.r_auto(n=self._parent.opt_pars['n'],Smin=self._parent.opt_pars.get('Smin'))
             elif self.match_mode[0].lower()=='z': #use zmax
                 self.r_zmax(zmax=self._parent.info['zmax'])
             else:
@@ -362,6 +362,7 @@ class Detector(Sens.Sens):
         """
         if self._islocked:return
         self._len_check()
+        self.match_mode='target'
         
         if hasattr(target,'z') and hasattr(target,'rhoz'):
             z,target=target.z,target.rhoz
