@@ -244,6 +244,25 @@ def opt2dist(data,rhoz=None,rhoz_cleanup=False,parallel=False):
         rhoz_clean=np.array(rhoz_clean)
         out.sens._Sens__rho=rhoz_clean
         
+        # Update info
+        info=out.sens.info
+        sens=out.sens
+        dz=sens.z[1]-sens.z[0]
+        z0=np.array([(sens.z*rz).sum()/rz.sum() for rz in sens.rhoz])
+        zmax=np.array([sens.z[np.argmax(rz)] for rz in sens.rhoz])
+        Del_z=np.array([rz.sum()*dz/rz.max() for rz in sens.rhoz])
+        if rhoz_clean[0][0]>0.99:
+            z0[0]=np.nan
+            Del_z[0]=np.nan
+        if rhoz_clean[-1][-1]>0.99:
+            z0[-1]=np.nan
+            Del_z[-1]=np.nan
+            
+        
+        info['z0']=z0
+        info['zmax']=zmax
+        info['Del_z']=Del_z
+        
         if len(out.sens._bonds)>1:
             for b in out.sens._bonds:
                 b._Sens__rho=rhoz_clean
