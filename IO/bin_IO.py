@@ -16,6 +16,12 @@ from ..Defaults import Defaults
 from pyDR import clsDict
 from pyDR.Sens.MD import MDsens_from_pars
 
+try:
+    import MDAnalysis as _
+    mda=True
+except:
+    mda=False
+
 # from ..IO.bin_write import write_file
 
 dtype=Defaults['dtype']
@@ -429,6 +435,23 @@ def write_MolSelect(f,select):
     f.write(b'END:OBJECT\n')
     
 def read_MolSelect(f,directory=''):
+    #Skip this if MDAnalysis is not found
+    if not(mda):
+        line=decode(f.readline())[:-1]
+        npa=True
+        while npa or 'END:OBJECT' not in line:
+            try:
+                np.load(f,allow_pickle=False)
+                npa=True
+            except:                
+                line=f.readline()
+                line=decode(line)[:-1]
+                npa=False
+        else:
+            return None
+            
+    # MDAnalysis exists, read out the selection object
+    
     line=decode(f.readline())[:-1]
     if line!='TOPO':print('Warning: First entry of MolSelect object should be topo')
     topo=decode(f.readline())[:-1]  #First try provided full path

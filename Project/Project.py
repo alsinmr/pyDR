@@ -1405,7 +1405,7 @@ class Project():
         return proj
         
     def __sub__(self,obj):
-        assert self.parent is obj.parent,"Project operations (+,|,-,&) are only defined within the same parent project"
+        assert (hasattr(obj,'project') and obj.project is self.parent) or (self.parent is obj.parent),"Project operations (+,|,-,&) are only defined within the same parent project"
         proj=copy(self)
         proj._subproject=True
         proj._parent=self._parent if self._subproject else self

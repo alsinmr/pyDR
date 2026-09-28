@@ -358,6 +358,7 @@ def avgDataObjs(*args,wt:list=None,incl_src:bool=False):
     out.source.additional_info='AvOb' if out.source.additional_info is None else \
         'AvOb_'+out.source.additional_info
         
+        
     #Also average the source data
     if incl_src and not(np.any([d.src_data is None for d in data])):
         out.src_data=avgDataObjs([d.src_data for d in data],wt=wt,incl_src=incl_src)
@@ -466,9 +467,111 @@ def appendDataObjs(*args,check_sens:bool=True):
     if data[0].project is not None:data[0].project.append_data(out)
     
     return out
+
+
+def appendData_sens(data1,data2,rho_index1:list=None,rho_index2:list=None):
+    """
+    Appends two data objects together, where we should have matching number of
+    assignments (R.shape[0]), but different sensitivities. This is particularly
+    likely if say an MD simulation has been chunked, and will allow us to 
+    combine different detectors into one data object
+
+    Parameters
+    ----------
+    data1 : data
+        First data object, or list of objects
+    data2 : data
+        Second data object, or list of objects (matches length of data1).
+    rho_index1 : list, optional
+        Index of detectors to include from data1
+    rho_index2 : list, optional
+        Index of detectors to include from data2
+
+    Returns
+    -------
+    data
+        Appended data or list of appended data
+
+    """
+    assert len(data1)==len(data2),'Data objects or lists/projects must have the same length'
+    
+    # Operate on a list/project
+    if not(hasattr(data1,'R')): #Not a data object
+        out=[]
+        for d1,d2 in zip(data1,data2):
+            out.append(appendData_sens(d1,d2,rho_index1=rho_index1,rho_index2=rho_index2))
+        try:
+            return sum(out)  #Return a subproject if everything is in the same original project
+        except:
+            return out
+        
+    if rho_index1 is None:
+        rho_index1=np.ones(data1.R.shape[1],dtype=bool)
+    if rho_index2 is None:
+        rho_index2=np.ones(data1.R.shape[1],dtype=bool)
+    
+    # Individual data object
+        
+    out=copy(data1)
+    out.sens=copy(data1.sens)
+    
+    out.R=np.concatenate((data1.R[:,rho_index1],data2.R[:,rho_index2]),axis=1)
+    out.Rstd=np.concatenate((data1.Rstd[:,rho_index1],data2.Rstd[:,rho_index2]),axis=1)
     
     
+    out.sens._Sens__rho=np.concatenate((data1.sens._Sens__rho[rho_index1],
+                                        data2.sens._Sens__rho[rho_index2]),axis=0)
     
+    def set_info(sens,k:int=None):
+        info=clsDict['Info']()
+        for i in data1.sens[k].info[rho_index1] if k else data1.info[rho_index1]:
+            info.new_exper(**i)
+        for i in data2.sens[k].info[rho_index2] if k else data2.info[rho_index2]:
+            info.new_exper(**i)
+        info.updated()
+        sens.info=info
+            
+    set_info(out.sens)
+    
+    
+    if len(data1.sens)>1 and len(data2.sens)>1:
+        for k,(s1,s2) in enumerate(zip(data1.sens,data2.sens)):
+            out.sens[k]._Sens__rho=np.concatenate((s1._Sens__rho[rho_index1],
+                                                s2._Sens__rho[rho_index2]),axis=0)
+            # set_info(out.sens[k],k)
+            
+    elif len(data1.sens)>1:
+        for k,s1 in enumerate(data1.sens):
+            out.sens[k]._Sens__rho=np.concatenate((s1._Sens__rho[rho_index1],
+                                                data2.sens._Sens__rho[rho_index2]),axis=0)
+            # set_info(out.sens[k],k)
+    elif len(data2.sens)>1:
+        for k,s2 in enumerate(data2.sens):
+            out.sens[k]._Sens__rho=np.concatenate((data1.sens._Sens__rho[rho_index1],
+                                                s2._Sens__rho[rho_index2]),axis=0)
+            # set_info(out.sens[k],k)
+    
+    out.detect=out.sens.Detector()
+    
+    details=list()
+    details.append('Appending detectors from 2 objects')
+    
+    for k,d in enumerate([data1,data2]):
+        details.append(f'START DATA OBJECT {k}')
+        for det in d.details:details.append(det)
+        details.append(f'END DATA OBJECT {k}')
+        
+    out.details=details
+    out.source.additional_info='ApDet' if out.source.additional_info is None else \
+        'ApDet_'+out.source.additional_info
+    out.source.n_det=out.R.shape[1]
+        
+    if data1.project is not None:data1.project.append_data(out)
+        
+    return out
+        
+        
+        
 
 # def avgData2(data:Data,index:list,wt:list=None)->Data:
 #     """

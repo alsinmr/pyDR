@@ -1190,5 +1190,5 @@ class MolSelect():
                     for i,y in enumerate(f):
                         x += hash(y)*(i+1)
         return x + self.molsys._hash
-        
+    
         

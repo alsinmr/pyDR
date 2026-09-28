@@ -238,7 +238,8 @@ def opt2dist(data,rhoz=None,rhoz_cleanup=False,parallel=False):
                 if 'Normalization' in data.sens.opt_pars and data.sens.opt_pars['Normalization']=='I':
                     rhoz/=rhoz.sum()*data.sens.dz
                 rhoz_clean.append(rhoz)
-            
+        
+        out.detect=None
         out.sens=out.sens.copy()
         out.sens.lock()
         rhoz_clean=np.array(rhoz_clean)
